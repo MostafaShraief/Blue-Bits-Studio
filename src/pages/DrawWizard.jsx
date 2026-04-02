@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
+import ImageUploader from '../components/ImageUploader';
+import PasteButton from '../components/PasteButton';
 import { buildDrawingPrompt } from '../data/prompts';
 import { createSession } from '../utils/api';
 
@@ -11,23 +12,28 @@ const STEPS = ['الإدراج', 'المعاينة والنسخ'];
 export default function DrawWizard() {
     const [step, setStep] = useState(0);
     const [description, setDescription] = useState('');
-    const [image, setImage] = useState(null); // { file, url }
+    const [images, setImages] = useState([]); // { file, url, note }
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
-    const inputRef = useRef(null);
 
-    const handleAddImage = (file) => {
-        if (image) URL.revokeObjectURL(image.url);
-        setImage({ file, url: URL.createObjectURL(file) });
-    };
+    const addImage = useCallback((file) => {
+        const url = URL.createObjectURL(file);
+        setImages((prev) => [...prev, { file, url, note: '' }]);
+    }, []);
 
-    const handleRemoveImage = () => {
-        if (image) URL.revokeObjectURL(image.url);
-        setImage(null);
-    };
+    const removeImage = useCallback((index) => {
+        setImages((prev) => {
+            URL.revokeObjectURL(prev[index].url);
+            return prev.filter((_, i) => i !== index);
+        });
+    }, []);
+
+    const updateImageNote = useCallback((index, text) => {
+        setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
+    }, []);
 
     const goNext = () => {
-        const p = buildDrawingPrompt(description);
+        const p = buildDrawingPrompt(description, images);
         setPrompt(p);
         setSaved(false);
         setStep(1);
@@ -44,14 +50,13 @@ export default function DrawWizard() {
                 workflowType: 'draw',
                 prompt,
                 generalNotes: description,
+                imageNotes: images.map((img) => ({ note: img.note })),
             });
             setSaved(true);
         } catch (e) {
             console.error("Failed to save session", e);
         }
     };
-
-    const imagesForLoop = image ? [image] : [];
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -67,52 +72,21 @@ export default function DrawWizard() {
                 <div className="space-y-5 animate-fade-slide-in">
                     {/* Image upload (optional) */}
                     <div>
-                        <label className="block text-sm font-medium text-text mb-2">صورة مرجعية (اختياري)</label>
-                        {image ? (
-                            <div className="relative inline-block">
-                                <img
-                                    src={image.url}
-                                    alt="مرجع"
-                                    className="max-h-48 rounded-xl border border-border object-contain"
-                                />
-                                <button
-                                    onClick={handleRemoveImage}
-                                    className="absolute -top-2 -left-2 bg-danger text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:scale-110 transition-default"
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                        ) : (
-                            <div
-                                onClick={() => inputRef.current?.click()}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    const f = e.dataTransfer.files[0];
-                                    if (f?.type.startsWith('image/')) handleAddImage(f);
-                                }}
-                                onDragOver={(e) => e.preventDefault()}
-                                className="flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-primary/30 rounded-2xl cursor-pointer hover:border-primary hover:bg-primary-light/30 transition-default"
-                            >
-                                <ImagePlus size={32} className="text-primary" strokeWidth={1.5} />
-                                <p className="text-sm text-text-secondary">اضغط أو اسحب صورة هنا</p>
-                                <input
-                                    ref={inputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const f = e.target.files[0];
-                                        if (f) handleAddImage(f);
-                                        e.target.value = '';
-                                    }}
-                                />
-                            </div>
-                        )}
+                        <h3 className="text-sm font-semibold text-text mb-3">الصور المرجعية (اختياري)</h3>
+                        <ImageUploader
+                            images={images}
+                            onAdd={addImage}
+                            onRemove={removeImage}
+                            onNoteChange={updateImageNote}
+                        />
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">وصف الرسم المطلوب</label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-sm font-medium text-text">وصف الرسم المطلوب</label>
+                            <PasteButton onPaste={(text) => setDescription(prev => (prev ? prev + '\n' + text : text))} />
+                        </div>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -137,7 +111,7 @@ export default function DrawWizard() {
             {step === 1 && (
                 <div className="space-y-6 animate-fade-slide-in">
                     <PromptPreview text={prompt} />
-                    <GuidedCopyLoop prompt={prompt} images={imagesForLoop} />
+                    <GuidedCopyLoop prompt={prompt} images={images} />
 
                     <div className="flex gap-3">
                         <button

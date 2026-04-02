@@ -34,17 +34,17 @@ export function buildExtractionPrompt(workflowType, naming, images, generalNotes
 
     const parts = [base.trim()];
 
-    // Image notes (numbered)
-    if (images.length > 0) {
+    // Image notes
+    if (images && images.length > 0) {
         const imageNoteLines = images
-            .map((img, i) => {
-                const num = i + 1;
-                return img.note ? `${num}. ${img.note}` : null;
+            .map((img) => {
+                const fileName = img.file ? img.file.name : 'image.jpg';
+                return img.note ? `[Image: ${fileName}] Note: ${img.note}` : null;
             })
             .filter(Boolean);
 
         if (imageNoteLines.length > 0) {
-            parts.push(imageNoteLines.join('\n'));
+            parts.push(`### ملاحظات الصور:\n${imageNoteLines.join('\n')}`);
         }
     }
 
@@ -71,6 +71,25 @@ export function buildCoordinationPrompt(workflowType, markdownText) {
 /**
  * Build drawing prompt.
  */
-export function buildDrawingPrompt(description) {
-    return `${PROMPTS.drawing.trim()}\n\n${description.trim()}`;
+export function buildDrawingPrompt(description, images = []) {
+    const parts = [PROMPTS.drawing.trim()];
+
+    if (images && images.length > 0) {
+        const imageNoteLines = images
+            .map((img) => {
+                const fileName = img.file ? img.file.name : 'image.jpg';
+                return img.note ? `[Image: ${fileName}] Note: ${img.note}` : null;
+            })
+            .filter(Boolean);
+
+        if (imageNoteLines.length > 0) {
+            parts.push(`### ملاحظات الصور:\n${imageNoteLines.join('\n')}`);
+        }
+    }
+
+    if (description && description.trim()) {
+        parts.push(`### ملاحظات عامة:\n\n${description.trim()}`);
+    }
+
+    return parts.join('\n\n');
 }

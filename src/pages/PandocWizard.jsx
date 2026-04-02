@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { FileOutput, Upload, Loader2, FolderOpen, File } from 'lucide-react';
+import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
+import PasteButton from '../components/PasteButton';
 import { createSession } from '../utils/api';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
@@ -93,7 +94,7 @@ export default function PandocWizard() {
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
-                            type="text"
+                            type="number"
                             value={lectureNumber}
                             onChange={(e) => setLectureNumber(e.target.value)}
                             placeholder="مثال: 5"
@@ -147,13 +148,16 @@ export default function PandocWizard() {
                     >
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="text-sm font-medium text-text">نص الـ Markdown</label>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-default"
-                            >
-                                <Upload size={14} />
-                                فتح ملف .md
-                            </button>
+                            <div className="flex gap-2">
+                                <PasteButton onPaste={(text) => setMdText(prev => (prev ? prev + '\n' + text : text))} />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-default bg-surface border border-primary/20 px-3 py-1.5 rounded-lg"
+                                >
+                                    <Upload size={14} />
+                                    فتح ملف .md
+                                </button>
+                            </div>
                         </div>
                         <textarea
                             value={mdText}

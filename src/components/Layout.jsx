@@ -3,14 +3,14 @@ import Sidebar from './Sidebar';
 
 export default function Layout() {
     return (
-        <div className="flex min-h-dvh">
+        <div className="flex h-dvh overflow-hidden">
+            {/* Sidebar */}
+            <Sidebar />
+
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8 md:me-64">
                 <Outlet />
             </main>
-
-            {/* Sidebar — right side for RTL */}
-            <Sidebar />
         </div>
     );
 }

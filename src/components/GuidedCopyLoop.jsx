@@ -35,7 +35,10 @@ export default function GuidedCopyLoop({ prompt, images = [] }) {
                 }
             }
             setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
+            setTimeout(() => {
+                setCopied(false);
+                next();
+            }, 800);
         } catch (err) {
             // Fallback: copy text representation
             if (isPromptStep) {
@@ -46,7 +49,10 @@ export default function GuidedCopyLoop({ prompt, images = [] }) {
                 document.execCommand('copy');
                 document.body.removeChild(ta);
                 setCopied(true);
-                setTimeout(() => setCopied(false), 1200);
+                setTimeout(() => {
+                    setCopied(false);
+                    next();
+                }, 800);
             }
             console.error('GuidedCopyLoop: copy failed', err);
         }

@@ -16,16 +16,15 @@ const NAV_ITEMS = [
     { to: '/draw', label: 'الرسم', icon: Palette },
     { to: '/history', label: 'السجل', icon: Clock },
 ];
-
 export default function Sidebar() {
     return (
-        <aside className="hidden md:flex flex-col w-64 bg-sidebar text-white shrink-0 order-last">
+        <aside className="hidden md:flex flex-col fixed inset-y-0 start-0 z-50 w-64 bg-sidebar text-white shrink-0">
             {/* Logo */}
             <div className="flex items-center justify-center px-4 py-6 border-b border-white/10">
                 <img
                     src="/logos/Horizontal logo.png"
                     alt="Blue Bits Studio"
-                    className="h-10 object-contain"
+                    className="h-10 object-contain brightness-0 invert"
                 />
             </div>
 
@@ -49,11 +48,6 @@ export default function Sidebar() {
                     </NavLink>
                 ))}
             </nav>
-
-            {/* Footer */}
-            <div className="px-4 py-4 border-t border-white/10 text-center">
-                <p className="text-xs text-white/40">Blue Bits Studio v1.0</p>
-            </div>
         </aside>
     );
 }

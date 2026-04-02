@@ -4,6 +4,7 @@ import WizardStepper from '../components/WizardStepper';
 import ImageUploader from '../components/ImageUploader';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
+import PasteButton from '../components/PasteButton';
 import { buildExtractionPrompt } from '../data/prompts';
 import { createSession } from '../utils/api';
 
@@ -134,7 +135,7 @@ export default function ExtractionWizard() {
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
-                            type="text"
+                            type="number"
                             value={lectureNumber}
                             onChange={(e) => setLectureNumber(e.target.value)}
                             placeholder="مثال: 5"
@@ -190,7 +191,10 @@ export default function ExtractionWizard() {
 
                     {/* General Notes */}
                     <div>
-                        <h3 className="text-sm font-semibold text-text mb-3">ملاحظات عامة</h3>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-text">ملاحظات عامة</h3>
+                            <PasteButton onPaste={(text) => setGeneralNotes(prev => (prev ? prev + '\n' + text : text))} />
+                        </div>
                         <textarea
                             value={generalNotes}
                             onChange={(e) => setGeneralNotes(e.target.value)}

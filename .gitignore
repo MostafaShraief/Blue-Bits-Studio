@@ -22,3 +22,21 @@ Thumbs.db
 
 # OpenCode
 .opencode
+
+# C# / .NET
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Uploads
+Backend/uploads/

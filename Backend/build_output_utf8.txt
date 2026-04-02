@@ -1,0 +1,31 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Endpoints\SessionsEndpoints.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Program.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(6,34): error CS0246: The type or namespace name 'DbContext' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(8,30): error CS0246: The type or namespace name 'DbContextOptions<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(10,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(11,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(12,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(13,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(15,45): error CS0246: The type or namespace name 'ModelBuilder' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+
+Build FAILED.
+
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Endpoints\SessionsEndpoints.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Program.cs(1,17): error CS0234: The type or namespace name 'EntityFrameworkCore' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(6,34): error CS0246: The type or namespace name 'DbContext' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(8,30): error CS0246: The type or namespace name 'DbContextOptions<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(10,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(11,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(12,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(13,12): error CS0246: The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+D:\Programming\Python\Blue Bits Studio beta 2\Backend\Data\BlueBitsDbContext.cs(15,45): error CS0246: The type or namespace name 'ModelBuilder' could not be found (are you missing a using directive or an assembly reference?) [D:\Programming\Python\Blue Bits Studio beta 2\Backend\BlueBits.Api.csproj]
+    0 Warning(s)
+    10 Error(s)
+
+Time Elapsed 00:00:01.33
+
+Workload updates are available. Run `dotnet workload list` for more information.

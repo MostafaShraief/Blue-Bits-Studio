@@ -1,0 +1,6 @@
+@BlueBits.Api_HostAddress = http://localhost:5135
+
+GET {{BlueBits.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -4,7 +4,7 @@ import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import { buildDrawingPrompt } from '../data/prompts';
-import { saveSession } from '../utils/storage';
+import { createSession } from '../utils/api';
 
 const STEPS = ['الإدراج', 'المعاينة والنسخ'];
 
@@ -35,16 +35,20 @@ export default function DrawWizard() {
 
     const goBack = () => setStep(0);
 
-    const handleSave = () => {
-        saveSession({
-            materialName: '',
-            lectureNumber: '',
-            lectureType: '',
-            workflowType: 'draw',
-            prompt,
-            generalNotes: description,
-        });
-        setSaved(true);
+    const handleSave = async () => {
+        try {
+            await createSession({
+                materialName: 'رسم بياني',
+                lectureNumber: '',
+                lectureType: '',
+                workflowType: 'draw',
+                prompt,
+                generalNotes: description,
+            });
+            setSaved(true);
+        } catch (e) {
+            console.error("Failed to save session", e);
+        }
     };
 
     const imagesForLoop = image ? [image] : [];

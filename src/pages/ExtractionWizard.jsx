@@ -5,7 +5,7 @@ import ImageUploader from '../components/ImageUploader';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import { buildExtractionPrompt } from '../data/prompts';
-import { saveSession } from '../utils/storage';
+import { createSession } from '../utils/api';
 
 const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -65,17 +65,21 @@ export default function ExtractionWizard() {
     const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
     /* ── Save session ───────────────────── */
-    const handleSave = () => {
-        saveSession({
-            materialName,
-            lectureNumber,
-            lectureType,
-            workflowType,
-            prompt,
-            generalNotes,
-            imageNotes: images.map((img) => ({ note: img.note })),
-        });
-        setSaved(true);
+    const handleSave = async () => {
+        try {
+            await createSession({
+                materialName,
+                lectureNumber,
+                lectureType,
+                workflowType,
+                prompt,
+                generalNotes,
+                imageNotes: images.map((img) => ({ note: img.note })),
+            });
+            setSaved(true);
+        } catch (e) {
+            console.error("Failed to save session", e);
+        }
     };
 
     const canProceedStep1 = materialName.trim() && lectureNumber.trim();

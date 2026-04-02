@@ -3,7 +3,7 @@ import { Copy } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import { buildCoordinationPrompt } from '../data/prompts';
-import { saveSession } from '../utils/storage';
+import { createSession } from '../utils/api';
 
 const STEPS = ['إدراج النص', 'المعاينة والنسخ'];
 
@@ -39,16 +39,20 @@ export default function CoordinationWizard() {
         setTimeout(() => setCopied(false), 1200);
     }, [prompt]);
 
-    const handleSave = () => {
-        saveSession({
-            materialName: '',
-            lectureNumber: '',
-            lectureType: '',
-            workflowType: 'coordination',
-            prompt,
-            generalNotes: markdownText,
-        });
-        setSaved(true);
+    const handleSave = async () => {
+        try {
+            await createSession({
+                materialName: 'تنسيق ' + (workflowType === 'lecture' ? 'محاضرة' : 'بنك'),
+                lectureNumber: '',
+                lectureType: '',
+                workflowType: 'coordination',
+                prompt,
+                generalNotes: markdownText,
+            });
+            setSaved(true);
+        } catch (e) {
+            console.error("Failed to save session", e);
+        }
     };
 
     return (

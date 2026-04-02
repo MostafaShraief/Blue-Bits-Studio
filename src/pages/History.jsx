@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Copy } from 'lucide-react';
-import { getSessions, deleteSession } from '../utils/storage';
+import { fetchSessions, removeSession } from '../utils/api';
 
 const FILTERS = [
     { value: 'all', label: 'الكل' },
@@ -20,19 +20,28 @@ const TYPE_META = {
 };
 
 export default function History() {
-    const [sessions, setSessions] = useState(() => getSessions());
+    const [sessions, setSessions] = useState([]);
     const [filter, setFilter] = useState('all');
     const [expandedId, setExpandedId] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
+
+    useEffect(() => {
+        loadSessions();
+    }, []);
+
+    const loadSessions = async () => {
+        const data = await fetchSessions();
+        setSessions(data);
+    };
 
     const filtered = useMemo(() => {
         if (filter === 'all') return sessions;
         return sessions.filter((s) => s.workflowType === filter);
     }, [sessions, filter]);
 
-    const handleDelete = (id) => {
-        deleteSession(id);
-        setSessions(getSessions());
+    const handleDelete = async (id) => {
+        await removeSession(id);
+        await loadSessions();
         if (expandedId === id) setExpandedId(null);
     };
 

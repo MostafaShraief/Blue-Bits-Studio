@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { FileOutput, Upload, Loader2, FolderOpen, File } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
-import { saveSession } from '../utils/storage';
+import { createSession } from '../utils/api';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
@@ -47,12 +47,10 @@ export default function PandocWizard() {
     };
 
     /* Mock execution (backend required) */
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         setStatus('loading');
-        // Simulate backend call
-        setTimeout(() => {
-            setStatus('success');
-            saveSession({
+        try {
+            await createSession({
                 materialName,
                 lectureNumber,
                 lectureType,
@@ -60,7 +58,13 @@ export default function PandocWizard() {
                 prompt: mdText,
                 generalNotes: `Template: ${lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}`,
             });
-        }, 2000);
+            setTimeout(() => {
+                setStatus('success');
+            }, 1000);
+        } catch (e) {
+            console.error("Failed to save session", e);
+            setStatus('error');
+        }
     };
 
     return (

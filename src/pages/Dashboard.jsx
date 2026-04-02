@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import {
     FileSearch,
@@ -10,7 +11,7 @@ import {
     Clock,
     ArrowLeft,
 } from 'lucide-react';
-import { getSessions, getStats } from '../utils/storage';
+import { fetchSessions, fetchStats } from '../utils/api';
 
 const STAT_CARDS = [
     { label: 'محاضرات', value: 'lecture', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
@@ -51,8 +52,18 @@ const TYPE_LABELS = {
 };
 
 export default function Dashboard() {
-    const stats = getStats();
-    const recent = getSessions().slice(0, 5);
+    const [stats, setStats] = useState({ total: 0, lecture: 0, bank: 0, draw: 0, pandoc: 0, coordination: 0 });
+    const [recent, setRecent] = useState([]);
+
+    useEffect(() => {
+        const load = async () => {
+            const s = await fetchStats();
+            setStats(s);
+            const data = await fetchSessions();
+            setRecent(data.slice(0, 5));
+        };
+        load();
+    }, []);
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in">

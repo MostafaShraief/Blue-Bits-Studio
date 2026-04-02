@@ -1,0 +1,76 @@
+/* ── Prompt Template Loader ───────────────────────
+ *  Imports all prompt markdown files from Resources/Prompts
+ *  as raw strings using Vite's ?raw query.
+ */
+
+import lectureExtractionRaw from '../../Resources/Prompts/استخراج النص من المحاضرة.md?raw';
+import bankExtractionRaw from '../../Resources/Prompts/استخراج أسئلة البنك.md?raw';
+import drawingRaw from '../../Resources/Prompts/الرسم بالذكاء الاصطناعي.md?raw';
+import lectureCoordinationRaw from '../../Resources/Prompts/تنسيق المحاضرات.md?raw';
+import bankCoordinationRaw from '../../Resources/Prompts/تنسيق البنوك.md?raw';
+
+export const PROMPTS = {
+    lectureExtraction: lectureExtractionRaw,
+    bankExtraction: bankExtractionRaw,
+    drawing: drawingRaw,
+    lectureCoordination: lectureCoordinationRaw,
+    bankCoordination: bankCoordinationRaw,
+};
+
+/**
+ * Build the final extraction prompt given user inputs.
+ *
+ * @param {'lecture'|'bank'} workflowType
+ * @param {{ materialName: string, lectureNumber: string, lectureType: string }} naming
+ * @param {{ url: string, note: string }[]} images - each with objectURL and note
+ * @param {string} generalNotes
+ * @returns {string} assembled prompt text
+ */
+export function buildExtractionPrompt(workflowType, naming, images, generalNotes) {
+    const base =
+        workflowType === 'lecture'
+            ? PROMPTS.lectureExtraction
+            : PROMPTS.bankExtraction;
+
+    const parts = [base.trim()];
+
+    // Image notes (numbered)
+    if (images.length > 0) {
+        const imageNoteLines = images
+            .map((img, i) => {
+                const num = i + 1;
+                return img.note ? `${num}. ${img.note}` : null;
+            })
+            .filter(Boolean);
+
+        if (imageNoteLines.length > 0) {
+            parts.push(imageNoteLines.join('\n'));
+        }
+    }
+
+    // General notes
+    if (generalNotes.trim()) {
+        parts.push(generalNotes.trim());
+    }
+
+    return parts.join('\n\n');
+}
+
+/**
+ * Build coordination prompt.
+ */
+export function buildCoordinationPrompt(workflowType, markdownText) {
+    const base =
+        workflowType === 'lecture'
+            ? PROMPTS.lectureCoordination
+            : PROMPTS.bankCoordination;
+
+    return `${base.trim()}\n\n${markdownText.trim()}`;
+}
+
+/**
+ * Build drawing prompt.
+ */
+export function buildDrawingPrompt(description) {
+    return `${PROMPTS.drawing.trim()}\n\n${description.trim()}`;
+}

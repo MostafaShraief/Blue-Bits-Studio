@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #0072BD;
+  --color-primary-light: #e0f0ff;
+  --color-primary-dark: #005a96;
+  --color-cyan: #33C9FF;
+  --color-cyan-light: #d6f3ff;
+  --color-success: #009E73;
+  --color-success-light: #e0f5ee;
+  --color-danger: #D32F2F;
+  --color-danger-light: #fde8e8;
+
+  --color-sidebar: #0a1628;
+  --color-sidebar-hover: #132240;
+  --color-sidebar-active: #0072BD;
+
+  --color-surface: #f8fafc;
+  --color-surface-card: #ffffff;
+  --color-surface-hover: #f1f5f9;
+
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+}
+
+/* ── Base ───────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  direction: rtl;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* ── Scrollbar (WebKit) ────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* ── Transitions ───────────────────────── */
+.transition-default {
+  transition: all 0.2s ease;
+}
+
+/* ── Wizard Step Animations ────────────── */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fadeSlideIn 0.35s ease-out;
+}
+
+/* ── Copy Flash ────────────────────────── */
+@keyframes copyFlash {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.animate-copy-flash {
+  animation: copyFlash 0.3s ease;
+}

@@ -5,8 +5,9 @@ import ImageUploader from '../components/ImageUploader';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import PasteButton from '../components/PasteButton';
+import PasteImageButton from '../components/PasteImageButton';
 import { buildExtractionPrompt } from '../data/prompts';
-import { createSession } from '../utils/api';
+import { createSession, fetchSession } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
@@ -14,6 +15,7 @@ const STEPS = ['التسمية', 'المدخلات', 'المعاينة والن�
 export default function ExtractionWizard() {
     const [searchParams] = useSearchParams();
     const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
+    const id = searchParams.get('id');
     const { autoSave } = useSettings();
 
     const [step, setStep] = useState(0);
@@ -31,6 +33,32 @@ export default function ExtractionWizard() {
     // Step 3 — Generated prompt
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        if (id) {
+            fetchSession(id).then(data => {
+                if (data) {
+                    if (data.materialName) setMaterialName(data.materialName);
+                    if (data.lectureNumber) setLectureNumber(data.lectureNumber);
+                    if (data.lectureType) setLectureType(data.lectureType);
+                    if (data.workflowType) setWorkflowType(data.workflowType);
+                    if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
+                    
+                    const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
+                    if (notes) setGeneralNotes(notes);
+                    
+                    if (data.images && data.images.length > 0) {
+                        const loadedImages = data.images.map(img => ({
+                            file: null,
+                            url: 'http://localhost:5135/uploads/' + img.localFilePath,
+                            note: img.note || ''
+                        }));
+                        setImages(loadedImages);
+                    }
+                }
+            });
+        }
+    }, [id]);
 
     /* ── Image handlers ─────────────────── */
     const addImage = useCallback((file) => {
@@ -52,6 +80,7 @@ export default function ExtractionWizard() {
     /* ── Global Paste Handler ────────────── */
     useEffect(() => {
         const handleGlobalPaste = (e) => {
+            if (step !== 1) return;
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
             const items = e.clipboardData?.items;
@@ -222,7 +251,7 @@ export default function ExtractionWizard() {
                 <div className="space-y-6 animate-fade-slide-in">
                     {/* Images */}
                     <div>
-                        <h3 className="text-sm font-semibold text-text mb-3">الصور وملاحظات الصور</h3>
+                        <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور وملاحظات الصور</h3><PasteImageButton onPasteImage={addImage} /></div>
                         <ImageUploader
                             images={images}
                             onAdd={addImage}

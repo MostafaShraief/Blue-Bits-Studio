@@ -1,15 +1,41 @@
-import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
+import { useEffect, useState, useCallback } from 'react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import ImageUploader from '../components/ImageUploader';
 import PasteButton from '../components/PasteButton';
+import PasteImageButton from '../components/PasteImageButton';
 import { buildDrawingPrompt } from '../data/prompts';
-import { createSession } from '../utils/api';
+import { createSession, fetchSession } from '../utils/api';
 
 const STEPS = ['الإدراج', 'المعاينة والنسخ'];
 
 export default function DrawWizard() {
+    const [searchParams] = useSearchParams();
+    const id = searchParams.get('id');
+
+    useEffect(() => {
+        if (id) {
+            fetchSession(id).then(data => {
+                if (data) {
+                    if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
+                    const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
+                    if (notes) setDescription(notes);
+                    
+                    if (data.images && data.images.length > 0) {
+                        const loadedImages = data.images.map(img => ({
+                            file: null,
+                            url: 'http://localhost:5135/uploads/' + img.localFilePath,
+                            note: img.note || ''
+                        }));
+                        setImages(loadedImages);
+                    }
+                }
+            });
+        }
+    }, [id]);
+
     const [step, setStep] = useState(0);
     const [description, setDescription] = useState('');
     const [images, setImages] = useState([]); // { file, url, note }
@@ -17,8 +43,11 @@ export default function DrawWizard() {
     const [saved, setSaved] = useState(false);
 
     const addImage = useCallback((file) => {
-        const url = URL.createObjectURL(file);
-        setImages((prev) => [...prev, { file, url, note: '' }]);
+        setImages((prev) => {
+            if (prev.length >= 3) return prev;
+            const url = URL.createObjectURL(file);
+            return [...prev, { file, url, note: '' }];
+        });
     }, []);
 
     const removeImage = useCallback((index) => {
@@ -31,6 +60,28 @@ export default function DrawWizard() {
     const updateImageNote = useCallback((index, text) => {
         setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
     }, []);
+
+    
+    useEffect(() => {
+        const handleGlobalPaste = (e) => {
+            if (step !== 0) return;
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        addImage(file);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handleGlobalPaste);
+        return () => window.removeEventListener('paste', handleGlobalPaste);
+    }, [step, addImage]);
 
     const goNext = () => {
         const p = buildDrawingPrompt(description, images);
@@ -72,7 +123,7 @@ export default function DrawWizard() {
                 <div className="space-y-5 animate-fade-slide-in">
                     {/* Image upload (optional) */}
                     <div>
-                        <h3 className="text-sm font-semibold text-text mb-3">الصور المرجعية (اختياري)</h3>
+                        <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3><PasteImageButton onPasteImage={addImage} /></div>
                         <ImageUploader
                             images={images}
                             onAdd={addImage}
@@ -81,8 +132,13 @@ export default function DrawWizard() {
                             maxImages={3}
                         />
                         {images.length > 1 && (
-                            <p className="text-xs text-warning mt-2">
-                                <strong>ملاحظة:</strong> إضافة أكثر من صورة قد يؤثر سلبًا على جودة ودقة الرسم المستخرج.
+                            <p className="text-xs font-bold text-amber-500 mt-2">
+                                ملاحظة: إضافة أكثر من صورة قد يؤثر سلبًا على جودة ودقة الرسم المستخرج.
+                            </p>
+                        )}
+                        {images.length >= 3 && (
+                            <p className="text-xs text-red-500 mt-1 font-bold">
+                                لقد وصلت للحد الأقصى للصور (3 صور). لا يمكنك إضافة المزيد.
                             </p>
                         )}
                     </div>

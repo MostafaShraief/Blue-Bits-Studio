@@ -8,8 +8,7 @@ import {
     Clock,
     Moon,
     Sun,
-    Save,
-    Settings
+    Save
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -22,7 +21,7 @@ const NAV_ITEMS = [
     { to: '/history', label: 'السجل', icon: Clock },
 ];
 export default function Sidebar() {
-    const { darkMode, setDarkMode, autoSave, setAutoSave, docxSavePrompt, setDocxSavePrompt } = useSettings();
+    const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();
 
     return (
         <aside className="hidden md:flex flex-col fixed inset-y-0 start-0 z-50 w-64 bg-sidebar text-white shrink-0">
@@ -71,7 +70,7 @@ export default function Sidebar() {
                                 checked={darkMode}
                                 onChange={(e) => setDarkMode(e.target.checked)}
                             />
-                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                         </div>
                     </label>
 
@@ -87,23 +86,7 @@ export default function Sidebar() {
                                 checked={autoSave}
                                 onChange={(e) => setAutoSave(e.target.checked)}
                             />
-                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </div>
-                    </label>
-                    
-                    <label className="flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center gap-3 text-sm text-white/70 group-hover:text-white transition-colors">
-                            <Settings size={18} />
-                            <span>حفظ DOCX</span>
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={docxSavePrompt}
-                                onChange={(e) => setDocxSavePrompt(e.target.checked)}
-                            />
-                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                         </div>
                     </label>
                 </div>

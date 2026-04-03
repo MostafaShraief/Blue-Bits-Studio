@@ -1,12 +1,29 @@
-import { useState, useRef } from 'react';
+import { useSearchParams } from 'react-router';
+import { useEffect, useState, useRef } from 'react';
 import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
-import { createSession, generatePandoc } from '../utils/api';
+import { createSession, fetchSession, generatePandoc } from '../utils/api';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
 export default function PandocWizard() {
+    const [searchParams] = useSearchParams();
+    const id = searchParams.get('id');
+
+    useEffect(() => {
+        if (id) {
+            fetchSession(id).then(data => {
+                if (data) {
+                    if (data.materialName) setMaterialName(data.materialName);
+                    if (data.lectureNumber) setLectureNumber(data.lectureNumber);
+                    if (data.lectureType) setLectureType(data.lectureType);
+                    if (data.prompt && data.prompt.promptText) setMdText(data.prompt.promptText);
+                }
+            });
+        }
+    }, [id]);
+
     const [step, setStep] = useState(0);
     const fileInputRef = useRef(null);
 

@@ -104,9 +104,12 @@ export default function CoordinationWizard() {
 
                     {/* Markdown textarea */}
                     <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">
-                            نص الـ Markdown المراجَع
-                        </label>
+                        <div className="flex justify-between items-end mb-1.5">
+                            <label className="block text-sm font-medium text-text">
+                                نص الـ Markdown المراجَع
+                            </label>
+                            <span className="text-xs text-text-muted">قم بإزالة أي أسطر فارغة إضافية أو نصوص غير ضرورية قبل اللصق</span>
+                        </div>
                         <textarea
                             value={markdownText}
                             onChange={(e) => setMarkdownText(e.target.value)}

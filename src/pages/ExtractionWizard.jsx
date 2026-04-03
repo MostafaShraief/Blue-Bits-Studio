@@ -134,6 +134,21 @@ export default function ExtractionWizard() {
     const handleSave = useCallback(async () => {
         if (saved) return;
         try {
+            const processedImages = await Promise.all(images.map(async (img, i) => {
+                if (!img.file && img.url) {
+                    try {
+                        const res = await fetch(img.url);
+                        const blob = await res.blob();
+                        const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
+                        return { ...img, file };
+                    } catch (err) {
+                        console.error('Failed to fetch image blob', err);
+                        return img;
+                    }
+                }
+                return img;
+            }));
+
             await createSession({
                 materialName,
                 lectureNumber,
@@ -141,9 +156,8 @@ export default function ExtractionWizard() {
                 workflowType,
                 prompt,
                 generalNotes,
-                images,
-                images,
-                imageNotes: images.map((img) => ({ note: img.note })),
+                images: processedImages,
+                imageNotes: processedImages.map((img) => ({ note: img.note })),
             });
             setSaved(true);
         } catch (e) {

@@ -121,17 +121,19 @@ public static class SessionsEndpoints
                 // Create Image entity
                 var imageEntity = new Image
                 {
+                    SessionId = id,
                     LocalFilePath = $"sessions/{id}/{fileName}",
                     OrderIndex = index
                 };
 
-                session.Images.Add(imageEntity);
+                db.Images.Add(imageEntity);
 
                 // Check if a corresponding note exists
                 if (notes.Count > i && !string.IsNullOrWhiteSpace(notes[i]))
                 {
-                    session.Notes.Add(new Note
+                    db.Notes.Add(new Note
                     {
+                        SessionId = id,
                         NoteText = notes[i],
                         NoteType = $"Image-{index}" // Note type referencing the image index
                     });

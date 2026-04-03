@@ -51,35 +51,52 @@ const TOUR_DATA = {
                 }, 100);
             } catch (e) {}
         }},
-        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-preview"]', title: 'توليد ونسخ الموجه (Prompt)', content: 'يقوم النظام بدمج معلوماتك مع الموجه الأساسي. يمكنك النسخ والتوجه إلى AI Studio لاستخراج النص.' },
-        { path: '/coordination', selector: '[data-tour="coordination-type"]', title: 'مرحلة التنسيق', content: 'بعد تصحيح النص في Obsidian، ألصقه هنا مع تحديد نوع المحتوى كـ "محاضرة" للحصول على موجه التنسيق.', autoFill: () => {
+        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-preview"]', title: 'توليد ونسخ الموجه (Prompt)', content: 'يقوم النظام بدمج معلوماتك مع الموجه الأساسي. استخدم أزرار "التالي" و"السابق" (النسخ الموجه Guided Copy Loop) لنسخ الموجهات مجزأة، لتجنب تجاوز حد استيعاب الذكاء الاصطناعي.' },
+        { path: '/coordination', selector: '[data-tour="coordination-input"]', title: 'مرحلة التنسيق', content: 'بعد تصحيح النص في Obsidian، ألصقه هنا مع تحديد نوع المحتوى كـ "محاضرة" للحصول على موجه التنسيق.', autoFill: () => {
             const btn = document.querySelector('button[value="lecture"]');
             if (btn) btn.click();
             const textArea = document.querySelector('textarea');
             if (textArea) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                nativeSetter.call(textArea, 'محتوى المحاضرة المستخرج هنا...');
+                nativeSetter.call(textArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
                 textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }},
-        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي', content: 'ألصق النص المنسق، وتأكد من البيانات ليتم التحويل إلى ملف Word جاهز ومنسق عبر Pandoc.', autoFill: () => {
-            const contentArea = document.querySelector('textarea[placeholder*="محتوى"]');
-            if (contentArea) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                nativeSetter.call(contentArea, '# مقدمة\nهذا محتوى منسق وجاهز للتحويل.');
-                contentArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            const matName = document.querySelector('input[placeholder*="اسم المادة"]');
+        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'نقوم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
+            const matName = document.querySelector('input[placeholder*="قواعد البيانات"]');
             if (matName) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
                 nativeSetter.call(matName, 'مقدمة في قواعد البيانات');
                 matName.dispatchEvent(new Event('input', { bubbles: true }));
             }
+            const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
+            if (lecNum) {
+                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                nativeSetter.call(lecNum, '1');
+                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }},
+        { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'نلصق هنا النص المنسق من الخطوة السابقة.', autoFill: () => {
+            const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('التالي'));
+            if (nextBtn && !nextBtn.disabled) nextBtn.click();
             
             setTimeout(() => {
-                const genBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('تحويل') || b.textContent.includes('Generate'));
+                const contentArea = document.querySelector('textarea[placeholder*="الصق نص"]');
+                if (contentArea) {
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                    nativeSetter.call(contentArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
+                    contentArea.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }, 300);
+        }},
+        { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط أخيراً على إنشاء ملف Word لتحويل النص عبر Pandoc.', autoFill: () => {
+            const createBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('إنشاء المستند'));
+            if (createBtn && !createBtn.disabled) createBtn.click();
+            
+            setTimeout(() => {
+                const genBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('إنشاء ملف Word'));
                 if (genBtn) genBtn.click();
-            }, 100);
+            }, 300);
         }}
     ],
     bank: [
@@ -125,8 +142,8 @@ const TOUR_DATA = {
                 }, 100);
             } catch(e) {}
         }},
-        { path: '/extraction?type=bank', selector: '[data-tour="extraction-preview"]', title: 'توليد الموجه', content: 'انسخ الموجه واذهب إلى AI Studio ليقوم باستخراج وتحليل البنك.' },
-        { path: '/coordination', selector: '[data-tour="coordination-type"]', title: 'تنسيق البنك', content: 'ألصق أسئلة البنك هنا وتأكد من اختيار "بنك أسئلة" للحصول على تنسيق البنوك.', autoFill: () => {
+        { path: '/extraction?type=bank', selector: '[data-tour="extraction-preview"]', title: 'توليد الموجه', content: 'استخدم أزرار "التالي" و"السابق" (النسخ الموجه Guided Copy Loop) لنسخ الموجهات مجزأة واذهب إلى AI Studio ليقوم باستخراج وتحليل البنك.' },
+        { path: '/coordination', selector: '[data-tour="coordination-input"]', title: 'تنسيق البنك', content: 'ألصق أسئلة البنك هنا وتأكد من اختيار "بنك أسئلة" للحصول على تنسيق البنوك.', autoFill: () => {
             const btn = document.querySelector('button[value="bank"]');
             if (btn) btn.click();
             const textArea = document.querySelector('textarea');
@@ -136,13 +153,41 @@ const TOUR_DATA = {
                 textArea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }},
-        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'تحويل البنك لـ Word', content: 'قم بإتمام الخطوة لتحويل النص المنسق إلى ملف Word لبنك الأسئلة.', autoFill: () => {
-            const matName = document.querySelector('input[placeholder*="اسم المادة"]');
+        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'نقوم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
+            const matName = document.querySelector('input[placeholder*="قواعد البيانات"]');
             if (matName) {
                 const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
                 nativeSetter.call(matName, 'فيزياء عامة');
                 matName.dispatchEvent(new Event('input', { bubbles: true }));
             }
+            const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
+            if (lecNum) {
+                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                nativeSetter.call(lecNum, '1');
+                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }},
+        { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'نلصق هنا نص بنك الأسئلة.', autoFill: () => {
+            const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('التالي'));
+            if (nextBtn && !nextBtn.disabled) nextBtn.click();
+            
+            setTimeout(() => {
+                const contentArea = document.querySelector('textarea[placeholder*="الصق نص"]');
+                if (contentArea) {
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                    nativeSetter.call(contentArea, 'السؤال الأول: ما هي السرعة؟\nأ) مسافة ب) زمن');
+                    contentArea.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }, 300);
+        }},
+        { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط أخيراً على إنشاء ملف Word لتحويل النص عبر Pandoc.', autoFill: () => {
+            const createBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('إنشاء المستند'));
+            if (createBtn && !createBtn.disabled) createBtn.click();
+            
+            setTimeout(() => {
+                const genBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('إنشاء ملف Word'));
+                if (genBtn) genBtn.click();
+            }, 300);
         }}
     ],
     draw: [
@@ -213,30 +258,18 @@ export const TourProvider = ({ children }) => {
         setCurrentStepIndex(0);
     };
 
-    const nextStep = async () => {
+    const nextStep = () => {
         if (!isActive || !currentWorkflow) return;
         const workflow = TOUR_DATA[currentWorkflow];
-        
-        // Execute autoFill of current step before proceeding
-        const currentStepData = workflow[currentStepIndex];
-        if (currentStepData && typeof currentStepData.autoFill === 'function') {
-            try {
-                await currentStepData.autoFill();
-            } catch(e) {
-                console.error("AutoFill error:", e);
-            }
-        }
 
-        setTimeout(() => {
-            if (currentStepIndex < workflow.length - 1) {
-                const nextIdx = currentStepIndex + 1;
-                setCurrentStepIndex(nextIdx);
-                const nextPath = workflow[nextIdx].path;
-                navigate(nextPath);
-            } else {
-                stopTour();
-            }
-        }, 300); // Wait briefly before navigating
+        if (currentStepIndex < workflow.length - 1) {
+            const nextIdx = currentStepIndex + 1;
+            const nextPath = workflow[nextIdx].path;
+            setCurrentStepIndex(nextIdx);
+            navigate(nextPath);
+        } else {
+            stopTour();
+        }
     };
 
     const prevStep = () => {
@@ -248,6 +281,30 @@ export const TourProvider = ({ children }) => {
     };
 
     const currentStep = isActive && currentWorkflow ? TOUR_DATA[currentWorkflow][currentStepIndex] : null;
+
+    useEffect(() => {
+        if (!isActive || !currentStep) return;
+        
+        const expectedPath = currentStep.path.split('?')[0];
+        const expectedSearch = currentStep.path.split('?')[1] ? `?${currentStep.path.split('?')[1]}` : '';
+        
+        const timer = setTimeout(() => {
+            if (window.location.pathname !== expectedPath || (expectedSearch && window.location.search !== expectedSearch)) {
+                stopTour();
+                return;
+            }
+
+            if (typeof currentStep.autoFill === 'function') {
+                try {
+                    currentStep.autoFill();
+                } catch(e) {
+                    console.error("AutoFill error:", e);
+                }
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [currentStepIndex, isActive, currentWorkflow, location.pathname, location.search]);
 
     return (
         <TourContext.Provider value={{ isActive, currentStep, startTour, stopTour, nextStep, prevStep, currentStepIndex, totalSteps: currentWorkflow ? TOUR_DATA[currentWorkflow].length : 0 }}>

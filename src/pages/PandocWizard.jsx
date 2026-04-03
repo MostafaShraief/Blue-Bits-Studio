@@ -189,7 +189,7 @@ export default function PandocWizard() {
 
             {/* Step 2: Input MD */}
             {step === 1 && (
-                <div className="space-y-5 animate-fade-slide-in">
+                <div data-tour="pandoc-input" className="space-y-5 animate-fade-slide-in">
                     <div
                         onDrop={handleDrop}
                         onDragOver={(e) => e.preventDefault()}
@@ -245,7 +245,7 @@ export default function PandocWizard() {
 
             {/* Step 3: Execution & Result */}
             {step === 2 && (
-                <div className="space-y-6 animate-fade-slide-in">
+                <div data-tour="pandoc-generate" className="space-y-6 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-8 text-center space-y-4">
                         {status === 'idle' && (
                             <>

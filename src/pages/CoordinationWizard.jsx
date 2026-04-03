@@ -118,7 +118,7 @@ export default function CoordinationWizard() {
                     </div>
 
                     {/* Markdown textarea */}
-                    <div>
+                    <div data-tour="coordination-input">
                         <div className="flex justify-between items-end mb-1.5">
                             <label className="block text-sm font-medium text-text">
                                 نص الـ Markdown المراجَع

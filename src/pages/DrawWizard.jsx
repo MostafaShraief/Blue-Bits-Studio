@@ -183,6 +183,22 @@ export default function DrawWizard() {
                             <PasteButton onPaste={(text) => setDescription(prev => (prev ? prev + '\n' + text : text))} />
                         </div>
                         <textarea
+                            onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
+                                let hasImage = false;
+                                for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf('image') !== -1) {
+                                        hasImage = true;
+                                        const file = items[i].getAsFile();
+                                        if (file) {
+                                            const url = URL.createObjectURL(file);
+                                            setImages((prev) => [...prev, { file, url, note: '' }]);
+                                        }
+                                    }
+                                }
+                                if (hasImage) e.preventDefault();
+                            }}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="اكتب وصفاً تفصيلياً للمخطط أو الرسم البياني المطلوب..."

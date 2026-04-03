@@ -127,8 +127,23 @@ export default function PandocWizard() {
                         <input
                             type="number"
                             value={lectureNumber}
-                            onChange={(e) => setLectureNumber(e.target.value)}
+                            onChange={(e) => {
+                                let val = e.target.value;
+                                if (val === '') {
+                                    setLectureNumber('');
+                                    return;
+                                }
+                                const num = parseInt(val, 10);
+                                if (!isNaN(num)) {
+                                    if (num > 99) val = '99';
+                                    else if (num < 1) val = '1';
+                                    else val = num.toString();
+                                }
+                                setLectureNumber(val);
+                            }}
                             placeholder="مثال: 5"
+                            min="1"
+                            max="99"
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
                     </div>
@@ -191,6 +206,22 @@ export default function PandocWizard() {
                             </div>
                         </div>
                         <textarea
+                            onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
+                                let hasImage = false;
+                                for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf('image') !== -1) {
+                                        hasImage = true;
+                                        const file = items[i].getAsFile();
+                                        if (file) {
+                                            const url = URL.createObjectURL(file);
+                                            setImages((prev) => [...prev, { file, url, note: '' }]);
+                                        }
+                                    }
+                                }
+                                if (hasImage) e.preventDefault();
+                            }}
                             value={mdText}
                             onChange={(e) => setMdText(e.target.value)}
                             placeholder="الصق نص الـ Markdown هنا، أو اسحب ملف .md ..."

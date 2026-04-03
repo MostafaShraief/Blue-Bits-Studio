@@ -226,8 +226,23 @@ export default function ExtractionWizard() {
                         <input
                             type="number"
                             value={lectureNumber}
-                            onChange={(e) => setLectureNumber(e.target.value)}
+                            onChange={(e) => {
+                                let val = e.target.value;
+                                if (val === '') {
+                                    setLectureNumber('');
+                                    return;
+                                }
+                                const num = parseInt(val, 10);
+                                if (!isNaN(num)) {
+                                    if (num > 99) val = '99';
+                                    else if (num < 1) val = '1';
+                                    else val = num.toString();
+                                }
+                                setLectureNumber(val);
+                            }}
                             placeholder="مثال: 5"
+                            min="1"
+                            max="99"
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
                     </div>
@@ -285,6 +300,22 @@ export default function ExtractionWizard() {
                             <PasteButton onPaste={(text) => setGeneralNotes(prev => (prev ? prev + '\n' + text : text))} />
                         </div>
                         <textarea
+                            onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
+                                let hasImage = false;
+                                for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf('image') !== -1) {
+                                        hasImage = true;
+                                        const file = items[i].getAsFile();
+                                        if (file) {
+                                            const url = URL.createObjectURL(file);
+                                            setImages((prev) => [...prev, { file, url, note: '' }]);
+                                        }
+                                    }
+                                }
+                                if (hasImage) e.preventDefault();
+                            }}
                             value={generalNotes}
                             onChange={(e) => setGeneralNotes(e.target.value)}
                             placeholder="أضف ملاحظات عامة للمحاضرة... (اختياري) أو اضغط Ctrl+V للصق من الحافظة مباشرة"
@@ -314,17 +345,6 @@ export default function ExtractionWizard() {
             {/* ─── Step 3: Preview & Guided Copy ──── */}
             {step === 2 && (
                 <div className="space-y-6 animate-fade-slide-in">
-                    {/* PRD Clarification Text */}
-                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-sm text-text-secondary">
-                        <p className="mb-2 font-bold text-primary">خطوات العمل:</p>
-                        <ul className="list-disc list-inside space-y-1 ms-2">
-                            <li>قم بنسخ البرومبت والصور بالترتيب باستخدام الزر بالأسفل.</li>
-                            <li>الصق المحتوى في <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
-                            <li>قم بنسخ الرد، ويفضل حفظه أولاً في برنامج <strong>Obsidian</strong> لمراجعته.</li>
-                            <li>بعد المراجعة، انتقل إلى <Link to="/coordination" className="text-primary hover:underline">قسم التنسيق</Link> لتنظيف النص.</li>
-                        </ul>
-                    </div>
-
                     {/* Image gallery */}
                     {images.length > 0 && (
                         <div>
@@ -350,6 +370,17 @@ export default function ExtractionWizard() {
                     <div>
                         <h3 className="text-sm font-semibold text-text mb-3">البرومبت النهائي</h3>
                         <PromptPreview text={prompt} />
+                    </div>
+
+                    {/* PRD Clarification Text */}
+                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-sm text-text-secondary">
+                        <p className="mb-2 font-bold text-primary">خطوات العمل:</p>
+                        <ul className="list-disc list-inside space-y-1 ms-2">
+                            <li>قم بنسخ البرومبت والصور بالترتيب باستخدام الزر بالأسفل.</li>
+                            <li>الصق المحتوى في <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
+                            <li>قم بنسخ الرد، ويفضل حفظه أولاً في برنامج <strong>Obsidian</strong> لمراجعته.</li>
+                            <li>بعد المراجعة، انتقل إلى <Link to="/coordination" className="text-primary hover:underline">قسم التنسيق</Link> لتنظيف النص.</li>
+                        </ul>
                     </div>
 
                     {/* Guided Copy Loop */}

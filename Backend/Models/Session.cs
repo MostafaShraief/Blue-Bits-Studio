@@ -7,7 +7,12 @@ public class Session
     public string LectureNumber { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty; // Theoretical/Practical
     public string WorkflowType { get; set; } = string.Empty; // Lecture/Bank/Draw/Pandoc
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    private DateTime _createdAt = DateTime.UtcNow;
+    public DateTime CreatedAt 
+    { 
+        get => _createdAt; 
+        set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); 
+    }
 
     // Navigation properties
     public Prompt? Prompt { get; set; }

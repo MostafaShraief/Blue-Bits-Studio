@@ -147,12 +147,14 @@ export default function Dashboard() {
                                             {s.materialName || 'بدون اسم'} — {TYPE_LABELS[s.workflowType] || s.workflowType}
                                         </p>
                                         <p className="text-xs text-text-muted mt-0.5">
-                                            {new Date(s.createdAt).toLocaleDateString('ar-EG', {
+                                            {new Intl.DateTimeFormat('ar-SY', {
+                                                timeZone: 'Asia/Damascus',
                                                 day: 'numeric',
                                                 month: 'short',
                                                 hour: '2-digit',
                                                 minute: '2-digit',
-                                            })}
+                                                hour12: true
+                                            }).format(new Date(s.createdAt))}
                                         </p>
                                     </div>
                                     <ArrowLeft size={16} className="text-text-muted group-hover:text-primary transition-default group-hover:-translate-x-1" />

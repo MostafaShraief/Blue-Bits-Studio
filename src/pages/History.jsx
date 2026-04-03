@@ -39,8 +39,10 @@ export default function History() {
     }, [sessions, filter]);
 
     const handleDelete = async (id) => {
-        await removeSession(id);
-        await loadSessions();
+        if (window.confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            await removeSession(id);
+            await loadSessions();
+        }
     };
 
     return (
@@ -94,13 +96,15 @@ export default function History() {
                                             {s.materialName || 'بدون اسم'} — {meta.label}
                                         </p>
                                         <p className="text-xs text-text-muted mt-0.5">
-                                            {new Date(s.createdAt).toLocaleDateString('ar-EG', {
+                                            {new Intl.DateTimeFormat('ar-SY', {
+                                                timeZone: 'Asia/Damascus',
                                                 day: 'numeric',
                                                 month: 'short',
                                                 year: 'numeric',
                                                 hour: '2-digit',
                                                 minute: '2-digit',
-                                            })}
+                                                hour12: true
+                                            }).format(new Date(s.createdAt))}
                                         </p>
                                     </div>
                                     

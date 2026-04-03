@@ -124,6 +124,22 @@ export default function CoordinationWizard() {
                             <span className="text-xs text-text-muted">قم بإزالة أي أسطر فارغة إضافية أو نصوص غير ضرورية قبل اللصق</span>
                         </div>
                         <textarea
+                            onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
+                                let hasImage = false;
+                                for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf('image') !== -1) {
+                                        hasImage = true;
+                                        const file = items[i].getAsFile();
+                                        if (file) {
+                                            const url = URL.createObjectURL(file);
+                                            setImages((prev) => [...prev, { file, url, note: '' }]);
+                                        }
+                                    }
+                                }
+                                if (hasImage) e.preventDefault();
+                            }}
                             value={markdownText}
                             onChange={(e) => setMarkdownText(e.target.value)}
                             placeholder="الصق هنا نص الـ Markdown بعد مراجعته..."

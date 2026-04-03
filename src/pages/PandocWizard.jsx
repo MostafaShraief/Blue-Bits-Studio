@@ -13,6 +13,8 @@ export default function PandocWizard() {
     const id = searchParams.get('id');
     const { autoSave } = useSettings();
 
+    
+
     useEffect(() => {
         if (id) {
             fetchSession(id).then(data => {
@@ -206,22 +208,7 @@ export default function PandocWizard() {
                             </div>
                         </div>
                         <textarea
-                            onPaste={(e) => {
-                                const items = e.clipboardData?.items;
-                                if (!items) return;
-                                let hasImage = false;
-                                for (let i = 0; i < items.length; i++) {
-                                    if (items[i].type.indexOf('image') !== -1) {
-                                        hasImage = true;
-                                        const file = items[i].getAsFile();
-                                        if (file) {
-                                            const url = URL.createObjectURL(file);
-                                            setImages((prev) => [...prev, { file, url, note: '' }]);
-                                        }
-                                    }
-                                }
-                                if (hasImage) e.preventDefault();
-                            }}
+                            
                             value={mdText}
                             onChange={(e) => setMdText(e.target.value)}
                             placeholder="الصق نص الـ Markdown هنا، أو اسحب ملف .md ..."

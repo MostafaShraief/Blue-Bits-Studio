@@ -6,6 +6,7 @@ import CoordinationWizard from './pages/CoordinationWizard';
 import PandocWizard from './pages/PandocWizard';
 import DrawWizard from './pages/DrawWizard';
 import History from './pages/History';
+import Tour from './pages/Tour';
 
 export default function App() {
     return (
@@ -13,6 +14,7 @@ export default function App() {
             <Routes>
                 <Route element={<Layout />}>
                     <Route index element={<Dashboard />} />
+                    <Route path="tour" element={<Tour />} />
                     <Route path="extraction" element={<ExtractionWizard />} />
                     <Route path="coordination" element={<CoordinationWizard />} />
                     <Route path="pandoc" element={<PandocWizard />} />

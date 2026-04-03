@@ -68,9 +68,18 @@ export default function Dashboard() {
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-text">لوحة التحكم</h1>
-                <p className="text-sm text-text-secondary mt-1">مرحباً بك في Blue Bits Studio</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-text">لوحة التحكم</h1>
+                    <p className="text-sm text-text-secondary mt-1">مرحباً بك في Blue Bits Studio</p>
+                </div>
+                <Link
+                    to="/tour"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-card border border-primary/20 hover:border-primary/40 text-primary rounded-xl hover:bg-primary/5 transition-default font-medium text-sm"
+                >
+                    <Sparkles size={18} />
+                    الجولة التعريفية
+                </Link>
             </div>
 
             {/* Stats */}

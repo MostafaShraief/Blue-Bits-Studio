@@ -8,7 +8,7 @@ export default function Layout() {
             <Sidebar />
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-8 md:me-64">
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8 md:ms-64">
                 <Outlet />
             </main>
         </div>

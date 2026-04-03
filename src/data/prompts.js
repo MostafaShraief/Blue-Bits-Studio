@@ -49,8 +49,8 @@ export function buildExtractionPrompt(workflowType, naming, images, generalNotes
     }
 
     // General notes
-    if (generalNotes.trim()) {
-        parts.push(generalNotes.trim());
+    if (generalNotes && generalNotes.trim()) {
+        parts.push(`### ملاحظات عامة:\n\n${generalNotes.trim()}`);
     }
 
     return parts.join('\n\n');

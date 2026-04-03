@@ -53,6 +53,8 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseCors("AllowFrontend");
 
 // Map Endpoints
+app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();
+
 app.MapGroup("/api/sessions")
    .MapSessionEndpoints()
    .WithOpenApi();

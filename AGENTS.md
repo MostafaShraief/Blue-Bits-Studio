@@ -7,7 +7,7 @@ Implement PRD.md, continue where we are, mark what you have achived step by step
 | Frontend    | Vite 7, React 19, React Router 7 |
 | Styling     | Tailwind CSS v4 (Vite plugin)    |
 | Backend     | C# .Net                          |
-| DB          | PostgreSQL                       |
+| DB          | SQL Lite                       |
 | API         | RESTful                          |
 | Package Mgr | pnpm                             |
 

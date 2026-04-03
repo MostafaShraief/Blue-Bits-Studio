@@ -7,8 +7,10 @@ import {
     Code, 
     Database, 
     ArrowRight,
-    CheckCircle2
+    CheckCircle2,
+    Play
 } from 'lucide-react';
+import { useTour } from '../contexts/TourContext';
 
 const WORKFLOWS = [
     {
@@ -64,6 +66,8 @@ const WORKFLOWS = [
 ];
 
 export default function Tour() {
+    const { startTour } = useTour();
+
     return (
         <div className="max-w-4xl mx-auto space-y-12 animate-fade-slide-in pb-12">
             {/* Header */}
@@ -90,19 +94,28 @@ export default function Tour() {
                             <div className={`absolute -end-12 -top-12 w-48 h-48 ${workflow.bgColor} rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-default`} />
                             
                             <div className="relative z-10">
-                                <div className="flex items-start gap-4 mb-6">
-                                    <div className={`w-14 h-14 rounded-2xl ${workflow.bgColor} flex items-center justify-center shrink-0 border ${workflow.borderColor}`}>
-                                        <Icon size={28} className={workflow.color} strokeWidth={1.5} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-surface-hover text-xs font-bold text-text-secondary">
-                                                {index + 1}
-                                            </span>
-                                            <h2 className="text-2xl font-bold text-text">{workflow.title}</h2>
+                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className={`w-14 h-14 rounded-2xl ${workflow.bgColor} flex items-center justify-center shrink-0 border ${workflow.borderColor}`}>
+                                            <Icon size={28} className={workflow.color} strokeWidth={1.5} />
                                         </div>
-                                        <p className="text-text-secondary">{workflow.description}</p>
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-surface-hover text-xs font-bold text-text-secondary">
+                                                    {index + 1}
+                                                </span>
+                                                <h2 className="text-2xl font-bold text-text">{workflow.title}</h2>
+                                            </div>
+                                            <p className="text-text-secondary">{workflow.description}</p>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={() => startTour(workflow.id)}
+                                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${workflow.bgColor.replace('/10', '/20')} ${workflow.color} hover:brightness-110 active:scale-95`}
+                                    >
+                                        <Play size={16} className="fill-current" />
+                                        ابدأ الجولة التفاعلية
+                                    </button>
                                 </div>
 
                                 <div className="bg-surface rounded-2xl p-6 border border-border">

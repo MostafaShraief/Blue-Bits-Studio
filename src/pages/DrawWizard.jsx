@@ -145,10 +145,12 @@ export default function DrawWizard() {
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
-            <h1 className="text-2xl font-bold text-text mb-2">الرسم بالذكاء الاصطناعي</h1>
-            <p className="text-sm text-text-secondary mb-6">
-                أنشئ برومبت لتوليد أكواد Python للرسم البياني
-            </p>
+            <div data-tour="draw-metadata">
+                <h1 className="text-2xl font-bold text-text mb-2">الرسم بالذكاء الاصطناعي</h1>
+                <p className="text-sm text-text-secondary mb-6">
+                    أنشئ برومبت لتوليد أكواد Python للرسم البياني
+                </p>
+            </div>
 
             <WizardStepper steps={STEPS} current={step} />
 
@@ -156,7 +158,7 @@ export default function DrawWizard() {
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     {/* Image upload (optional) */}
-                    <div>
+                    <div data-tour="draw-images">
                         <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3><PasteImageButton onPasteImage={addImage} /></div>
                         <ImageUploader
                             images={images}
@@ -178,7 +180,7 @@ export default function DrawWizard() {
                     </div>
 
                     {/* Description */}
-                    <div>
+                    <div data-tour="draw-description">
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="block text-sm font-medium text-text">وصف الرسم المطلوب</label>
                             <PasteButton onPaste={(text) => setDescription(prev => (prev ? prev + '\n' + text : text))} />
@@ -220,7 +222,7 @@ export default function DrawWizard() {
 
             {/* Step 2: Preview & Guided Copy */}
             {step === 1 && (
-                <div className="space-y-6 animate-fade-slide-in">
+                <div data-tour="draw-preview" className="space-y-6 animate-fade-slide-in">
 
                     {/* Image gallery */}
                     {images.length > 0 && (
@@ -245,7 +247,7 @@ export default function DrawWizard() {
 
                     <PromptPreview text={prompt} />
 
-                    <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
+                    <div className="vscode-step-fallback bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
                         <p><strong>خطوات التنفيذ:</strong></p>
                         <ol className="list-decimal list-inside space-y-1">
                             <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>

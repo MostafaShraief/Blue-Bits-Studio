@@ -97,7 +97,7 @@ export default function CoordinationWizard() {
 
             {/* Step 1: Insertion */}
             {step === 0 && (
-                <div className="space-y-5 animate-fade-slide-in">
+                <div data-tour="coordination-type" className="space-y-5 animate-fade-slide-in">
                     {/* Workflow type */}
                     <div className="flex gap-3">
                         {[

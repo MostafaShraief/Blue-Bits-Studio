@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
+import { TourProvider } from './contexts/TourContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ExtractionWizard from './pages/ExtractionWizard';
@@ -11,17 +12,19 @@ import Tour from './pages/Tour';
 export default function App() {
     return (
         <BrowserRouter>
-            <Routes>
-                <Route element={<Layout />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="tour" element={<Tour />} />
-                    <Route path="extraction" element={<ExtractionWizard />} />
-                    <Route path="coordination" element={<CoordinationWizard />} />
-                    <Route path="pandoc" element={<PandocWizard />} />
-                    <Route path="draw" element={<DrawWizard />} />
-                    <Route path="history" element={<History />} />
-                </Route>
-            </Routes>
+            <TourProvider>
+                <Routes>
+                    <Route element={<Layout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="tour" element={<Tour />} />
+                        <Route path="extraction" element={<ExtractionWizard />} />
+                        <Route path="coordination" element={<CoordinationWizard />} />
+                        <Route path="pandoc" element={<PandocWizard />} />
+                        <Route path="draw" element={<DrawWizard />} />
+                        <Route path="history" element={<History />} />
+                    </Route>
+                </Routes>
+            </TourProvider>
         </BrowserRouter>
     );
 }

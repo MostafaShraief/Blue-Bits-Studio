@@ -190,7 +190,7 @@ export default function ExtractionWizard() {
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     {/* Workflow type toggle */}
-                    <div className="flex gap-3">
+                    <div data-tour="extraction-type" className="flex gap-3">
                         {[
                             { value: 'lecture', label: 'محاضرة' },
                             { value: 'bank', label: 'بنك أسئلة' },
@@ -208,64 +208,66 @@ export default function ExtractionWizard() {
                         ))}
                     </div>
 
-                    {/* Material Name */}
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
-                        <input
-                            type="text"
-                            value={materialName}
-                            onChange={(e) => setMaterialName(e.target.value)}
-                            placeholder="مثال: قواعد البيانات"
-                            className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                        />
-                    </div>
+                    <div data-tour="extraction-metadata" className="space-y-5">
+                        {/* Material Name */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
+                            <input
+                                type="text"
+                                value={materialName}
+                                onChange={(e) => setMaterialName(e.target.value)}
+                                placeholder="مثال: قواعد البيانات"
+                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            />
+                        </div>
 
-                    {/* Lecture Number */}
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
-                        <input
-                            type="number"
-                            value={lectureNumber}
-                            onChange={(e) => {
-                                let val = e.target.value;
-                                if (val === '') {
-                                    setLectureNumber('');
-                                    return;
-                                }
-                                const num = parseInt(val, 10);
-                                if (!isNaN(num)) {
-                                    if (num > 99) val = '99';
-                                    else if (num < 1) val = '1';
-                                    else val = num.toString();
-                                }
-                                setLectureNumber(val);
-                            }}
-                            placeholder="مثال: 5"
-                            min="1"
-                            max="99"
-                            className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                        />
-                    </div>
+                        {/* Lecture Number */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+                            <input
+                                type="number"
+                                value={lectureNumber}
+                                onChange={(e) => {
+                                    let val = e.target.value;
+                                    if (val === '') {
+                                        setLectureNumber('');
+                                        return;
+                                    }
+                                    const num = parseInt(val, 10);
+                                    if (!isNaN(num)) {
+                                        if (num > 99) val = '99';
+                                        else if (num < 1) val = '1';
+                                        else val = num.toString();
+                                    }
+                                    setLectureNumber(val);
+                                }}
+                                placeholder="مثال: 5"
+                                min="1"
+                                max="99"
+                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            />
+                        </div>
 
-                    {/* Lecture Type */}
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
-                        <div className="flex gap-3">
-                            {[
-                                { value: 'theoretical', label: 'نظري' },
-                                { value: 'practical', label: 'عملي' },
-                            ].map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => setLectureType(value)}
-                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                        ? 'border-primary bg-primary-light text-primary'
-                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                        }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                        {/* Lecture Type */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
+                            <div className="flex gap-3">
+                                {[
+                                    { value: 'theoretical', label: 'نظري' },
+                                    { value: 'practical', label: 'عملي' },
+                                ].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setLectureType(value)}
+                                        className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                            ? 'border-primary bg-primary-light text-primary'
+                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -281,7 +283,7 @@ export default function ExtractionWizard() {
 
             {/* ─── Step 2: Inputs ─────────────────── */}
             {step === 1 && (
-                <div className="space-y-6 animate-fade-slide-in">
+                <div data-tour="extraction-images" className="space-y-6 animate-fade-slide-in">
                     {/* Images */}
                     <div>
                         <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور وملاحظات الصور</h3><PasteImageButton onPasteImage={addImage} /></div>
@@ -343,7 +345,7 @@ export default function ExtractionWizard() {
 
             {/* ─── Step 3: Preview & Guided Copy ──── */}
             {step === 2 && (
-                <div className="space-y-6 animate-fade-slide-in">
+                <div data-tour="extraction-preview" className="space-y-6 animate-fade-slide-in">
                     {/* Image gallery */}
                     {images.length > 0 && (
                         <div>

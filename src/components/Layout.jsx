@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router';
 import Sidebar from './Sidebar';
+import TourOverlay from './TourOverlay';
 
 export default function Layout() {
     return (
@@ -11,6 +12,8 @@ export default function Layout() {
             <main className="flex-1 overflow-y-auto p-6 lg:p-8 md:ms-64">
                 <Outlet />
             </main>
+            
+            <TourOverlay />
         </div>
     );
 }

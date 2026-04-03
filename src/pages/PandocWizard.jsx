@@ -112,7 +112,7 @@ export default function PandocWizard() {
 
             {/* Step 1: Naming */}
             {step === 0 && (
-                <div className="space-y-5 animate-fade-slide-in">
+                <div data-tour="pandoc-metadata" className="space-y-5 animate-fade-slide-in">
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
                         <input

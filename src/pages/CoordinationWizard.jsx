@@ -1,19 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { Copy } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import { buildCoordinationPrompt } from '../data/prompts';
-import { createSession } from '../utils/api';
+import { createSession, fetchSession } from '../utils/api';
 
 const STEPS = ['إدراج النص', 'المعاينة والنسخ'];
 
 export default function CoordinationWizard() {
+    const [searchParams] = useSearchParams();
+    const id = searchParams.get('id');
+
     const [step, setStep] = useState(0);
     const [workflowType, setWorkflowType] = useState('lecture');
     const [markdownText, setMarkdownText] = useState('');
     const [prompt, setPrompt] = useState('');
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        if (id) {
+            fetchSession(id).then(data => {
+                if (data) {
+                    if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
+                    const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
+                    if (notes) setMarkdownText(notes);
+                }
+            }).catch(console.error);
+        }
+    }, [id]);
 
     const goNext = () => {
         const p = buildCoordinationPrompt(workflowType, markdownText);
@@ -115,6 +131,15 @@ export default function CoordinationWizard() {
             {step === 1 && (
                 <div className="space-y-6 animate-fade-slide-in">
                     <PromptPreview text={prompt} />
+
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
+                        <p><strong>خطوات التنفيذ:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1">
+                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
+                            <li>قم بلصق البرومبت في حقل الإدخال لإنشاء النتيجة.</li>
+                            <li>بعد الحصول على النتيجة، انتقل إلى قسم <strong className="text-primary">محوّل Pandoc</strong> في التطبيق والصقها هناك لتحويلها إلى ملف Word.</li>
+                        </ol>
+                    </div>
 
                     <button
                         onClick={handleCopy}

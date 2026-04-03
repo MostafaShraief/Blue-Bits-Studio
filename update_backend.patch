@@ -1,0 +1,20 @@
+--- Backend/Endpoints/SessionsEndpoints.cs
++++ Backend/Endpoints/SessionsEndpoints.cs
+@@ -69,13 +69,16 @@
+             return Results.Created($"/api/sessions/{session.Id}", session);
+         });
+ 
+-        group.MapPost("/{id}/images", async (Guid id, IFormFileCollection images, [FromForm] string[]? notes, BlueBitsDbContext db, IWebHostEnvironment env) =>
++        group.MapPost("/{id}/images", async (Guid id, HttpRequest req, BlueBitsDbContext db, IWebHostEnvironment env) =>
+         {
++            if (!req.HasFormContentType) return Results.BadRequest("Invalid form data.");
++            var form = await req.ReadFormAsync();
++            var images = form.Files;
++            var notes = form["notes"];
++
+             var session = await db.Sessions
+                 .Include(s => s.Images)
+                 .Include(s => s.Notes)
+                 .FirstOrDefaultAsync(s => s.Id == id);
+ 
+             if (session is null) return Results.NotFound();

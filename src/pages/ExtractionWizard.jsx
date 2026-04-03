@@ -51,10 +51,12 @@ export default function ExtractionWizard() {
                         const loadedImages = data.images.map(img => ({
                             file: null,
                             url: 'http://localhost:5135/uploads/' + img.localFilePath,
-                            note: img.note || ''
+                            note: data.notes?.find(n => n.noteType === `Image-${img.orderIndex}`)?.noteText || ''
                         }));
                         setImages(loadedImages);
                     }
+                    setSaved(true);
+                    setStep(STEPS.length - 1);
                 }
             });
         }
@@ -139,6 +141,8 @@ export default function ExtractionWizard() {
                 workflowType,
                 prompt,
                 generalNotes,
+                images,
+                images,
                 imageNotes: images.map((img) => ({ note: img.note })),
             });
             setSaved(true);

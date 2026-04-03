@@ -69,7 +69,7 @@ export async function createSession(session) {
             
             session.images.forEach((img, index) => {
                 if (img.file) {
-                    formData.append('images', img.file, img.file.name);
+                    formData.append('images', img.file, img.file.name || `image-${index}.png`);
                     formData.append('notes', img.note || '');
                 }
             });
@@ -129,7 +129,7 @@ export async function generatePandoc(data) {
             templateName: data.templateName,
             materialName: data.materialName,
             lectureNumber: data.lectureNumber,
-            lectureType: data.lectureType
+            type: data.lectureType
         };
 
         const res = await fetch('http://localhost:5135/api/pandoc/generate', {

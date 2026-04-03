@@ -4,12 +4,14 @@ import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
 import { createSession, fetchSession, generatePandoc } from '../utils/api';
+import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
 export default function PandocWizard() {
     const [searchParams] = useSearchParams();
     const id = searchParams.get('id');
+    const { autoSave } = useSettings();
 
     useEffect(() => {
         if (id) {
@@ -19,6 +21,8 @@ export default function PandocWizard() {
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
                     if (data.prompt && data.prompt.promptText) setMdText(data.prompt.promptText);
+                    setSaved(true);
+                    setStep(STEPS.length - 1);
                 }
             });
         }
@@ -34,6 +38,7 @@ export default function PandocWizard() {
 
     // Step 2
     const [mdText, setMdText] = useState('');
+    const [saved, setSaved] = useState(false);
 
     // Step 3
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
@@ -86,7 +91,7 @@ export default function PandocWizard() {
                 lectureType
             });
             
-            setDownloadUrl(result.downloadUrl);
+            setDownloadUrl('http://localhost:5135' + (result.fileUrl || result.downloadUrl));
             setStatus('success');
         } catch (e) {
             console.error("Failed to save session", e);

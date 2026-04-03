@@ -97,3 +97,16 @@ body {
 .animate-copy-flash {
   animation: copyFlash 0.3s ease;
 }
+
+@layer base {
+  .dark {
+    --color-surface: #0a1628;
+    --color-surface-card: #132240;
+    --color-surface-hover: #1e3a5f;
+    --color-text: #f8fafc;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+    --color-border: #1e3a5f;
+    --color-border-light: #2a4b7c;
+  }
+}

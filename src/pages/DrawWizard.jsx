@@ -8,11 +8,13 @@ import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
 import { buildDrawingPrompt } from '../data/prompts';
 import { createSession, fetchSession } from '../utils/api';
+import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['الإدراج', 'المعاينة والنسخ'];
 
 export default function DrawWizard() {
     const [searchParams] = useSearchParams();
+    const { autoSave } = useSettings();
     const id = searchParams.get('id');
 
     useEffect(() => {
@@ -22,15 +24,17 @@ export default function DrawWizard() {
                     if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
                     const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
                     if (notes) setDescription(notes);
-                    
+
                     if (data.images && data.images.length > 0) {
                         const loadedImages = data.images.map(img => ({
                             file: null,
                             url: 'http://localhost:5135/uploads/' + img.localFilePath,
-                            note: img.note || ''
+                            note: data.notes?.find(n => n.noteType === `Image-${img.orderIndex}`)?.noteText || ''
                         }));
                         setImages(loadedImages);
                     }
+                    setSaved(true);
+                    setStep(1);
                 }
             });
         }
@@ -61,21 +65,26 @@ export default function DrawWizard() {
         setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
     }, []);
 
-    
+
     useEffect(() => {
         const handleGlobalPaste = (e) => {
             if (step !== 0) return;
-            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
             const items = e.clipboardData?.items;
             if (!items) return;
 
+            let pastedImage = false;
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.startsWith('image/')) {
                     const file = items[i].getAsFile();
                     if (file) {
                         addImage(file);
+                        pastedImage = true;
                     }
                 }
+            }
+            
+            if (pastedImage && !e.clipboardData.getData('text/plain') && ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+                e.preventDefault();
             }
         };
 
@@ -92,7 +101,8 @@ export default function DrawWizard() {
 
     const goBack = () => setStep(0);
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
+        if (saved) return;
         try {
             await createSession({
                 materialName: 'رسم بياني',
@@ -101,13 +111,22 @@ export default function DrawWizard() {
                 workflowType: 'draw',
                 prompt,
                 generalNotes: description,
+                images,
+                images,
                 imageNotes: images.map((img) => ({ note: img.note })),
             });
             setSaved(true);
         } catch (e) {
             console.error("Failed to save session", e);
         }
-    };
+    }, [saved, prompt, description, images]);
+
+    /* ── Auto Save ──────────────────────── */
+    useEffect(() => {
+        if (step === 1 && autoSave && !saved && prompt) {
+            handleSave();
+        }
+    }, [step, autoSave, saved, prompt, handleSave]);
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -172,6 +191,28 @@ export default function DrawWizard() {
             {/* Step 2: Preview & Guided Copy */}
             {step === 1 && (
                 <div className="space-y-6 animate-fade-slide-in">
+
+                    {/* Image gallery */}
+                    {images.length > 0 && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-text mb-3">الصور المرفقة</h3>
+                            <div className="flex gap-3 overflow-x-auto pb-2">
+                                {images.map((img, i) => (
+                                    <div key={i} className="relative shrink-0">
+                                        <img
+                                            src={img.url}
+                                            alt={`صورة ${i + 1}`}
+                                            className="w-24 h-24 object-cover rounded-xl border border-border"
+                                        />
+                                        <span className="absolute bottom-1 right-1 bg-primary text-white text-xs font-bold rounded-md px-1.5 py-0.5">
+                                            {i + 1}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <PromptPreview text={prompt} />
 
                     <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">

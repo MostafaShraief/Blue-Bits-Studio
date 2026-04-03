@@ -5,11 +5,13 @@ import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import { buildCoordinationPrompt } from '../data/prompts';
 import { createSession, fetchSession } from '../utils/api';
+import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['إدراج النص', 'المعاينة والنسخ'];
 
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
+    const { autoSave } = useSettings();
     const id = searchParams.get('id');
 
     const [step, setStep] = useState(0);
@@ -26,6 +28,9 @@ export default function CoordinationWizard() {
                     if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
                     const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
                     if (notes) setMarkdownText(notes);
+                    
+                    setSaved(true);
+                    setStep(STEPS.length - 1);
                 }
             }).catch(console.error);
         }
@@ -55,7 +60,8 @@ export default function CoordinationWizard() {
         setTimeout(() => setCopied(false), 1200);
     }, [prompt]);
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
+        if (saved) return;
         try {
             await createSession({
                 materialName: 'تنسيق ' + (workflowType === 'lecture' ? 'محاضرة' : 'بنك'),
@@ -69,7 +75,14 @@ export default function CoordinationWizard() {
         } catch (e) {
             console.error("Failed to save session", e);
         }
-    };
+    }, [saved, workflowType, prompt, markdownText]);
+
+    /* ── Auto Save ──────────────────────── */
+    useEffect(() => {
+        if (step === 1 && autoSave && !saved && prompt) {
+            handleSave();
+        }
+    }, [step, autoSave, saved, prompt, handleSave]);
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

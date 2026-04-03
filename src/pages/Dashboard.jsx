@@ -134,27 +134,31 @@ export default function Dashboard() {
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {recent.map((s) => (
-                            <div
-                                key={s.id}
-                                className="flex items-center justify-between bg-surface-card border border-border rounded-xl px-5 py-3 hover:bg-surface-hover transition-default"
-                            >
-                                <div>
-                                    <p className="text-sm font-medium text-text">
-                                        {s.materialName || 'بدون اسم'} — {TYPE_LABELS[s.workflowType] || s.workflowType}
-                                    </p>
-                                    <p className="text-xs text-text-muted mt-0.5">
-                                        {new Date(s.createdAt).toLocaleDateString('ar-EG', {
-                                            day: 'numeric',
-                                            month: 'short',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                        })}
-                                    </p>
-                                </div>
-                                <ArrowLeft size={16} className="text-text-muted" />
-                            </div>
-                        ))}
+                        {recent.map((s) => {
+                            const linkTo = `/${s.workflowType === 'lecture' || s.workflowType === 'bank' ? 'extraction?type=' + s.workflowType + '&' : s.workflowType + '?'}id=${s.id}`;
+                            return (
+                                <Link
+                                    key={s.id}
+                                    to={linkTo}
+                                    className="flex items-center justify-between bg-surface-card border border-border rounded-xl px-5 py-3 hover:bg-surface-hover transition-default group block"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium text-text group-hover:text-primary transition-default">
+                                            {s.materialName || 'بدون اسم'} — {TYPE_LABELS[s.workflowType] || s.workflowType}
+                                        </p>
+                                        <p className="text-xs text-text-muted mt-0.5">
+                                            {new Date(s.createdAt).toLocaleDateString('ar-EG', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}
+                                        </p>
+                                    </div>
+                                    <ArrowLeft size={16} className="text-text-muted group-hover:text-primary transition-default group-hover:-translate-x-1" />
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </section>

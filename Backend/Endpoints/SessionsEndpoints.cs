@@ -80,7 +80,7 @@ public static class SessionsEndpoints
             return Results.Created($"/api/sessions/{session.Id}", session);
         });
 
-        group.MapPost("/{id}/images", async (Guid id, IFormFileCollection images, [FromForm] string[]? notes, BlueBitsDbContext db, IWebHostEnvironment env) =>
+        group.MapPost("/{id}/images", async (Guid id, HttpRequest request, BlueBitsDbContext db, IWebHostEnvironment env) =>
         {
             var session = await db.Sessions
                 .Include(s => s.Images)
@@ -88,6 +88,12 @@ public static class SessionsEndpoints
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (session is null) return Results.NotFound();
+
+            if (!request.HasFormContentType) return Results.BadRequest("Expected form data.");
+
+            var form = await request.ReadFormAsync();
+            var images = form.Files.GetFiles("images");
+            var notes = form["notes"];
 
             if (images == null || images.Count == 0) return Results.BadRequest("No images uploaded.");
 
@@ -103,6 +109,7 @@ public static class SessionsEndpoints
             {
                 var file = images[i];
                 var extension = Path.GetExtension(file.FileName);
+                if (string.IsNullOrEmpty(extension)) extension = ".png"; // default for pasted images
                 var fileName = $"image-{index}{extension}";
                 var localFilePath = Path.Combine(sessionUploadPath, fileName);
 
@@ -121,7 +128,7 @@ public static class SessionsEndpoints
                 session.Images.Add(imageEntity);
 
                 // Check if a corresponding note exists
-                if (notes != null && i < notes.Length && !string.IsNullOrWhiteSpace(notes[i]))
+                if (notes.Count > i && !string.IsNullOrWhiteSpace(notes[i]))
                 {
                     session.Notes.Add(new Note
                     {

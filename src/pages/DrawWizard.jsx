@@ -192,8 +192,7 @@ export default function DrawWizard() {
                                         hasImage = true;
                                         const file = items[i].getAsFile();
                                         if (file) {
-                                            const url = URL.createObjectURL(file);
-                                            setImages((prev) => [...prev, { file, url, note: '' }]);
+                                            addImage(file);
                                         }
                                     }
                                 }

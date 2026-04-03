@@ -64,10 +64,8 @@ export default function ExtractionWizard() {
 
     /* ── Image handlers ─────────────────── */
     const addImage = useCallback((file) => {
-        setImages((prev) => {
-            const url = URL.createObjectURL(file);
-            return [...prev, { file, url, note: '' }];
-        });
+        const url = URL.createObjectURL(file);
+        setImages((prev) => [...prev, { file, url, note: '' }]);
     }, []);
 
     const removeImage = useCallback((index) => {
@@ -112,7 +110,7 @@ export default function ExtractionWizard() {
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
-    }, [addImage]);
+    }, [addImage, step]);
 
     /* ── Step transitions ───────────────── */
     const goNext = () => {

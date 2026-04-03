@@ -13,7 +13,6 @@ public static class PandocEndpoints
             Directory.CreateDirectory(appData);
 
             var tempMd = Path.Combine(appData, $"{Guid.NewGuid()}.md");
-            var outputDocx = Path.Combine(appData, $"{Guid.NewGuid()}.docx");
 
             await File.WriteAllTextAsync(tempMd, req.MarkdownText);
 
@@ -22,6 +21,17 @@ public static class PandocEndpoints
             
             // Adjust path depending on where it actually is
             templatePath = Path.GetFullPath(templatePath);
+
+            var uploadDir = Path.Combine(env.ContentRootPath, "uploads", "pandoc");
+            Directory.CreateDirectory(uploadDir);
+
+            // Naming MUST be {Material Name} ({Type}) - {Lecture Number}.docx
+            var safeMaterialName = string.IsNullOrWhiteSpace(req.MaterialName) ? "Unknown" : string.Join("_", req.MaterialName.Split(Path.GetInvalidFileNameChars()));
+            var safeType = string.IsNullOrWhiteSpace(req.Type) ? "Unknown" : string.Join("_", req.Type.Split(Path.GetInvalidFileNameChars()));
+            var safeLectureNumber = string.IsNullOrWhiteSpace(req.LectureNumber) ? "Unknown" : string.Join("_", req.LectureNumber.Split(Path.GetInvalidFileNameChars()));
+            
+            var fileName = $"{safeMaterialName} ({safeType}) - {safeLectureNumber}.docx";
+            var outputDocx = Path.Combine(uploadDir, fileName);
 
             var process = new Process
             {
@@ -47,11 +57,7 @@ public static class PandocEndpoints
                 return Results.BadRequest(new { error = "Pandoc generation failed", details = error });
             }
 
-            var bytes = await File.ReadAllBytesAsync(outputDocx);
-            // Optionally delete the docx after returning, or keep it for download endpoint
-            File.Delete(outputDocx);
-
-            return Results.File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "output.docx");
+            return Results.Ok(new { fileUrl = $"/uploads/pandoc/{Uri.EscapeDataString(fileName)}" });
         });
 
         return group;
@@ -62,4 +68,7 @@ public class GenerateDocxRequest
 {
     public string MarkdownText { get; set; } = string.Empty;
     public string TemplateName { get; set; } = string.Empty;
+    public string MaterialName { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string LectureNumber { get; set; } = string.Empty;
 }

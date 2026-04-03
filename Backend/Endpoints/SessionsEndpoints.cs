@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
 
@@ -78,6 +79,64 @@ public static class SessionsEndpoints
 
             return Results.Created($"/api/sessions/{session.Id}", session);
         });
+
+        group.MapPost("/{id}/images", async (Guid id, IFormFileCollection images, [FromForm] string[]? notes, BlueBitsDbContext db, IWebHostEnvironment env) =>
+        {
+            var session = await db.Sessions
+                .Include(s => s.Images)
+                .Include(s => s.Notes)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (session is null) return Results.NotFound();
+
+            if (images == null || images.Count == 0) return Results.BadRequest("No images uploaded.");
+
+            var sessionUploadPath = Path.Combine(env.ContentRootPath, "uploads", "sessions", id.ToString());
+            if (!Directory.Exists(sessionUploadPath))
+            {
+                Directory.CreateDirectory(sessionUploadPath);
+            }
+
+            int index = session.Images.Count;
+
+            for (int i = 0; i < images.Count; i++)
+            {
+                var file = images[i];
+                var extension = Path.GetExtension(file.FileName);
+                var fileName = $"image-{index}{extension}";
+                var localFilePath = Path.Combine(sessionUploadPath, fileName);
+
+                using (var stream = new FileStream(localFilePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // Create Image entity
+                var imageEntity = new Image
+                {
+                    LocalFilePath = $"sessions/{id}/{fileName}",
+                    OrderIndex = index
+                };
+
+                session.Images.Add(imageEntity);
+
+                // Check if a corresponding note exists
+                if (notes != null && i < notes.Length && !string.IsNullOrWhiteSpace(notes[i]))
+                {
+                    session.Notes.Add(new Note
+                    {
+                        NoteText = notes[i],
+                        NoteType = $"Image-{index}" // Note type referencing the image index
+                    });
+                }
+
+                index++;
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(session.Images);
+        }).DisableAntiforgery(); // Important for IFormFile mapping in minimal APIs
 
         group.MapDelete("/{id}", async (Guid id, BlueBitsDbContext db, IWebHostEnvironment env) =>
         {

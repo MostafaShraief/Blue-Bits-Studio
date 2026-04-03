@@ -8,7 +8,8 @@ import {
     Database, 
     ArrowRight,
     CheckCircle2,
-    Play
+    Play,
+    Zap
 } from 'lucide-react';
 import { useTour } from '../contexts/TourContext';
 
@@ -24,10 +25,19 @@ const WORKFLOWS = [
         steps: [
             'الذهاب إلى قسم الاستخراج (Extraction).',
             'تعبئة البيانات المطلوبة واختيار نوع: محاضرة.',
-            'الضغط على زر "التالي" للانتقال إلى قسم التنسيق (Coordination).',
-            'تعبئة البيانات اللازمة وتنسيق المحتوى المستخرج.',
-            'الانتقال إلى قسم Pandoc لتحويل الملف.',
-            'تعبئة البيانات النهائية وتصدير الملف بصيغته النهائية.'
+            'رفع صور المحاضرة وإضافة ملاحظات لكل صورة.',
+            'توليد الموجه (Prompt) ونسخه لاستخدامه في AI Studio.',
+            'استخراج النص من AI Studio ثم الانتقال إلى قسم التنسيق (Coordination).',
+            'لصق النص المستخرج واختيار نوع التنسيق كمحاضرة لتوليد موجه التنسيق.',
+            'تنسيق النص عبر AI Studio ثم مراجعته في Obsidian.',
+            'الانتقال إلى قسم Pandoc للتحويل النهائي.',
+            'لصق النص المنسق وتعبئة البيانات النهائية ثم الضغط على "تحويل" لتصدير ملف Word (.docx).'
+        ],
+        capabilities: [
+            'تفريغ النصوص من الصور بدقة عالية.',
+            'التعرف على التنسيقات والجداول من الصور وتحويلها لنصوص.',
+            'إنشاء هيكل متسق ومنظم للمحاضرات.',
+            'تصدير المحتوى لملفات Word جاهزة للطباعة والتوزيع.'
         ]
     },
     {
@@ -41,10 +51,19 @@ const WORKFLOWS = [
         steps: [
             'الذهاب إلى قسم الاستخراج (Extraction).',
             'تعبئة البيانات المطلوبة واختيار نوع: بنك أسئلة.',
-            'الضغط على زر "التالي" للانتقال إلى قسم التنسيق (Coordination).',
-            'تعبئة البيانات وتنسيق بنك الأسئلة.',
+            'إرفاق صور الأسئلة وإضافة أية ملاحظات بشأن الإجابات أو طرق الحل.',
+            'توليد الموجه (Prompt) ونسخه لاستخدامه في AI Studio لتفريغ الأسئلة.',
+            'الذهاب إلى قسم التنسيق (Coordination) بعد استخراج الأسئلة.',
+            'لصق الأسئلة واختيار نوع "بنك أسئلة" للحصول على موجه التنسيق.',
+            'تنسيق الأسئلة عبر AI Studio والمراجعة النهائية.',
             'الانتقال إلى قسم Pandoc لتحويل الملف.',
-            'تعبئة البيانات النهائية وتصدير الملف بصيغته النهائية.'
+            'تعبئة بيانات البنك النهائية وتصدير الملف كـ Word (.docx).'
+        ],
+        capabilities: [
+            'استخراج الأسئلة المعقدة من الصور (بما فيها المعادلات).',
+            'تنظيم الأسئلة في فئات وأنماط (خيارات، مقالية، صح وخطأ).',
+            'توفير نماذج إجابة منسقة ومرتبطة بكل سؤال.',
+            'إنشاء ملفات بنوك أسئلة احترافية بصيغة Word.'
         ]
     },
     {
@@ -57,10 +76,18 @@ const WORKFLOWS = [
         description: 'خطوات توليد رسومات وإضافتها للمستندات.',
         steps: [
             'الذهاب إلى قسم الرسم (Draw).',
-            'تعبئة البيانات المطلوبة ووصف الرسمة بدقة.',
-            'إرسال الوصف إلى AI Studio لتوليد الكود أو الرسمة.',
-            'نسخ الكود ولصقه في بيئة VS Code (إذا تطلب الأمر للتعديل).',
-            'إضافة الرسمة النهائية إلى مستند Word الخاص بك.'
+            'تعبئة البيانات الأساسية ووصف الرسمة أو المخطط بدقة.',
+            'رفع صور توضيحية (إن وجدت) لدعم وصف الرسمة.',
+            'توليد الموجه ونسخه لإرساله إلى AI Studio للحصول على كود (مثال: Python أو Mermaid).',
+            'نسخ الكود ولصقه في بيئة VS Code المجهزة.',
+            'تشغيل الكود لتوليد الصورة أو المخطط بشكل نهائي.',
+            'إدراج الرسمة النهائية في مستند Word الخاص بك.'
+        ],
+        capabilities: [
+            'توليد مخططات تدفق (Flowcharts) ورسوم بيانية.',
+            'إنشاء رسوم توضيحية علمية بناءً على الأوصاف النصية.',
+            'تحويل الأفكار المعقدة إلى رسوم مرئية بسهولة.',
+            'دعم اللغات البرمجية لتوليد صور دقيقة عبر الكود.'
         ]
     }
 ];
@@ -118,21 +145,39 @@ export default function Tour() {
                                     </button>
                                 </div>
 
-                                <div className="bg-surface rounded-2xl p-6 border border-border">
-                                    <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
-                                        <CheckCircle2 size={16} className={workflow.color} />
-                                        خطوات سير العمل:
-                                    </h3>
-                                    <ul className="space-y-4">
-                                        {workflow.steps.map((step, stepIndex) => (
-                                            <li key={stepIndex} className="flex items-start gap-3">
-                                                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${workflow.bgColor.replace('/10', '')} shrink-0`} />
-                                                <span className="text-sm text-text-secondary leading-relaxed">
-                                                    {step}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-surface rounded-2xl p-6 border border-border">
+                                        <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+                                            <CheckCircle2 size={16} className={workflow.color} />
+                                            خطوات سير العمل:
+                                        </h3>
+                                        <ul className="space-y-4">
+                                            {workflow.steps.map((step, stepIndex) => (
+                                                <li key={stepIndex} className="flex items-start gap-3">
+                                                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${workflow.bgColor.replace('/10', '')} shrink-0`} />
+                                                    <span className="text-sm text-text-secondary leading-relaxed">
+                                                        {step}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div className="bg-surface rounded-2xl p-6 border border-border">
+                                        <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+                                            <Zap size={16} className={workflow.color} />
+                                            ماذا يمكن لهذا المسار أن يفعل؟
+                                        </h3>
+                                        <ul className="space-y-4">
+                                            {workflow.capabilities.map((cap, capIndex) => (
+                                                <li key={capIndex} className="flex items-start gap-3">
+                                                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${workflow.bgColor.replace('/10', '')} shrink-0`} />
+                                                    <span className="text-sm text-text-secondary leading-relaxed">
+                                                        {cap}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>

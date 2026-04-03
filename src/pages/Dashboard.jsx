@@ -81,7 +81,7 @@ export default function Dashboard() {
                     <div>
                         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
                             <Sparkles className="text-yellow-300" />
-                            مرحباً بك في نظام Blue Bits Studio
+                            مرحباً بك في Blue Bits Studio
                         </h2>
                         <p className="text-white/80 max-w-xl text-sm leading-relaxed">
                             تعرف على مسارات العمل الرئيسية في النظام وكيفية استخدام الأدوات المختلفة مثل الذكاء الاصطناعي لاستخراج وتنسيق المحاضرات وبنوك الأسئلة والرسم.

@@ -8,7 +8,8 @@ import {
     Clock,
     Moon,
     Sun,
-    Save
+    Save,
+    Sparkles
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
     { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput },
     { to: '/draw', label: 'الرسم', icon: Palette },
     { to: '/history', label: 'السجل', icon: Clock },
+    { to: '/tour', label: 'الجولة التعريفية', icon: Sparkles },
 ];
 export default function Sidebar() {
     const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();

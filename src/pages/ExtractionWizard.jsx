@@ -64,7 +64,10 @@ export default function ExtractionWizard() {
 
     /* ── Image handlers ─────────────────── */
     const addImage = useCallback((file) => {
-        addImage(file);
+        setImages((prev) => {
+            const url = URL.createObjectURL(file);
+            return [...prev, { file, url, note: '' }];
+        });
     }, []);
 
     const removeImage = useCallback((index) => {

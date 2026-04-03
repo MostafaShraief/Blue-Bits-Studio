@@ -69,6 +69,7 @@ export default function DrawWizard() {
     useEffect(() => {
         const handleGlobalPaste = (e) => {
             if (step !== 0) return;
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
             const items = e.clipboardData?.items;
             if (!items) return;
 

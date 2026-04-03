@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams, Link } from 'react-router';
 import WizardStepper from '../components/WizardStepper';
 import ImageUploader from '../components/ImageUploader';
 import PromptPreview from '../components/PromptPreview';
@@ -7,12 +7,14 @@ import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import PasteButton from '../components/PasteButton';
 import { buildExtractionPrompt } from '../data/prompts';
 import { createSession } from '../utils/api';
+import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
 
 export default function ExtractionWizard() {
     const [searchParams] = useSearchParams();
     const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
+    const { autoSave } = useSettings();
 
     const [step, setStep] = useState(0);
 
@@ -47,6 +49,38 @@ export default function ExtractionWizard() {
         setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
     }, []);
 
+    /* ── Global Paste Handler ────────────── */
+    useEffect(() => {
+        const handleGlobalPaste = (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            let textContent = '';
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.indexOf('image') !== -1) {
+                    const file = item.getAsFile();
+                    if (file) addImage(file);
+                } else if (item.type === 'text/plain') {
+                    item.getAsString((text) => {
+                        textContent += text + '\n';
+                    });
+                }
+            }
+
+            setTimeout(() => {
+                if (textContent.trim()) {
+                    setGeneralNotes(prev => (prev ? prev + '\n' + textContent.trim() : textContent.trim()));
+                }
+            }, 50);
+        };
+
+        window.addEventListener('paste', handleGlobalPaste);
+        return () => window.removeEventListener('paste', handleGlobalPaste);
+    }, [addImage]);
+
     /* ── Step transitions ───────────────── */
     const goNext = () => {
         if (step === 1) {
@@ -66,7 +100,8 @@ export default function ExtractionWizard() {
     const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
     /* ── Save session ───────────────────── */
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
+        if (saved) return;
         try {
             await createSession({
                 materialName,
@@ -81,7 +116,14 @@ export default function ExtractionWizard() {
         } catch (e) {
             console.error("Failed to save session", e);
         }
-    };
+    }, [materialName, lectureNumber, lectureType, workflowType, prompt, generalNotes, images, saved]);
+
+    /* ── Auto Save ──────────────────────── */
+    useEffect(() => {
+        if (step === 2 && autoSave && !saved && prompt) {
+            handleSave();
+        }
+    }, [step, autoSave, saved, prompt, handleSave]);
 
     const canProceedStep1 = materialName.trim() && lectureNumber.trim();
 
@@ -110,8 +152,8 @@ export default function ExtractionWizard() {
                                 key={value}
                                 onClick={() => setWorkflowType(value)}
                                 className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-default ${workflowType === value
-                                        ? 'border-primary bg-primary text-white'
-                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                    ? 'border-primary bg-primary text-white'
+                                    : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                     }`}
                             >
                                 {label}
@@ -155,8 +197,8 @@ export default function ExtractionWizard() {
                                     key={value}
                                     onClick={() => setLectureType(value)}
                                     className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                            ? 'border-primary bg-primary-light text-primary'
-                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                        ? 'border-primary bg-primary-light text-primary'
+                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                         }`}
                                 >
                                     {label}
@@ -198,7 +240,7 @@ export default function ExtractionWizard() {
                         <textarea
                             value={generalNotes}
                             onChange={(e) => setGeneralNotes(e.target.value)}
-                            placeholder="أضف ملاحظات عامة للمحاضرة... (اختياري)"
+                            placeholder="أضف ملاحظات عامة للمحاضرة... (اختياري) أو اضغط Ctrl+V للصق من الحافظة مباشرة"
                             rows={4}
                             className="w-full resize-none rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
@@ -225,6 +267,17 @@ export default function ExtractionWizard() {
             {/* ─── Step 3: Preview & Guided Copy ──── */}
             {step === 2 && (
                 <div className="space-y-6 animate-fade-slide-in">
+                    {/* PRD Clarification Text */}
+                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-sm text-text-secondary">
+                        <p className="mb-2 font-bold text-primary">خطوات العمل:</p>
+                        <ul className="list-disc list-inside space-y-1 ms-2">
+                            <li>قم بنسخ البرومبت والصور بالترتيب باستخدام الزر بالأسفل.</li>
+                            <li>الصق المحتوى في <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
+                            <li>قم بنسخ الرد، ويفضل حفظه أولاً في برنامج <strong>Obsidian</strong> لمراجعته.</li>
+                            <li>بعد المراجعة، انتقل إلى <Link to="/coordination" className="text-primary hover:underline">قسم التنسيق</Link> لتنظيف النص.</li>
+                        </ul>
+                    </div>
+
                     {/* Image gallery */}
                     {images.length > 0 && (
                         <div>
@@ -267,8 +320,8 @@ export default function ExtractionWizard() {
                             onClick={handleSave}
                             disabled={saved}
                             className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
-                                    ? 'bg-success text-white cursor-default'
-                                    : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
+                                ? 'bg-success text-white cursor-default'
+                                : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                                 }`}
                         >
                             {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}

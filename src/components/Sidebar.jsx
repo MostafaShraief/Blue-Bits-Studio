@@ -6,7 +6,12 @@ import {
     FileOutput,
     Palette,
     Clock,
+    Moon,
+    Sun,
+    Save,
+    Settings
 } from 'lucide-react';
+import { useSettings } from '../contexts/SettingsContext';
 
 const NAV_ITEMS = [
     { to: '/', label: 'الرئيسية', icon: LayoutDashboard },
@@ -17,6 +22,8 @@ const NAV_ITEMS = [
     { to: '/history', label: 'السجل', icon: Clock },
 ];
 export default function Sidebar() {
+    const { darkMode, setDarkMode, autoSave, setAutoSave, docxSavePrompt, setDocxSavePrompt } = useSettings();
+
     return (
         <aside className="hidden md:flex flex-col fixed inset-y-0 start-0 z-50 w-64 bg-sidebar text-white shrink-0">
             {/* Logo */}
@@ -48,6 +55,59 @@ export default function Sidebar() {
                     </NavLink>
                 ))}
             </nav>
+
+            {/* Settings */}
+            <div className="p-4 border-t border-white/10">
+                <div className="flex flex-col gap-4">
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="flex items-center gap-3 text-sm text-white/70 group-hover:text-white transition-colors">
+                            {darkMode ? <Moon size={18} /> : <Sun size={18} />}
+                            <span>الوضع الليلي</span>
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={darkMode}
+                                onChange={(e) => setDarkMode(e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </div>
+                    </label>
+
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="flex items-center gap-3 text-sm text-white/70 group-hover:text-white transition-colors">
+                            <Save size={18} />
+                            <span>الحفظ التلقائي</span>
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={autoSave}
+                                onChange={(e) => setAutoSave(e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </div>
+                    </label>
+                    
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="flex items-center gap-3 text-sm text-white/70 group-hover:text-white transition-colors">
+                            <Settings size={18} />
+                            <span>حفظ DOCX</span>
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={docxSavePrompt}
+                                onChange={(e) => setDocxSavePrompt(e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </div>
+                    </label>
+                </div>
+            </div>
         </aside>
     );
 }

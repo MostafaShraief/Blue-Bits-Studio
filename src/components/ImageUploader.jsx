@@ -6,13 +6,15 @@ import { ImagePlus, X } from 'lucide-react';
  *
  * @param {{ images: Array, onAdd: (file:File)=>void, onRemove: (index:number)=>void, onNoteChange: (index:number, text:string)=>void }} props
  */
-export default function ImageUploader({ images, onAdd, onRemove, onNoteChange }) {
+export default function ImageUploader({ images, onAdd, onRemove, onNoteChange, maxImages = Infinity }) {
     const inputRef = useRef(null);
 
     const handleFiles = (fileList) => {
+        let count = images.length;
         Array.from(fileList).forEach((file) => {
-            if (file.type.startsWith('image/')) {
+            if (file.type.startsWith('image/') && count < maxImages) {
                 onAdd(file);
+                count++;
             }
         });
     };
@@ -60,26 +62,28 @@ export default function ImageUploader({ images, onAdd, onRemove, onNoteChange })
             ))}
 
             {/* Add button / drop zone */}
-            <div
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => inputRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-primary/30 rounded-2xl cursor-pointer hover:border-primary hover:bg-primary-light/30 transition-default"
-            >
-                <ImagePlus size={32} className="text-primary" strokeWidth={1.5} />
-                <p className="text-sm text-text-secondary">اضغط أو اسحب الصور هنا</p>
-                <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                        handleFiles(e.target.files);
-                        e.target.value = '';
-                    }}
-                />
-            </div>
+            {images.length < maxImages && (
+                <div
+                    onDrop={handleDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={() => inputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-primary/30 rounded-2xl cursor-pointer hover:border-primary hover:bg-primary-light/30 transition-default"
+                >
+                    <ImagePlus size={32} className="text-primary" strokeWidth={1.5} />
+                    <p className="text-sm text-text-secondary">اضغط أو اسحب الصور هنا</p>
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                            handleFiles(e.target.files);
+                            e.target.value = '';
+                        }}
+                    />
+                </div>
+            )}
         </div>
     );
 }

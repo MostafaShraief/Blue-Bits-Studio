@@ -1,25 +1,20 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export const SettingsContext = createContext(undefined);
+const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
     const [darkMode, setDarkMode] = useState(() => {
-        const saved = localStorage.getItem('bluebits_dark_mode');
-        return saved ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const saved = localStorage.getItem('darkMode');
+        return saved ? JSON.parse(saved) : false;
     });
 
     const [autoSave, setAutoSave] = useState(() => {
-        const saved = localStorage.getItem('bluebits_auto_save');
-        return saved ? JSON.parse(saved) : true;
-    });
-
-    const [docxSavePrompt, setDocxSavePrompt] = useState(() => {
-        const saved = localStorage.getItem('bluebits_docx_prompt');
+        const saved = localStorage.getItem('autoSave');
         return saved ? JSON.parse(saved) : true;
     });
 
     useEffect(() => {
-        localStorage.setItem('bluebits_dark_mode', JSON.stringify(darkMode));
+        localStorage.setItem('darkMode', JSON.stringify(darkMode));
         if (darkMode) {
             document.documentElement.classList.add('dark');
         } else {
@@ -28,33 +23,16 @@ export function SettingsProvider({ children }) {
     }, [darkMode]);
 
     useEffect(() => {
-        localStorage.setItem('bluebits_auto_save', JSON.stringify(autoSave));
+        localStorage.setItem('autoSave', JSON.stringify(autoSave));
     }, [autoSave]);
 
-    useEffect(() => {
-        localStorage.setItem('bluebits_docx_prompt', JSON.stringify(docxSavePrompt));
-    }, [docxSavePrompt]);
-
     return (
-        <SettingsContext.Provider
-            value={{
-                darkMode,
-                setDarkMode,
-                autoSave,
-                setAutoSave,
-                docxSavePrompt,
-                setDocxSavePrompt
-            }}
-        >
+        <SettingsContext.Provider value={{ darkMode, setDarkMode, autoSave, setAutoSave }}>
             {children}
         </SettingsContext.Provider>
     );
 }
 
 export function useSettings() {
-    const context = useContext(SettingsContext);
-    if (context === undefined) {
-        throw new Error('useSettings must be used within a SettingsProvider');
-    }
-    return context;
+    return useContext(SettingsContext);
 }

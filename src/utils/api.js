@@ -36,7 +36,7 @@ export async function createSession(session) {
             workflowType: session.workflowType || '',
             promptText: session.prompt || '',
             generalNotes: session.generalNotes || '',
-            imageNotes: session.imageNotes || []
+            imageNotes: session.images ? session.images.map(img => ({ note: img.note || '' })) : []
         };
 
         const res = await fetch(API_BASE, {
@@ -46,9 +46,68 @@ export async function createSession(session) {
         });
 
         if (!res.ok) throw new Error('Failed to create session');
-        return await res.json();
+        
+        let createdSession;
+        try {
+            createdSession = await res.json();
+        } catch (err) {
+            // Check Location header if json fails
+            const location = res.headers.get('Location');
+            if (location) {
+                const parts = location.split('/');
+                createdSession = { id: parts[parts.length - 1] };
+            }
+        }
+
+        if (!createdSession || !createdSession.id) {
+             throw new Error('No session ID returned from creation');
+        }
+
+        // Now upload images if any exist
+        if (session.images && session.images.length > 0) {
+            const formData = new FormData();
+            
+            session.images.forEach((img, index) => {
+                if (img.file) {
+                    formData.append('images', img.file, img.file.name);
+                    formData.append('notes', img.note || '');
+                }
+            });
+
+            const uploadRes = await fetch(`${API_BASE}/${createdSession.id}/images`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadRes.ok) {
+                console.error('Failed to upload images for session', createdSession.id);
+            }
+        }
+
+        return createdSession;
     } catch (e) {
         console.error('API Error:', e);
+        throw e;
+    }
+}
+
+/** Upload images for a session */
+export async function uploadImages(sessionId, files) {
+    if (!files || files.length === 0) return [];
+    
+    try {
+        const formData = new FormData();
+        files.forEach(f => formData.append('images', f));
+
+        const res = await fetch(`${API_BASE}/${sessionId}/images`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) throw new Error('Failed to upload images');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to upload images:', e);
         throw e;
     }
 }
@@ -59,6 +118,31 @@ export async function removeSession(id) {
         await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
     } catch (e) {
         console.error('Failed to delete session:', e);
+    }
+}
+
+/** Generate Pandoc Document */
+export async function generatePandoc(data) {
+    try {
+        const payload = {
+            markdownText: data.markdownText,
+            templateName: data.templateName,
+            materialName: data.materialName,
+            lectureNumber: data.lectureNumber,
+            lectureType: data.lectureType
+        };
+
+        const res = await fetch('http://localhost:5135/api/pandoc/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to generate Pandoc docx');
+        return await res.json();
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
     }
 }
 

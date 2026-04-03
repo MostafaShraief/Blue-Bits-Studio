@@ -78,7 +78,13 @@ export default function DrawWizard() {
                             onAdd={addImage}
                             onRemove={removeImage}
                             onNoteChange={updateImageNote}
+                            maxImages={3}
                         />
+                        {images.length > 1 && (
+                            <p className="text-xs text-warning mt-2">
+                                <strong>ملاحظة:</strong> إضافة أكثر من صورة قد يؤثر سلبًا على جودة ودقة الرسم المستخرج.
+                            </p>
+                        )}
                     </div>
 
                     {/* Description */}
@@ -111,6 +117,16 @@ export default function DrawWizard() {
             {step === 1 && (
                 <div className="space-y-6 animate-fade-slide-in">
                     <PromptPreview text={prompt} />
+
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
+                        <p><strong>خطوات التنفيذ:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1">
+                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
+                            <li>قم بلصق البرومبت (والصور إن وجدت) في حقل الإدخال.</li>
+                            <li>قم بتشغيل الكود المستخرج في <strong>VS Code</strong> لرؤية النتيجة كصورة وحفظها.</li>
+                        </ol>
+                    </div>
+
                     <GuidedCopyLoop prompt={prompt} images={images} />
 
                     <div className="flex gap-3">
@@ -124,8 +140,8 @@ export default function DrawWizard() {
                             onClick={handleSave}
                             disabled={saved}
                             className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
-                                    ? 'bg-success text-white cursor-default'
-                                    : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
+                                ? 'bg-success text-white cursor-default'
+                                : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                                 }`}
                         >
                             {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}

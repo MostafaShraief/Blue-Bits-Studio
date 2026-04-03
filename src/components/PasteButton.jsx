@@ -3,11 +3,14 @@ import { ClipboardPaste } from 'lucide-react';
 export default function PasteButton({ onPaste }) {
     const handlePaste = async () => {
         try {
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+                throw new Error("Clipboard API not supported");
+            }
             const text = await navigator.clipboard.readText();
             if (text) onPaste(text);
         } catch (e) {
             console.error("Paste failed", e);
-            alert("فشل اللصق. يرجى التأكد من السماح للمتصفح بالوصول للحافظة.");
+            alert("فشل اللصق. يرجى التأكد من السماح للمتصفح بالوصول للحافظة (Clipboard) أو استخدم اختصار Ctrl+V.");
         }
     };
 

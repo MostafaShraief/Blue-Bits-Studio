@@ -37,8 +37,9 @@ export function buildExtractionPrompt(workflowType, naming, images, generalNotes
     // Image notes
     if (images && images.length > 0) {
         const imageNoteLines = images
-            .map((img) => {
-                const fileName = img.file ? img.file.name : 'image.jpg';
+            .map((img, index) => {
+                const ext = img.file && img.file.name.includes('.') ? img.file.name.split('.').pop() : 'jpg';
+                const fileName = `image-${index + 1}.${ext}`;
                 return img.note ? `[Image: ${fileName}] Note: ${img.note}` : null;
             })
             .filter(Boolean);
@@ -76,8 +77,9 @@ export function buildDrawingPrompt(description, images = []) {
 
     if (images && images.length > 0) {
         const imageNoteLines = images
-            .map((img) => {
-                const fileName = img.file ? img.file.name : 'image.jpg';
+            .map((img, index) => {
+                const ext = img.file && img.file.name.includes('.') ? img.file.name.split('.').pop() : 'jpg';
+                const fileName = `image-${index + 1}.${ext}`;
                 return img.note ? `[Image: ${fileName}] Note: ${img.note}` : null;
             })
             .filter(Boolean);

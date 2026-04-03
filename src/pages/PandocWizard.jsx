@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
-import { createSession } from '../utils/api';
+import { createSession, generatePandoc } from '../utils/api';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
@@ -20,6 +20,7 @@ export default function PandocWizard() {
 
     // Step 3
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
+    const [downloadUrl, setDownloadUrl] = useState(null);
 
     const canProceedStep1 = materialName.trim() && lectureNumber.trim();
 
@@ -59,9 +60,17 @@ export default function PandocWizard() {
                 prompt: mdText,
                 generalNotes: `Template: ${lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}`,
             });
-            setTimeout(() => {
-                setStatus('success');
-            }, 1000);
+            
+            const result = await generatePandoc({
+                markdownText: mdText,
+                templateName: lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
+                materialName,
+                lectureNumber,
+                lectureType
+            });
+            
+            setDownloadUrl(result.downloadUrl);
+            setStatus('success');
         } catch (e) {
             console.error("Failed to save session", e);
             setStatus('error');
@@ -207,6 +216,12 @@ export default function PandocWizard() {
                                         {lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
                                     </span>
                                 </p>
+                                
+                                <div className="text-xs text-text-secondary bg-surface rounded-xl p-4 text-start">
+                                    <strong>ملاحظة:</strong> إذا كان المستند يحتوي على رسومات تحتاج تحويلها من كود لصور، 
+                                    استخدم قسم <strong>الرسم</strong> أولاً لاستخراج الصور وحفظها، ثم أضفها إلى ملف الـ Markdown قبل التحويل.
+                                </div>
+
                                 <button
                                     onClick={handleGenerate}
                                     className="px-8 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
@@ -229,24 +244,16 @@ export default function PandocWizard() {
                                     <File size={32} className="text-success" strokeWidth={1.5} />
                                 </div>
                                 <p className="text-sm font-semibold text-success">تم إنشاء المستند بنجاح!</p>
-                                <p className="text-xs text-text-muted">
-                                    (يحتاج الباك‌إند C# لفتح الملف وعرضه في المستكشف)
-                                </p>
                                 <div className="flex gap-3 justify-center">
-                                    <button
-                                        disabled
-                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm text-text-muted cursor-not-allowed"
-                                    >
-                                        <File size={16} />
-                                        فتح الملف
-                                    </button>
-                                    <button
-                                        disabled
-                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm text-text-muted cursor-not-allowed"
-                                    >
-                                        <FolderOpen size={16} />
-                                        عرض في المستكشف
-                                    </button>
+                                    {downloadUrl && (
+                                        <button
+                                            onClick={() => window.open(downloadUrl, '_blank')}
+                                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                                        >
+                                            <Download size={16} />
+                                            تنزيل الملف
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}

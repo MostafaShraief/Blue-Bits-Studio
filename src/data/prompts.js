@@ -8,6 +8,7 @@ import bankExtractionRaw from '../../Resources/Prompts/استخراج أسئلة
 import drawingRaw from '../../Resources/Prompts/الرسم بالذكاء الاصطناعي.md?raw';
 import lectureCoordinationRaw from '../../Resources/Prompts/تنسيق المحاضرات.md?raw';
 import bankCoordinationRaw from '../../Resources/Prompts/تنسيق البنوك.md?raw';
+import mcqGenerationRaw from '../../Resources/Prompts/بناء بنك أسئلة.md?raw';
 
 export const PROMPTS = {
     lectureExtraction: lectureExtractionRaw,
@@ -15,6 +16,7 @@ export const PROMPTS = {
     drawing: drawingRaw,
     lectureCoordination: lectureCoordinationRaw,
     bankCoordination: bankCoordinationRaw,
+    mcqGeneration: mcqGenerationRaw,
 };
 
 /**

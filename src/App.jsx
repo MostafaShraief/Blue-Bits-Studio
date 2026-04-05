@@ -6,6 +6,7 @@ import ExtractionWizard from './pages/ExtractionWizard';
 import CoordinationWizard from './pages/CoordinationWizard';
 import PandocWizard from './pages/PandocWizard';
 import DrawWizard from './pages/DrawWizard';
+import QuizHub from './pages/QuizHub';
 import History from './pages/History';
 import Tour from './pages/Tour';
 
@@ -21,6 +22,7 @@ export default function App() {
                         <Route path="coordination" element={<CoordinationWizard />} />
                         <Route path="pandoc" element={<PandocWizard />} />
                         <Route path="draw" element={<DrawWizard />} />
+                        <Route path="quiz" element={<QuizHub />} />
                         <Route path="history" element={<History />} />
                     </Route>
                 </Routes>

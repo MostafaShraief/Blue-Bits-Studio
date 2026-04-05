@@ -40,3 +40,14 @@ Thumbs.db
 
 # Uploads
 Backend/uploads/
+
+# Reference / prototype code (not part of the app)
+to add/
+
+# Test / temp files
+test-*
+*.png
+*.patch
+update-*
+*.cjs
+*.sh

@@ -5,6 +5,7 @@ import {
     AlignRight,
     FileOutput,
     Palette,
+    FileJson,
     Clock,
     Moon,
     Sun,
@@ -19,13 +20,14 @@ const NAV_ITEMS = [
     { to: '/coordination', label: 'تنسيق', icon: AlignRight },
     { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput },
     { to: '/draw', label: 'الرسم', icon: Palette },
+    { to: '/quiz', label: 'الاختبارات', icon: FileJson },
     { to: '/history', label: 'السجل', icon: Clock },
 ];
 export default function Sidebar() {
     const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();
 
     return (
-        <aside className="hidden md:flex flex-col fixed inset-y-0 start-0 z-50 w-64 bg-sidebar text-white shrink-0">
+        <aside className="hidden md:flex flex-col fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shrink-0">
             {/* Logo */}
             <div className="flex items-center justify-center px-4 py-6 border-b border-white/10">
                 <img

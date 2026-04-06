@@ -51,3 +51,4 @@ test-*
 update-*
 *.cjs
 *.sh
+App_Data/

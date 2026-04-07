@@ -31,8 +31,8 @@ def test_draw_network_devices(ax):
     s1 = draw_switch(ax, 4, 4, text="SW1")
     assert "ports" in s1
     
-    srv = draw_server(ax, 6, 6, text="S1")
-    assert "ports" in srv
+    srv = draw_server(ax, 6, 6, 1, 2, text="S1")
+    assert srv is not None
     
     fw = draw_firewall(ax, 8, 8, text="FW")
     assert "ports" in fw

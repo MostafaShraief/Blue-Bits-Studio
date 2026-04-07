@@ -38,3 +38,9 @@ try:
     from src.draw_engine.materials.legacy import *
 except ImportError:
     pass
+try:
+    from src.draw_engine.shapes.layout import *
+    from src.draw_engine.shapes.annotations import *
+    from src.draw_engine.connectors.advanced import *
+except ImportError:
+    pass

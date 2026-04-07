@@ -1,3 +1,12 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+from src.draw_engine.core import *
+from src.draw_engine.text import *
+from src.draw_engine.shapes.primitives import *
+from src.draw_engine.connectors.arrows import *
+from src.draw_engine.connectors.routing import *
+
 import matplotlib.patches as patches
 import numpy as np
 
@@ -219,3 +228,503 @@ def draw_queue_node(ax, x, y, servers=1, q_len=4, width=1.5, height=1, text="Que
             "out": (x + server_r*3, y)
         }
     }
+
+
+# =========================================================
+#          NETWORK/CLOUD DIAGRAM FUNCTIONS
+# =========================================================
+
+
+def draw_cloud_shape(
+    ax,
+    x,
+    y,
+    w,
+    h,
+    text="",
+    text_color=BLACK,
+    border_color=BLUE,
+    fill_color=WHITE,
+    text_size=None,
+    linewidth=2,
+):
+    """
+    Draw a cloud computing symbol.
+    Uses 5-6 overlapping circles arranged in a cloud pattern.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Center position
+        w, h: Width and height (approximate bounds)
+        text: Text to display (Arabic supported)
+        text_color: Text color
+        border_color: Border color
+        fill_color: Fill color
+        text_size: Font size (default: DEFAULT_SIZE)
+        linewidth: Border width
+
+    Returns:
+        The patch object (main cloud shape)
+    """
+    if text_size is None:
+        text_size = DEFAULT_SIZE
+
+    # Create cloud from 5-6 overlapping circles
+    # Pattern: cloud-like arrangement with bumps
+    circles = [
+        (-w * 0.28, h * 0.05, w * 0.32),  # Left bottom lobe
+        (w * 0.28, h * 0.05, w * 0.32),  # Right bottom lobe
+        (0, h * 0.18, w * 0.38),  # Top center
+        (-w * 0.38, -h * 0.05, w * 0.22),  # Bottom left small
+        (w * 0.38, -h * 0.05, w * 0.22),  # Bottom right small
+    ]
+
+    patches_list = []
+
+    # Draw individual circles with overlapping fills
+    for cx_off, cy_off, r in circles:
+        circle_patch = patches.Circle(
+            (x + cx_off, y + cy_off),
+            r,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(circle_patch)
+        patches_list.append(circle_patch)
+
+    if text:
+        # Position text in center of cloud
+        disp = handle_arabic(text)
+        ax.text(
+            x,
+            y - h * 0.05,
+            disp,
+            color=text_color,
+            fontproperties=get_font_prop(text_size),
+            ha="center",
+            va="center",
+            zorder=20,
+        )
+
+    return patches_list[-1] if patches_list else None
+
+
+def draw_server(
+    ax,
+    x,
+    y,
+    w,
+    h,
+    text="",
+    text_color=BLACK,
+    border_color=BLUE,
+    fill_color=WHITE,
+    text_size=None,
+    linewidth=2,
+):
+    """
+    Draw a server/storage rectangle with horizontal lines inside (rack units).
+
+    Args:
+        ax: matplotlib axes
+        x, y: Bottom-left corner position
+        w, h: Width and height
+        text: Text to display (Arabic supported)
+        text_color: Text color
+        border_color: Border color
+        fill_color: Fill color
+        text_size: Font size (default: DEFAULT_SIZE)
+        linewidth: Border width
+
+    Returns:
+        The patch object (main rectangle)
+    """
+    if text_size is None:
+        text_size = DEFAULT_SIZE
+
+    # Main server body (rectangle)
+    body = patches.Rectangle(
+        (x, y),
+        w,
+        h,
+        facecolor=fill_color,
+        edgecolor=border_color,
+        linewidth=linewidth,
+        zorder=5,
+    )
+    ax.add_patch(body)
+
+    # Draw horizontal lines to represent rack units (typically 3-4 lines)
+    num_lines = 4
+    line_spacing = h / (num_lines + 1)
+
+    for i in range(1, num_lines + 1):
+        line_y = y + i * line_spacing
+        ax.plot(
+            [x, x + w],
+            [line_y, line_y],
+            color=border_color,
+            linewidth=linewidth * 0.7,
+            zorder=6,
+        )
+
+    if text:
+        # Position text in center
+        cx = x + w / 2
+        cy = y + h / 2
+        disp = handle_arabic(text)
+        ax.text(
+            cx,
+            cy,
+            disp,
+            color=text_color,
+            fontproperties=get_font_prop(text_size),
+            ha="center",
+            va="center",
+            zorder=20,
+        )
+
+    return body
+
+
+def draw_database_cylinder(
+    ax,
+    x,
+    y,
+    w,
+    h,
+    text="",
+    text_color=BLACK,
+    border_color=BLUE,
+    fill_color=WHITE,
+    text_size=None,
+    linewidth=2,
+):
+    """
+    Draw a cylinder for database symbol.
+    Similar to draw_cylinder but with 3 horizontal ellipse lines
+    to show disk platters.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Bottom-left corner position
+        w, h: Width and height
+        text: Text to display (Arabic supported)
+        text_color: Text color
+        border_color: Border color
+        fill_color: Fill color
+        text_size: Font size (default: DEFAULT_SIZE)
+        linewidth: Border width
+
+    Returns:
+        The patch object (top ellipse)
+    """
+    if text_size is None:
+        text_size = DEFAULT_SIZE
+
+    # Cylinder parameters
+    ellipse_height = h * 0.15  # Height of top/bottom ellipses
+
+    # 1. Draw the body (rectangle with curved bottom)
+    # Bottom ellipse
+    bottom_ellipse = patches.Ellipse(
+        (x + w / 2, y + ellipse_height),
+        w,
+        ellipse_height * 2,
+        facecolor=fill_color,
+        edgecolor=border_color,
+        linewidth=linewidth,
+        zorder=5,
+    )
+    ax.add_patch(bottom_ellipse)
+
+    # Body rectangle (from top ellipse to bottom ellipse)
+    body = patches.Rectangle(
+        (x, y + ellipse_height),
+        w,
+        h - ellipse_height * 2,
+        facecolor=fill_color,
+        edgecolor=border_color,
+        linewidth=linewidth,
+        zorder=5,
+    )
+    ax.add_patch(body)
+
+    # Left and right edges (vertical lines connecting ellipses)
+    ax.plot(
+        [x, x],
+        [y + ellipse_height, y + h - ellipse_height],
+        color=border_color,
+        linewidth=linewidth,
+        zorder=5,
+    )
+    ax.plot(
+        [x + w, x + w],
+        [y + ellipse_height, y + h - ellipse_height],
+        color=border_color,
+        linewidth=linewidth,
+        zorder=5,
+    )
+
+    # 2. Draw top ellipse
+    top_ellipse = patches.Ellipse(
+        (x + w / 2, y + h - ellipse_height),
+        w,
+        ellipse_height * 2,
+        facecolor=fill_color,
+        edgecolor=border_color,
+        linewidth=linewidth,
+        zorder=6,  # Slightly higher to be in front
+    )
+    ax.add_patch(top_ellipse)
+
+    # 3. Draw 3 horizontal ellipse lines to represent disk platters
+    num_platters = 3
+    platter_spacing = (h - ellipse_height * 2) / (num_platters + 1)
+
+    for i in range(1, num_platters + 1):
+        platter_y = y + ellipse_height + i * platter_spacing
+        platter_line = patches.Ellipse(
+            (x + w / 2, platter_y),
+            w,
+            ellipse_height * 2,
+            facecolor="none",
+            edgecolor=border_color,
+            linewidth=linewidth * 0.5,
+            zorder=4,
+        )
+        ax.add_patch(platter_line)
+
+    if text:
+        # Position text in middle of cylinder body
+        cx = x + w / 2
+        cy = y + h / 2
+        disp = handle_arabic(text)
+        ax.text(
+            cx,
+            cy,
+            disp,
+            color=text_color,
+            fontproperties=get_font_prop(text_size),
+            ha="center",
+            va="center",
+            zorder=20,
+        )
+
+    return top_ellipse
+
+
+def draw_device(
+    ax,
+    x,
+    y,
+    device_type="computer",
+    text="",
+    text_color=BLACK,
+    border_color=BLUE,
+    fill_color=WHITE,
+    text_size=None,
+    linewidth=2,
+):
+    """
+    Draw router/switch/computer icons.
+    Simple geometric representation for network devices.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Center position
+        device_type: Type of device - "computer", "router", "switch", "phone", "server"
+        text: Text to display (Arabic supported)
+        text_color: Text color
+        border_color: Border color
+        fill_color: Fill color
+        text_size: Font size (default: DEFAULT_SIZE)
+        linewidth: Border width
+
+    Returns:
+        The main patch object
+    """
+    if text_size is None:
+        text_size = DEFAULT_SIZE
+
+    # Default size for device icons
+    w = 1.2
+    h = 1.0
+
+    patch = None
+
+    if device_type == "computer":
+        # Monitor shape: rectangle with stand
+        # Main monitor
+        body = patches.Rectangle(
+            (x - w / 2, y),
+            w,
+            h * 0.7,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(body)
+        patch = body
+
+        # Stand
+        ax.plot(
+            [x, x],
+            [y, y - h * 0.15],
+            color=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.plot(
+            [x - w * 0.2, x + w * 0.2],
+            [y - h * 0.15, y - h * 0.15],
+            color=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+
+    elif device_type == "router":
+        # Router: rectangle with antennas
+        body = patches.Rectangle(
+            (x - w / 2, y - h * 0.3),
+            w,
+            h * 0.6,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(body)
+        patch = body
+
+        # Antennas (2-3 lines)
+        antenna_positions = [-w * 0.25, 0, w * 0.25]
+        for ant_x in antenna_positions:
+            ax.plot(
+                [x + ant_x, x + ant_x],
+                [y + h * 0.3, y + h * 0.5],
+                color=border_color,
+                linewidth=linewidth * 0.7,
+                zorder=5,
+            )
+
+    elif device_type == "switch":
+        # Switch: rectangle with port indicators
+        body = patches.Rectangle(
+            (x - w / 2, y - h * 0.3),
+            w,
+            h * 0.6,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(body)
+        patch = body
+
+        # Port indicators (small squares)
+        num_ports = 4
+        port_spacing = w / (num_ports + 1)
+        port_size = w * 0.08
+
+        for i in range(1, num_ports + 1):
+            port_x = x - w / 2 + i * port_spacing
+            port = patches.Rectangle(
+                (port_x - port_size / 2, y - h * 0.1),
+                port_size,
+                port_size,
+                facecolor=fill_color,
+                edgecolor=border_color,
+                linewidth=linewidth * 0.5,
+                zorder=6,
+            )
+            ax.add_patch(port)
+
+    elif device_type == "phone":
+        # Phone: rectangle with rounded corners
+        from matplotlib.patches import FancyBboxPatch
+
+        phone = FancyBboxPatch(
+            (x - w * 0.4, y - h * 0.5),
+            w * 0.8,
+            h,
+            boxstyle="round,pad_ratio=0.1",
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(phone)
+        patch = phone
+
+        # Screen indicator line
+        ax.plot(
+            [x - w * 0.25, x + w * 0.25],
+            [y + h * 0.2, y + h * 0.2],
+            color=border_color,
+            linewidth=linewidth * 0.5,
+            zorder=6,
+        )
+
+    elif device_type == "server":
+        # Server: tall rectangle with lines (rack style)
+        body = patches.Rectangle(
+            (x - w / 2, y - h * 0.4),
+            w,
+            h * 0.8,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(body)
+        patch = body
+
+        # Horizontal lines for rack units
+        num_lines = 3
+        line_spacing = h * 0.8 / (num_lines + 1)
+
+        for i in range(1, num_lines + 1):
+            line_y = y - h * 0.4 + i * line_spacing
+            ax.plot(
+                [x - w * 0.35, x + w * 0.35],
+                [line_y, line_y],
+                color=border_color,
+                linewidth=linewidth * 0.7,
+                zorder=6,
+            )
+
+    else:
+        # Default: simple rectangle
+        body = patches.Rectangle(
+            (x - w / 2, y - h / 2),
+            w,
+            h,
+            facecolor=fill_color,
+            edgecolor=border_color,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        ax.add_patch(body)
+        patch = body
+
+    if text:
+        # Position text below the device
+        disp = handle_arabic(text)
+        ax.text(
+            x,
+            y - h * 0.7,
+            disp,
+            color=text_color,
+            fontproperties=get_font_prop(text_size),
+            ha="center",
+            va="top",
+            zorder=20,
+        )
+
+    return patch
+
+

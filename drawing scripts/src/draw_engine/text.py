@@ -23,9 +23,10 @@ def handle_arabic(text):
     try:
         # Configuration matches standard Blue Bits expectations
         configuration = {
-            'delete_harakat': False,
+            'delete_harakat': True,
             'shift_harakat_position': False,
-            'use_unshaped_instead_of_isolated': False,
+            'support_ligatures': True,
+            'use_unshaped_instead_of_isolated': True,
         }
         reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
 

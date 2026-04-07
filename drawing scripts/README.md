@@ -44,20 +44,26 @@ pip install matplotlib numpy arabic-reshaper python-bidi
 ### 2. إنشاء مخطط
 
 ```python
-from template import *
-from generators import *
+# استخدام المحرك الذكي الجديد
+from src.draw_engine.core import setup_canvas, save_figure, auto_bounds, BLUE, WHITE
+from src.draw_engine.shapes import draw_box
+from src.draw_engine.connectors import draw_smart_arrow
 
-# مثال: رسم مخطط فون نيومان
-fig = generate_von_neumann_architecture()
-save_figure(fig, 'von-neumann')
+# 1. إعداد مساحة العمل
+fig, ax = setup_canvas()
 
-# مثال: رسم شجرة ثنائية
-fig = generate_binary_tree()
-save_figure(fig, 'binary-tree')
+# 2. رسم الأشكال
+_, box1 = draw_box(ax, 0, 0, 4, 2, text="النظام الأساسي", fill_color=BLUE, text_color=WHITE)
+_, box2 = draw_box(ax, 6, 0, 4, 2, text="قاعدة البيانات", fill_color=BLUE, text_color=WHITE)
 
-# مثال: رسم OSI
-fig = generate_osi_model()
-save_figure(fig, 'osi-model')
+# 3. ربط الأشكال الذكي (تلقائياً من الحواف)
+draw_smart_arrow(ax, box1, box2, text="طلب بيانات")
+
+# 4. ضبط الحدود التلقائي
+auto_bounds(ax, margin=2.0)
+
+# 5. حفظ الصورة
+save_figure(fig, 'example_output')
 ```
 
 ### 3. النتيجة
@@ -360,7 +366,7 @@ save_figure(fig, 'osi-model')
 ```
 أنت متخصص في رسم المخططات باستخدام matplotlib.
 
-استخدم ملف template.py الموجود.
+استخدم محرك الرسم الجديد `src/draw_engine`.
 اتبع الدليل في docs/ai-prompt-guide.md
 استخدم الألوان:
 - BLUE = '#0072BD'
@@ -371,7 +377,7 @@ save_figure(fig, 'osi-model')
 - كيانات: طالب(رقم، اسم)، مادة(رمز، اسم)، قسم(اسم)
 - علاقات: طالب يسجل مادة (1:N)، قسم يدرس مادة (1:N)
 
-اكتب الكود وطبقه واحفظه في docs/outputs/er-diagram
+اكتب الكود وطبقه واحفظه باستخدام `save_figure` في `docs/outputs/er-diagram`
 ```
 
 ---

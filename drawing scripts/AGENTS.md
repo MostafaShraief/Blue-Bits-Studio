@@ -7,6 +7,9 @@ Every commit must be **atomic** — one logical change, one clear purpose, one r
 
 ## Rules for Atomic Commits
 
+### 0. Git Path
+Notice that there is not `.git` folder here, the `.git` folder of this project is placed outside this folder, you can access it through this path `D:\Programming\Python\Blue Bits Studio` where `.git` folder is placed.
+
 ### 1. ONE Thing Per Commit
 Each commit should do **exactly one** of:
 - Add a single feature

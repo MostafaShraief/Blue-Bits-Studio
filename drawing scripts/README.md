@@ -13,13 +13,19 @@ drawing-scripts/
 │   ├── mcp-guide.md            # دليل خادم MCP
 │   ├── 📂 outputs/              # مخرجات الـ AI (الصور المُنتَجة)
 │
-├── 📂 test-output/             # نتائج الاختبارات
-│   ├── unit/                   # اختبارات الوحدة
-│   └── integration/            # الاختبارات المتكاملة
+├── 📂 src/
+│   └── 📂 draw_engine/          # محرك الرسم الأساسي
+│       └── __init__.py
 │
-├── template.py                  # القالب الأساسي (104 دالة شاملة)
-├── generators.py               # 57 مُنتج مخططات
-├── list.md                     # قائمة المهام والمميزات
+├── 📂 tests/                    # اختبارات الوحدة والدمج (pytest)
+│   └── __init__.py
+│
+├── 📂 test-output/             # نتائج الاختبارات القديمة
+│   ├── unit/                   
+│   └── integration/            
+│
+├── template.py                  # القالب الأساسي القديم
+├── mcp_server.py               # خادم MCP
 ├── AGENTS.md                   # دليل العمل الذري
 ├── .gitignore                  # تجاهل الملفات
 └── requirements.txt            # المتطلبات
@@ -375,20 +381,17 @@ save_figure(fig, 'osi-model')
 ### تشغيل جميع الاختبارات:
 
 ```bash
-python test_template_unit.py      # 47 اختبار
-python test_template_integration.py # 8 اختبارات
-python test_new_utilities.py      # 16 اختبار
+pytest tests/
 ```
 
 ### نتائج الاختبارات:
 
-| النوع | العدد | الحالة |
-|-------|-------|--------|
-| Unit Tests | 47 | ✅ PASS |
-| Integration Tests | 8 | ✅ PASS |
-| New Utilities | 16 | ✅ PASS |
+| النوع | الأداة | الحالة |
+|-------|--------|--------|
+| Unit Tests | pytest | ✅ قيد التطوير |
+| Integration Tests | pytest | ✅ قيد التطوير |
 
-**الإجمالي: 71/71 ✅**
+**الإجمالي: قيد التطوير**
 
 ---
 

@@ -1,6 +1,7 @@
 from .arabic_support import handle_arabic
 from .rich_text import (
     draw_text,
+    add_text,
     add_title,
     add_subtitle,
     add_label,
@@ -26,6 +27,7 @@ from .rich_text import (
 __all__ = [
     "handle_arabic",
     "draw_text",
+    "add_text",
     "add_title",
     "add_subtitle",
     "add_label",
@@ -47,4 +49,3 @@ __all__ = [
     "add_code_with_syntax",
     "add_equation"
 ]
-add_text,

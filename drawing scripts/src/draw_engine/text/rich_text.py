@@ -732,3 +732,4 @@ def add_equation(ax, x, y, equation, size=None, color=BLACK):
 
 
 add_text = draw_text
+add_text = draw_text

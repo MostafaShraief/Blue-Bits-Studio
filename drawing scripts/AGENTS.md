@@ -1,3 +1,5 @@
+you can spawn subagents as you want, each agent is responsible for a specific task, the manager of this subagents will not write code, he will manage those subagents.
+
 # Agent Guidelines: Atomic Commits
 
 ## Core Principle

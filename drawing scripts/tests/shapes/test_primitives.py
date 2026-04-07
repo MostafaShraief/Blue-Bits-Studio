@@ -1,6 +1,6 @@
 import pytest
 import matplotlib.pyplot as plt
-from src.draw_engine.shapes import draw_box, draw_circle, draw_diamond
+from src.draw_engine.shapes.primitives import draw_box, draw_circle, draw_diamond
 
 @pytest.fixture
 def ax():

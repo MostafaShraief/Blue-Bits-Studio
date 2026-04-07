@@ -1,6 +1,6 @@
 import arabic_reshaper
 from bidi.algorithm import get_display
-from .core import CODE_FONT, DEFAULT_SIZE, get_font_prop
+from ..core import CODE_FONT, DEFAULT_SIZE, get_font_prop
 
 # =========================================================
 #                   ARABIC TEXT ENGINE

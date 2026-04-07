@@ -1,11 +1,10 @@
-# Product Requirements Document: Smart Drawing Engine Refactor
+# Product Requirements Document: Comprehensive Drawing Engine
 
 ## 1. Purpose & Goals
-*   **Refactor `template.py`**: Break down the monolithic `template.py` (8900+ lines) into a modular, flexible Python package.
-*   **Smart Drawing Engine**: Ensure functions are not just extracted, but *expanded* to cover edge cases, provide smart defaults, and be highly resilient.
-*   **AI-Assistive Automation**: Make the API declarative. It should help AI models draw complex layouts easily without complex math.
-*   **Auto-Bounding (No-Cuts)**: Implement an intelligent system to detect the `plt` workspace (all drawn elements) and auto-scale/adjust bounds so no elements are cut off.
-*   **Maintain Arabic-First**: Native support for Arabic reshaping and BiDi text handling.
+*   **Complete Refactor of `template.py`**: Methodically break down the monolithic 8,900+ line script into a robust, modular Python package.
+*   **Smart Core Engine**: Functions must be expanded to be intelligent (e.g., auto-bounding workspace, smart routing, relative positioning, auto-handling Arabic/Bidi text, and comprehensive kwargs).
+*   **Curriculum-Specific Material Libraries**: Build specific drawing toolsets tailored to university engineering subjects (Databases/ER diagrams, Logic Circuits, Algorithms, AI, Networking, etc.).
+*   **AI-Assistive Automation**: Provide an API that allows AI models to generate complex diagrams with minimal code by using relative anchors and automatic math calculations.
 
 ## 2. Architecture Plan
 The new package structure will be localized under `src/draw_engine/`:
@@ -14,35 +13,26 @@ The new package structure will be localized under `src/draw_engine/`:
 src/
 └── draw_engine/
     ├── __init__.py
-    ├── core.py         # Canvas setup, themes, saving, auto-bounding
-    ├── text.py         # Arabic engine, font loaders, rich text
-    ├── shapes.py       # Boxes, circles, polygons, relative positioning
-    ├── connectors.py   # Dynamic routing, arrows between objects
-    └── utils.py        # Math helpers, coordinate calculators
-tests/                  # Pytest unit tests
+    ├── core/           # Canvas setup, themes, saving, auto-bounding logic
+    ├── text/           # Arabic engine, font loaders, equations
+    ├── shapes/         # Smart primitive shapes returning bounding boxes
+    ├── connectors/     # Dynamic routing (shape-to-shape arrows, bezier curves)
+    └── materials/      # Domain-specific libraries:
+        ├── software_engineering.py  # ER diagrams, UML, Flowcharts
+        ├── hardware.py              # Logic gates, Microprocessors, Circuits
+        ├── computer_science.py      # Graphs, Trees, Algorithms, OS scheduling
+        ├── ai.py                    # Neural Networks, Expert Systems, Fuzzy Logic
+        ├── networking.py            # Topologies, Queuing Theory
+        └── math_physics.py          # Calculus, Linear Algebra, Signal Processing
+tests/                  # Strict Pytest coverage for every single function
 ```
 
-## 3. Execution Phases (Atomic Commits required)
-
-### Phase 1: Setup & Cleanup
-- Clean up outdated files (`list.md`, redundant server scripts) if verified unused.
-- Create base directories.
-- Update `requirements.txt` to include `pytest`.
-- Update `README.md`.
-
-### Phase 2: Core & Text Engine
-- Extract Theme Constants, Font Loaders, and Arabic Text Engine.
-- Extract Canvas & Saving. Include the **Auto-Bounding** feature to smartly detect limits.
-
-### Phase 3: Shapes & Connectors
-- Extract Shape Helpers (make them smart: returning bounding boxes, anchoring).
-- Extract smart Connectors (dynamic arrows connecting `shape A` to `shape B`).
-
-### Phase 4: Integration
-- Verify all original capabilities of `template.py` exist in the new engine.
-- Ensure the E2E behavior matches or exceeds the original script.
+## 3. Execution Methodology (MANDATORY)
+1. **Section by Section**: No massive cut-and-paste. Every function from `template.py` must be extracted individually, reviewed for improvements (smart bounds, edge cases), and tested.
+2. **Subagents**: The Commander will delegate specific domains to specialized Workers. Reviewers will verify tests pass before checking off TODOs.
+3. **Atomic Commits**: Each extracted module or specific feature set must be committed independently with `feat:` or `refactor:` prefixes, adhering strictly to `AGENTS.md`.
 
 ## 4. Coding Rules
-- Add comprehensive docstrings and type hints.
-- Tests must pass for each module extracted.
-- Follow `AGENTS.md` atomic commit guidelines.
+- Every drawing function MUST return bounding box data `(xmin, ymin, xmax, ymax)` or an anchor dictionary.
+- Auto-bounding must detect elements and prevent canvas clipping.
+- Comprehensive docstrings and type hints are required for AI context.

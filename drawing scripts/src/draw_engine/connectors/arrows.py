@@ -2,7 +2,7 @@ import matplotlib.patches as patches
 import numpy as np
 
 from src.draw_engine.core import BLACK, BLUE, DEFAULT_SIZE, get_font_prop
-from src.draw_engine.text import handle_arabic
+from src.draw_engine.text.arabic_support import handle_arabic
 
 def draw_arrow(
     ax,

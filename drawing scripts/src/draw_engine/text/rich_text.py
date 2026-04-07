@@ -4,7 +4,6 @@ import numpy as np
 
 from src.draw_engine.core import CODE_FONT, DEFAULT_SIZE, BLACK, BLUE, GRAY, LIGHT_BLUE, RED, get_font_prop
 from src.draw_engine.text.arabic_support import handle_arabic
-from src.draw_engine.connectors.arrows import draw_line
 
 def draw_text(ax, x, y, text, size=DEFAULT_SIZE, color=BLACK, ha="center", va="center", weight="normal", **kwargs):
     """Draw properly shaped Arabic text or standard English text."""
@@ -522,3 +521,214 @@ def add_math_expression(ax, x, y, expression, size=None, color=BLACK):
 
 
 def add_section_header(ax, x, y, text, size=None, color=BLUE):
+    if size is None:
+        size = DEFAULT_SIZE
+    draw_text(ax, x, y, text, color=color, size=size, ha="left")
+
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    font = get_font_prop(size)
+    disp = handle_arabic(text)
+    t = ax.text(x, y, disp, fontproperties=font, alpha=0)
+    bbox = t.get_window_extent(renderer)
+    inv = ax.transData.inverted()
+    p1 = inv.transform(bbox.p0)
+    p2 = inv.transform(bbox.p1)
+    t.remove()
+
+    ax.plot([p1[0], p2[0]], [y - 0.2, y - 0.2], color=color, linewidth=1.5, zorder=1)
+
+def add_rotated_text(
+    ax, x, y, text, angle=0, color=BLACK, size=None, ha="center", va="center"
+):
+    """
+    Add rotated Arabic text.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Position
+        text: Text to display
+        angle: Rotation angle in degrees
+        color: Text color
+        size: Font size
+        ha: Horizontal alignment
+        va: Vertical alignment
+
+    Returns:
+        The text object
+    """
+    if size is None:
+        size = DEFAULT_SIZE
+    disp = handle_arabic(text)
+    ax.text(
+        x, y, disp, fontsize=size, color=color, rotation=angle, ha=ha, va=va, zorder=20
+    )
+
+
+def add_vertical_text(ax, x, y, text, color=BLACK, size=None):
+    """
+    Add vertical Arabic text (each character on new line).
+
+    Args:
+        ax: matplotlib axes
+        x, y: Starting position
+        text: Text to display
+        color: Text color
+        size: Font size
+
+    Returns:
+        List of text objects
+    """
+    if size is None:
+        size = DEFAULT_SIZE
+    disp = handle_arabic(text)
+    chars = list(disp)
+    text_objects = []
+    for i, char in enumerate(chars):
+        t = ax.text(
+            x,
+            y - i * 0.5,
+            char,
+            fontsize=size,
+            color=color,
+            ha="center",
+            va="top",
+            zorder=20,
+        )
+        text_objects.append(t)
+    return text_objects
+
+
+def add_text_with_bg(
+    ax, x, y, text, bg_color=LIGHT_BLUE, text_color=BLACK, size=None, padding=0.2
+):
+    """
+    Add text with background box.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Position
+        text: Text to display
+        bg_color: Background color
+        text_color: Text color
+        size: Font size
+        padding: Padding around text
+
+    Returns:
+        The text object
+    """
+    if size is None:
+        size = DEFAULT_SIZE
+
+    disp = handle_arabic(text)
+    font = get_font_prop(size)
+
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    t = ax.text(x, y, disp, fontproperties=font, alpha=0)
+    bbox = t.get_window_extent(renderer)
+    inv = ax.transData.inverted()
+    p1 = inv.transform(bbox.p0)
+    p2 = inv.transform(bbox.p1)
+    w = p2[0] - p1[0]
+    h = p2[1] - p1[1]
+    t.remove()
+
+    # Draw background
+    bx = x - w / 2 - padding
+    by = y - h / 2 - padding
+    draw_box(
+        ax,
+        bx,
+        by,
+        w + padding * 2,
+        h + padding * 2,
+        "",
+        fill_color=bg_color,
+        rounded=False,
+        linewidth=0,
+    )
+
+    # Draw text
+    ax.text(
+        x,
+        y,
+        disp,
+        color=text_color,
+        fontproperties=font,
+        ha="center",
+        va="center",
+        zorder=20,
+    )
+
+
+def add_code_with_syntax(
+    ax, x, y, code_lines, keywords=None, size=None, bg_color=LIGHT_BLUE
+):
+    """
+    Add syntax-highlighted code block.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Top-left position
+        code_lines: List of code strings
+        keywords: List of keywords to highlight
+        size: Font size
+        bg_color: Background color
+
+    Returns:
+        The code block text objects
+    """
+    if keywords is None:
+        keywords = ["if", "else", "for", "while", "return", "def", "class"]
+    if size is None:
+        size = int(DEFAULT_SIZE * 0.65)
+
+    add_code_block(ax, x, y, code_lines, size=size, bg_color=bg_color)
+
+
+# =========================================================
+#           MATH & STATISTICS FUNCTIONS
+# =========================================================
+
+
+
+def add_equation(ax, x, y, equation, size=None, color=BLACK):
+    r"""
+    Add a LaTeX equation using matplotlib's mathtext.
+
+    Args:
+        ax: matplotlib axes
+        x, y: Position for the equation
+        equation: LaTeX equation string (e.g., r"y = x^2 + \int f(x)\,dx")
+        size: Font size (default: DEFAULT_SIZE)
+        color: Text color
+
+    Returns:
+        The text object
+    """
+    if size is None:
+        size = DEFAULT_SIZE
+
+    text_obj = ax.text(
+        x,
+        y,
+        f"${equation}$",
+        fontsize=size,
+        color=color,
+        ha="center",
+        va="center",
+        zorder=20,
+    )
+
+    return text_obj
+
+
+# =========================================================
+#           ALGORITHM & CS VISUALIZATION (Category B)
+# =========================================================
+
+
+add_text = draw_text

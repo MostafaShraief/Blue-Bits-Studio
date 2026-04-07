@@ -18,7 +18,9 @@ from .rich_text import (
     add_section_header,
     add_rotated_text,
     add_vertical_text,
-    add_text_with_bg
+    add_text_with_bg,
+    add_code_with_syntax,
+    add_equation
 )
 
 __all__ = [
@@ -41,5 +43,8 @@ __all__ = [
     "add_section_header",
     "add_rotated_text",
     "add_vertical_text",
-    "add_text_with_bg"
+    "add_text_with_bg",
+    "add_code_with_syntax",
+    "add_equation"
 ]
+add_text,

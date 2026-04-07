@@ -5,3 +5,9 @@ __all__ = [
     "draw_alu_block",
     "draw_memory_array"
 ]
+from .computer_science import (
+    draw_array,
+    draw_tree_node,
+    draw_page_table,
+    draw_scheduling_queue
+)

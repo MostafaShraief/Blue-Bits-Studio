@@ -3,7 +3,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 from src.draw_engine.core import DEFAULT_SIZE, BLACK, BLUE, WHITE, GRAY, RED, get_font_prop
 from src.draw_engine.shapes.primitives import draw_circle, draw_box
-from src.draw_engine.connectors import draw_line, draw_arrow
+from src.draw_engine.connectors.arrows import draw_line, draw_arrow
 
 def draw_neural_network(ax, x, y, layers, radius=0.4, layer_gap=2.5, node_gap=1.2, fill_color=WHITE, border_color=BLUE):
     """

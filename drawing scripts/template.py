@@ -25,76 +25,9 @@ import os
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# =========================================================
-#                   USER CONFIGURATION
-# =========================================================
-# IMPORTANT: Put the .ttf file in the same folder as this script
-FONT_FILENAME = "BoutrosMBCDinkum Medium.ttf"
-CODE_FONT = "Cascadia Code Light"
-DEFAULT_SIZE = 22
+from src.draw_engine.core import *
 
-# =========================================================
-#                   THEME CONSTANTS
-# =========================================================
-BLUE = "#0072BD"
-GREEN = "#009E73"
-CYAN = "#33C9FF"
-BLACK = "black"
-WHITE = "white"
-RED = "#D32F2F"
-LIGHT_BLUE = "#E3F2FD"
-LIGHT_GREEN = "#E8F5E9"
-LIGHT_RED = "#FFEBEE"
-GRAY = "#9E9E9E"
-
-
-# =========================================================
-#                   FONT LOADERS
-# =========================================================
-def get_font_prop(size=DEFAULT_SIZE):
-    """Get Arabic font properties (BoutrosMBCDinkum Medium)."""
-    if os.path.exists(FONT_FILENAME):
-        return fm.FontProperties(fname=FONT_FILENAME, size=size)
-    # Fallback: search system fonts
-    print(f"WARNING: Could not find '{FONT_FILENAME}'. Searching system...")
-    for f in fm.fontManager.ttflist:
-        if "boutros" in f.name.lower() and "dinkum" in f.name.lower():
-            return fm.FontProperties(fname=f.fname, size=size)
-    # Final fallback: try common Arabic fonts
-    for fallback in ["Arial", "Tahoma", "Times New Roman"]:
-        try:
-            return fm.FontProperties(family=fallback, size=size)
-        except:
-            continue
-    return fm.FontProperties(size=size)
-
-
-def get_code_font_prop(size=None):
-    """Get code/monospace font properties (Cascadia Code Light)."""
-    if size is None:
-        size = int(DEFAULT_SIZE * 0.9)
-    return fm.FontProperties(family="monospace", size=size)
-
-
-# =========================================================
-#                   ARABIC TEXT ENGINE
-# =========================================================
-def handle_arabic(text):
-    """Reshape Arabic text for correct display in matplotlib."""
-    if not text:
-        return ""
-    text = str(text)
-    config = {
-        "delete_harakat": True,
-        "shift_harakat_position": False,
-        "support_ligatures": True,
-        "use_unshaped_instead_of_isolated": True,
-    }
-    reshaper = arabic_reshaper.ArabicReshaper(configuration=config)
-    reshaped = reshaper.reshape(text)
-    bidi_text = get_display(reshaped)
-    return bidi_text
-
+from src.draw_engine.text import *
 
 # =========================================================
 #                   CANVAS & SAVING
@@ -143,82 +76,6 @@ def save_figure(fig, filename, dpi=300):
     )
     print(f"Saved: {filename}.svg and {filename}.png")
     plt.close(fig)
-
-
-# =========================================================
-#                   TEXT HELPERS
-# =========================================================
-def add_rich_text(ax, x, y, segments, size=DEFAULT_SIZE, direction="rtl"):
-    """
-    Draw multi-colored text composed of segments.
-
-    Args:
-        ax: matplotlib axes
-        x, y: Center position
-        segments: List of tuples -> (text_string, color, is_code_bool)
-        size: Font size
-        direction: 'rtl' for Arabic-primary, 'ltr' for English/code
-    """
-    fig = ax.figure
-    fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
-
-    # 1. Measure widths
-    widths = []
-    total_w = 0
-    for text, _, is_code in segments:
-        font = get_code_font_prop(size) if is_code else get_font_prop(size)
-        disp = text if is_code else handle_arabic(text)
-        t = ax.text(x, y, disp, fontproperties=font, alpha=0)
-        bbox = t.get_window_extent(renderer)
-        inv = ax.transData.inverted()
-        p1 = inv.transform(bbox.p0)
-        p2 = inv.transform(bbox.p1)
-        w = abs(p2[0] - p1[0])
-        widths.append(w)
-        total_w += w
-        t.remove()
-
-    # 2. Draw aligned
-    if direction == "rtl":
-        cur_x = x + (total_w / 2)
-        for i, (text, color, is_code) in enumerate(segments):
-            w = widths[i]
-            font = get_code_font_prop(size) if is_code else get_font_prop(size)
-            disp = text if is_code else handle_arabic(text)
-            ax.text(
-                cur_x,
-                y,
-                disp,
-                color=color,
-                fontproperties=font,
-                ha="right",
-                va="center",
-                zorder=20,
-            )
-            cur_x -= w
-    else:  # ltr
-        cur_x = x - (total_w / 2)
-        for i, (text, color, is_code) in enumerate(segments):
-            w = widths[i]
-            font = get_code_font_prop(size) if is_code else get_font_prop(size)
-            disp = text if is_code else handle_arabic(text)
-            ax.text(
-                cur_x,
-                y,
-                disp,
-                color=color,
-                fontproperties=font,
-                ha="left",
-                va="center",
-                zorder=20,
-            )
-            cur_x += w
-
-
-def add_text(ax, x, y, text, color=BLACK, size=DEFAULT_SIZE, ha="center", va="center"):
-    """Simple wrapper for single-color Arabic text."""
-    add_rich_text(ax, x, y, [(text, color, False)], size=size, direction="rtl")
 
 
 # =========================================================

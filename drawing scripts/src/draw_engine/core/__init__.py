@@ -1,158 +1,44 @@
-import os
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
+from .themes import (
+    FONT_FILENAME,
+    CODE_FONT,
+    DEFAULT_SIZE,
+    BLUE,
+    GREEN,
+    CYAN,
+    BLACK,
+    WHITE,
+    RED,
+    LIGHT_BLUE,
+    LIGHT_GREEN,
+    LIGHT_RED,
+    GRAY,
+    get_font_prop,
+    get_code_font_prop,
+)
 
-# =========================================================
-#                   USER CONFIGURATION
-# =========================================================
-# IMPORTANT: Put the .ttf file in the same folder as this script
-FONT_FILENAME = "BoutrosMBCDinkum Medium.ttf"
-CODE_FONT = "Cascadia Code Light"
-DEFAULT_SIZE = 22
+from .canvas import (
+    setup_canvas,
+    auto_bounds,
+    save_figure,
+)
 
-# =========================================================
-#                   THEME CONSTANTS
-# =========================================================
-BLUE = "#0072BD"
-GREEN = "#009E73"
-CYAN = "#33C9FF"
-BLACK = "black"
-WHITE = "white"
-RED = "#D32F2F"
-LIGHT_BLUE = "#E3F2FD"
-LIGHT_GREEN = "#E8F5E9"
-LIGHT_RED = "#FFEBEE"
-GRAY = "#9E9E9E"
-
-# =========================================================
-#                   FONT LOADERS
-# =========================================================
-def get_font_prop(size=DEFAULT_SIZE):
-    """Get Arabic font properties (BoutrosMBCDinkum Medium)."""
-    if os.path.exists(FONT_FILENAME):
-        return fm.FontProperties(fname=FONT_FILENAME, size=size)
-    # Fallback: search system fonts
-    print(f"WARNING: Could not find '{FONT_FILENAME}'. Searching system...")
-    for f in fm.fontManager.ttflist:
-        if "boutros" in f.name.lower() and "dinkum" in f.name.lower():
-            return fm.FontProperties(fname=f.fname, size=size)
-    # Final fallback: try common Arabic fonts
-    for fallback in ["Arial", "Tahoma", "Times New Roman"]:
-        try:
-            return fm.FontProperties(family=fallback, size=size)
-        except Exception:
-            continue
-    return fm.FontProperties(size=size)
-
-def get_code_font_prop(size=None):
-    """Get code/monospace font properties (Cascadia Code Light)."""
-    if size is None:
-        size = int(DEFAULT_SIZE * 0.9)
-    return fm.FontProperties(family="monospace", size=size)
-
-# =========================================================
-#                   CANVAS & SAVING
-# =========================================================
-def setup_canvas(w=12, h=8, xlim=(-8, 8), ylim=(-5, 5)):
-    """
-    Create a matplotlib figure with transparent background.
-
-    Args:
-        w: Figure width in inches
-        h: Figure height in inches
-        xlim: X-axis limits tuple (min, max)
-        ylim: Y-axis limits tuple (min, max)
-
-    Returns:
-        (fig, ax) tuple
-    """
-    fig, ax = plt.subplots(figsize=(w, h))
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-    ax.axis("off")
-    # Transparent background
-    fig.patch.set_alpha(0)
-    ax.patch.set_alpha(0)
-    return fig, ax
-
-def auto_bounds(ax, margin=1.0):
-    """
-    Calculate the bounds of all plotted elements in ax and adjust limits.
-
-    Args:
-        ax: matplotlib Axes object
-        margin: Extra space to add around the bounds
-    """
-    # Force a draw so bounding boxes are calculated correctly
-    ax.figure.canvas.draw()
-    
-    x_min, x_max = float('inf'), float('-inf')
-    y_min, y_max = float('inf'), float('-inf')
-    
-    # Consider patches explicitly
-    for patch in ax.patches:
-        extents = patch.get_extents()
-        x_min = min(x_min, extents.xmin)
-        x_max = max(x_max, extents.xmax)
-        y_min = min(y_min, extents.ymin)
-        y_max = max(y_max, extents.ymax)
-        
-    # Consider text explicitly
-    for text in ax.texts:
-        extents = text.get_window_extent(renderer=ax.figure.canvas.get_renderer()).transformed(ax.transData.inverted())
-        x_min = min(x_min, extents.xmin)
-        x_max = max(x_max, extents.xmax)
-        y_min = min(y_min, extents.ymin)
-        y_max = max(y_max, extents.ymax)
-        
-    # Consider lines explicitly
-    for line in ax.lines:
-        xdata = line.get_xdata()
-        ydata = line.get_ydata()
-        if len(xdata) > 0 and len(ydata) > 0:
-            x_min = min(x_min, min(xdata))
-            x_max = max(x_max, max(xdata))
-            y_min = min(y_min, min(ydata))
-            y_max = max(y_max, max(ydata))
-            
-    # Consider collections explicitly
-    for collection in ax.collections:
-        paths = collection.get_paths()
-        for path in paths:
-            extents = path.get_extents()
-            x_min = min(x_min, extents.xmin)
-            x_max = max(x_max, extents.xmax)
-            y_min = min(y_min, extents.ymin)
-            y_max = max(y_max, extents.ymax)
-            
-    if x_min != float('inf') and x_max != float('-inf'):
-        ax.set_xlim(x_min - margin, x_max + margin)
-        ax.set_ylim(y_min - margin, y_max + margin)
-    else:
-        # Default limits if empty
-        ax.set_xlim(-margin, margin)
-        ax.set_ylim(-margin, margin)
-
-
-def save_figure(fig, filename, dpi=300):
-    """
-    Save figure as both SVG and PNG with transparent background.
-
-    Args:
-        fig: matplotlib figure
-        filename: Base filename without extension
-        dpi: Resolution for PNG output
-    """
-    fig.savefig(
-        f"{filename}.svg", transparent=True, bbox_inches="tight", pad_inches=0.1
-    )
-    fig.savefig(
-        f"{filename}.png",
-        transparent=True,
-        bbox_inches="tight",
-        dpi=dpi,
-        pad_inches=0.1,
-    )
-    print(f"Saved: {filename}.svg and {filename}.png")
-    plt.close(fig)
-
+__all__ = [
+    "FONT_FILENAME",
+    "CODE_FONT",
+    "DEFAULT_SIZE",
+    "BLUE",
+    "GREEN",
+    "CYAN",
+    "BLACK",
+    "WHITE",
+    "RED",
+    "LIGHT_BLUE",
+    "LIGHT_GREEN",
+    "LIGHT_RED",
+    "GRAY",
+    "get_font_prop",
+    "get_code_font_prop",
+    "setup_canvas",
+    "auto_bounds",
+    "save_figure",
+]

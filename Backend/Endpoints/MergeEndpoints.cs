@@ -164,6 +164,16 @@ public static class MergeEndpoints
                         insertionPoint = altChunk;
                     }
 
+                    // Force a hard page break after the inserted file to prevent overlapping backgrounds 
+                    // and ensure the next document (or the final End Page) starts on a fresh page.
+                    Paragraph breakPara = new Paragraph(
+                        new Run(
+                            new Break() { Type = BreakValues.Page }
+                        )
+                    );
+                    insertionPoint.InsertAfterSelf(breakPara);
+                    insertionPoint = breakPara;
+
                     if (System.IO.File.Exists(tempFilePath))
                     {
                         System.IO.File.Delete(tempFilePath);

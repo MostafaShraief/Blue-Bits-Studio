@@ -72,38 +72,45 @@ public static class MergeEndpoints
                             {
                                 var firstSectPr = sectPrs.First();
                                 var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? firstSectPr;
-                                OpenXmlElement? firstNode = body.FirstChild;
                                 
-                                while (firstNode != null && firstNode != firstBlock)
+                                var nodesToRemovePrefix = new List<OpenXmlElement>();
+                                var current = body.FirstChild;
+                                while (current != null && current != firstBlock)
                                 {
-                                    var nextNode = firstNode.NextSibling();
-                                    firstNode.Remove();
-                                    firstNode = nextNode;
+                                    nodesToRemovePrefix.Add(current);
+                                    current = current.NextSibling();
+                                }
+                                if (current == firstBlock)
+                                {
+                                    nodesToRemovePrefix.Add(current);
                                 }
                                 
-                                if (firstNode == firstBlock)
+                                foreach (var node in nodesToRemovePrefix)
                                 {
-                                    var nextNode = firstNode.NextSibling();
-                                    firstNode.Remove();
-                                    firstNode = nextNode;
+                                    if (node.Parent != null) node.Remove();
                                 }
                                 
                                 if (sectPrs.Count > 1)
                                 {
                                     var lastSectPr = sectPrs.Last();
                                     var lastBlock = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? lastSectPr;
-                                    OpenXmlElement? toRemove = lastBlock;
-                                    while (toRemove != null)
+                                    
+                                    var nodesToRemoveSuffix = new List<OpenXmlElement>();
+                                    current = lastBlock;
+                                    while (current != null)
                                     {
-                                        var next = toRemove.NextSibling();
-                                        if (toRemove.Parent != null)
-                                        {
-                                            toRemove.Remove();
-                                        }
-                                        toRemove = next;
+                                        nodesToRemoveSuffix.Add(current);
+                                        current = current.NextSibling();
+                                    }
+                                    
+                                    foreach (var node in nodesToRemoveSuffix)
+                                    {
+                                        if (node.Parent != null) node.Remove();
                                     }
                                 }
                             }
+                            
+                            tempMainPart.Document.Save();
                         }
                     }
 

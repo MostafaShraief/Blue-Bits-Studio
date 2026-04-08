@@ -160,7 +160,14 @@ export const mergeDocxFiles = async (files, metadata) => {
         });
 
         if (!res.ok) throw new Error('Failed to merge files');
-        return await res.blob();
+        const json = await res.json();
+        
+        // Fetch the actual docx file using the returned URL
+        const fileUrl = `http://localhost:5135${json.url}`;
+        const fileRes = await fetch(fileUrl);
+        if (!fileRes.ok) throw new Error('Failed to download merged file');
+        
+        return await fileRes.blob();
     } catch (e) {
         console.error('API Error:', e);
         throw e;

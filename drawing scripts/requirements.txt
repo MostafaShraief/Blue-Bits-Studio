@@ -1,5 +1,0 @@
-matplotlib
-numpy
-arabic-reshaper
-python-bidi
-mcp

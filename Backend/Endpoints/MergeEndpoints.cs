@@ -71,28 +71,35 @@ public static class MergeEndpoints
                             if (sectPrs.Count > 0)
                             {
                                 var firstSectPr = sectPrs.First();
+                                var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? firstSectPr;
                                 OpenXmlElement? firstNode = body.FirstChild;
                                 
-                                while (firstNode != null && firstNode != firstSectPr)
+                                while (firstNode != null && firstNode != firstBlock)
                                 {
                                     var nextNode = firstNode.NextSibling();
                                     firstNode.Remove();
                                     firstNode = nextNode;
                                 }
                                 
-                                if (firstNode == firstSectPr)
+                                if (firstNode == firstBlock)
                                 {
+                                    var nextNode = firstNode.NextSibling();
                                     firstNode.Remove();
+                                    firstNode = nextNode;
                                 }
                                 
                                 if (sectPrs.Count > 1)
                                 {
                                     var lastSectPr = sectPrs.Last();
-                                    OpenXmlElement? toRemove = lastSectPr;
+                                    var lastBlock = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? lastSectPr;
+                                    OpenXmlElement? toRemove = lastBlock;
                                     while (toRemove != null)
                                     {
                                         var next = toRemove.NextSibling();
-                                        toRemove.Remove();
+                                        if (toRemove.Parent != null)
+                                        {
+                                            toRemove.Remove();
+                                        }
                                         toRemove = next;
                                     }
                                 }

@@ -108,16 +108,8 @@ def draw_curved_arrow(
     if length == 0:
         return None
 
-    # Perpendicular offset for control point
-    offset = length * curve_strength
-    cx = (p1[0] + p2[0]) / 2 - (dy / length) * offset
-    cy = (p1[1] + p2[1]) / 2 + (dx / length) * offset
-
-    # Create curved path using quadratic Bezier
-    # We'll use ConnectionStyle "CurveB" with explicitly computed control point
-    connection_style = patches.ConnectionStyle.CurveB(
-        ref=(cx, cy),  # Control point
-    )
+    # Use ConnectionStyle Arc3 with rad based on curve_strength
+    connection_style = patches.ConnectionStyle("Arc3", rad=curve_strength)
 
     arrow = ax.annotate(
         "",

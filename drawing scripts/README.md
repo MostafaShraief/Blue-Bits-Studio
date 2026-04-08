@@ -13,69 +13,68 @@ drawing-scripts/
 │   └── 📂 draw_engine/          # محرك الرسم الذكي الجديد (أكثر من 8000 سطر مقسمة)
 │       ├── 📂 core/             # إعداد اللوحة، حفظ الصور، والتأطير التلقائي (Auto-bounding)
 │       ├── 📂 text/             # معالجة النصوص العربية والمعادلات
-│       ├── 📂 shapes/           # الأشكال الذكية التي تعيد حدودها بدقة (primitives, layout, annotations)
-│       ├── 📂 connectors/       # الموصلات الذكية والأسهم ذاتية التوجيه (routing)
+│       ├── 📂 shapes/           # الأشكال الذكية التي تعيد حدودها بدقة
+│       ├── 📂 connectors/       # الموصلات الذكية والأسهم ذاتية التوجيه
 │       └── 📂 materials/        # وحدات مخصصة لمناهج الجامعة:
-│           ├── software_engineering.py  # UML, ER Diagrams, Flowcharts
-│           ├── hardware.py              # Logic Gates, CPU, Memory
-│           ├── networking.py            # Routers, Switches, Clouds, Topologies
-│           ├── computer_science.py      # Trees, Graphs, Data Structures, OS
-│           └── ai.py                    # Neural Networks, Fuzzy Logic, Expert Systems
+│           ├── software_engineering.py
+│           ├── hardware.py
+│           ├── networking.py
+│           ├── computer_science.py
+│           └── ai.py
 │
 ├── 📂 tests/                    # اختبارات الوحدة والدمج (34+ Passing Tests)
-├── AI_Prompt.md                 # دليل استخدام الذكاء الاصطناعي الحديث لإنتاج المخططات
-├── template.py                  # القالب الأساسي القديم (محتفظ به كـ wrapper للتوافقية)
-├── mcp_server.py               # خادم MCP
-├── AGENTS.md                   # دليل العمل الذري
-└── requirements.txt            # المتطلبات
+├── 📂 Prompts/
+│   └── Draw_Prompt.md           # دليل استخدام الذكاء الاصطناعي الحديث لإنتاج المخططات
+├── main.py                      # نقطة الدخول الأساسية التي يدرج فيها كود الذكاء الاصطناعي
+├── template.py                  # القالب الأساسي القديم (محتفظ به للتوافقية)
+└── requirements.txt             # المتطلبات
 ```
 
 ---
 
-## 🚀 البدء السريع المطور
+## 🚀 كيفية تشغيل المشروع
 
 ### 1. التثبيت
 
+تأكد من وجود بيئة افتراضية ثم قم بتثبيت المتطلبات:
+
 ```bash
+pip install -r requirements.txt
+# أو يدوياً:
 pip install matplotlib numpy arabic-reshaper python-bidi pytest
 ```
 
-### 2. إنشاء مخطط باستخدام الأشكال الذكية
+### 2. توليد المخططات عن طريق الذكاء الاصطناعي
 
-```python
-# استخدام المحرك الذكي الجديد - لا حاجة لحسابات رياضية معقدة
-from src.draw_engine.core import setup_canvas, save_figure, BLUE, WHITE
-from src.draw_engine.shapes.primitives import draw_box
-from src.draw_engine.connectors.routing import draw_smart_arrow
+هذا المشروع مصمم ليعمل بتناغم تام مع نماذج الذكاء الاصطناعي عبر ملف `Prompts/Draw_Prompt.md`.
 
-# 1. إعداد مساحة العمل
-fig, ax = setup_canvas()
+*   **الخطوة الأولى:** انسخ محتوى `Prompts/Draw_Prompt.md` وقم بتوجيهه لنموذج الذكاء الاصطناعي مع إرفاق صورة أو وصف للمخطط الذي تريد رسمه.
+*   **الخطوة الثانية:** سيقوم النموذج بتوليد كود Python قصير (بدون أسطر الاستيراد `import`).
+*   **الخطوة الثالثة:** انسخ الكود المولد وضعه داخل ملف `main.py` في المنطقة المخصصة: `# [AI CODE HERE]`.
+*   **الخطوة الرابعة:** قم بتشغيل الملف:
 
-# 2. رسم الأشكال (الدوال تعيد حدود الشكل تلقائياً)
-client = draw_box(ax, 0, 0, 4, 2, text="النظام الأساسي", fill_color=BLUE, text_color=WHITE)
-db = draw_box(ax, 6, 0, 4, 2, text="قاعدة البيانات", fill_color=BLUE, text_color=WHITE)
-
-# 3. ربط الأشكال الذكي (يتجنب التداخل ويحدد الزوايا تلقائياً)
-draw_smart_arrow(ax, client, db, text="طلب بيانات")
-
-# 4. حفظ الصورة (يعمل auto-bounding لتوسيع اللوحة ومنع قص الأشكال تلقائياً)
-save_figure(fig, 'example_output')
+```bash
+python main.py
 ```
+سيتم حفظ المخطط تلقائيًا كـ `output.png` (وكذلك كملف SVG) بجودة عالية وبتأطير تلقائي.
 
 ---
 
-## 🧪 الاختبارات (Test Driven)
+## 🧪 الاختبارات (Testing)
 
 تم بناء أكثر من 30 اختبار (Unit Tests) لضمان متانة كافة المكونات الموزعة للمحرك:
 
+لإجراء الاختبارات محلياً، اكتب في موجه الأوامر:
 ```bash
-set PYTHONPATH=. && pytest tests/
+set PYTHONPATH="%CD%" && pytest tests/
+# أو لمستخدمي Linux/Mac:
+# PYTHONPATH=. pytest tests/
 ```
 
 ### نتائج الاختبارات الحالية:
 - **Core & Text**: ✅ `PASSED`
-- **Shapes & Layouts**: ✅ `PASSED` 
+- **Shapes & Layouts**: ✅ `PASSED`
 - **Connectors**: ✅ `PASSED`
-- **Curriculum Materials (AI, Hardware, Networking, CS, SE)**: ✅ `PASSED`
+- **Curriculum Materials**: ✅ `PASSED`
 
 **الإجمالي: 34/34 اجتازت بنجاح**

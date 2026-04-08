@@ -59,6 +59,8 @@ public static class MergeEndpoints
                 var sectionBreakPara = body.Elements<Paragraph>().FirstOrDefault(p => 
                     p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
                 );
+                
+                OpenXmlElement insertionPoint = sectionBreakPara;
 
                 for (int i = 0; i < files.Count; i++)
                 {
@@ -105,11 +107,11 @@ public static class MergeEndpoints
                                 // Remove Back Cover
                                 if (sectPrs.Count > 1)
                                 {
-                                    var lastSectPr = sectPrs.Last();
-                                    var lastBlock = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? lastSectPr;
+                                    var contentSectPr = sectPrs[sectPrs.Count - 2];
+                                    var contentBlock = contentSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? contentSectPr;
                                     
                                     var nodesToRemoveSuffix = new List<OpenXmlElement>();
-                                    current = lastBlock;
+                                    current = contentBlock.NextSibling();
                                     while (current != null)
                                     {
                                         nodesToRemoveSuffix.Add(current);
@@ -121,12 +123,14 @@ public static class MergeEndpoints
                                         if (node.Parent != null) node.Remove();
                                     }
 
-                                    // IMPORTANT: Word requires Body to have a direct SectionProperties as the last element.
+                                    // Retain content page layout and avoid default margins
+                                    var clonedSectPr = (SectionProperties)contentSectPr.CloneNode(true);
+                                    contentSectPr.Remove(); // Remove from inside the paragraph to prevent an extra break
+                                    
                                     var bodySectPr = tempBody.Elements<SectionProperties>().LastOrDefault();
-                                    if (bodySectPr == null)
-                                    {
-                                        tempBody.AppendChild(new SectionProperties());
-                                    }
+                                    if (bodySectPr != null) bodySectPr.Remove();
+                                    
+                                    tempBody.AppendChild(clonedSectPr);
                                 }
                             }
                             
@@ -145,13 +149,19 @@ public static class MergeEndpoints
 
                     AltChunk altChunk = new AltChunk { Id = altChunkId };
                     
-                    if (sectionBreakPara != null)
+                    AltChunkProperties altChunkPr = new AltChunkProperties();
+                    altChunkPr.MatchSource = new MatchSource() { Val = true };
+                    altChunk.Append(altChunkPr);
+                    
+                    if (insertionPoint != null)
                     {
-                        sectionBreakPara.InsertAfterSelf(altChunk);
+                        insertionPoint.InsertAfterSelf(altChunk);
+                        insertionPoint = altChunk; // ensure multiple files don't insert in reverse
                     }
                     else
                     {
                         body.AppendChild(altChunk);
+                        insertionPoint = altChunk;
                     }
 
                     if (System.IO.File.Exists(tempFilePath))

@@ -29,7 +29,7 @@ public static class MergeEndpoints
 
             // Select template
             string templateName = lectureType.ToLower() == "practical" ? "Pandoc-Prac-Final-Step.dotx" : "Pandoc-Theo-Final-Step.dotx";
-            string templatePath = Path.Combine(env.ContentRootPath, "..", templateName);
+            string templatePath = Path.Combine(env.ContentRootPath, "..", "Resources", "PandocTemplates", templateName);
 
             if (!System.IO.File.Exists(templatePath))
             {

@@ -16,7 +16,3 @@ from src.draw_engine.text.arabic_support import *
 from src.draw_engine.text.rich_text import *
 
 # --- AI GENERATED CODE WILL BE APPENDED BELOW ---
-if __name__ == "__main__":
-    fig, ax = setup_canvas()
-    # [AI CODE HERE]
-    save_figure(fig, "output.png")

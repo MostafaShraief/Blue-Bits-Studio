@@ -55,6 +55,8 @@ app.UseCors("AllowFrontend");
 // Map Endpoints
 app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();
 
+app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi();
+
 app.MapGroup("/api/sessions")
    .MapSessionEndpoints()
    .WithOpenApi();

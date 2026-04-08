@@ -9,6 +9,7 @@ import DrawWizard from './pages/DrawWizard';
 import QuizHub from './pages/QuizHub';
 import History from './pages/History';
 import Tour from './pages/Tour';
+import MergeWizard from './pages/MergeWizard';
 
 export default function App() {
     return (
@@ -22,6 +23,7 @@ export default function App() {
                         <Route path="coordination" element={<CoordinationWizard />} />
                         <Route path="pandoc" element={<PandocWizard />} />
                         <Route path="draw" element={<DrawWizard />} />
+                        <Route path="merge" element={<MergeWizard />} />
                         <Route path="quiz" element={<QuizHub />} />
                         <Route path="history" element={<History />} />
                     </Route>

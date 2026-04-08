@@ -38,7 +38,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend");
 
 // Serve static files for uploaded images
 var uploadPath = Path.Join(app.Environment.ContentRootPath, "uploads");
@@ -49,8 +51,6 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
     RequestPath = "/uploads"
 });
-
-app.UseCors("AllowFrontend");
 
 // Map Endpoints
 app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();

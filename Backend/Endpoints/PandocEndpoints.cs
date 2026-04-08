@@ -104,7 +104,7 @@ public static class PandocEndpoints
     {
         using (var document = WordprocessingDocument.Open(docxPath, true))
         {
-            var body = document.MainDocumentPart!.Document.Body;
+            var body = document.MainDocumentPart?.Document?.Body;
             if (body == null) return;
 
             foreach (var para in body.Descendants<Paragraph>().ToList())
@@ -283,7 +283,7 @@ public static class PandocEndpoints
         {
             finalDoc.ChangeDocumentType(DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
 
-            var body = finalDoc.MainDocumentPart!.Document.Body;
+            var body = finalDoc.MainDocumentPart?.Document?.Body;
             if (body == null) return;
 
             // Import the temp document

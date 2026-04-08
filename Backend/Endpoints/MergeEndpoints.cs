@@ -47,7 +47,18 @@ public static class MergeEndpoints
             {
                 finalDoc.ChangeDocumentType(WordprocessingDocumentType.Document);
                 var mainPart = finalDoc.MainDocumentPart;
-                if (mainPart == null) return Results.Problem("Invalid template.");
+                if (mainPart?.Document?.Body == null) return Results.Problem("Invalid template.");
+                
+                var body = mainPart.Document.Body;
+
+                // 1. Remove the second page from the template (index 2) which is the empty paragraph with SectPr
+                var p2 = body.Elements<Paragraph>().ElementAtOrDefault(2);
+                if (p2 != null) p2.Remove();
+
+                // 2. Find the first SectionBreak paragraph (end of cover page) to insert AltChunks after
+                var sectionBreakPara = body.Elements<Paragraph>().FirstOrDefault(p => 
+                    p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
+                );
 
                 for (int i = 0; i < files.Count; i++)
                 {
@@ -65,16 +76,17 @@ public static class MergeEndpoints
                         var tempMainPart = tempDoc.MainDocumentPart;
                         if (tempMainPart != null && tempMainPart.Document?.Body != null)
                         {
-                            var body = tempMainPart.Document.Body;
-                            var sectPrs = body.Descendants<SectionProperties>().ToList();
+                            var tempBody = tempMainPart.Document.Body;
+                            var sectPrs = tempBody.Descendants<SectionProperties>().ToList();
                             
                             if (sectPrs.Count > 0)
                             {
+                                // Remove Cover
                                 var firstSectPr = sectPrs.First();
-                                var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? firstSectPr;
+                                var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? firstSectPr;
                                 
                                 var nodesToRemovePrefix = new List<OpenXmlElement>();
-                                var current = body.FirstChild;
+                                var current = tempBody.FirstChild;
                                 while (current != null && current != firstBlock)
                                 {
                                     nodesToRemovePrefix.Add(current);
@@ -90,10 +102,11 @@ public static class MergeEndpoints
                                     if (node.Parent != null) node.Remove();
                                 }
                                 
+                                // Remove Back Cover
                                 if (sectPrs.Count > 1)
                                 {
                                     var lastSectPr = sectPrs.Last();
-                                    var lastBlock = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == body) ?? lastSectPr;
+                                    var lastBlock = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? lastSectPr;
                                     
                                     var nodesToRemoveSuffix = new List<OpenXmlElement>();
                                     current = lastBlock;
@@ -106,6 +119,13 @@ public static class MergeEndpoints
                                     foreach (var node in nodesToRemoveSuffix)
                                     {
                                         if (node.Parent != null) node.Remove();
+                                    }
+
+                                    // IMPORTANT: Word requires Body to have a direct SectionProperties as the last element.
+                                    var bodySectPr = tempBody.Elements<SectionProperties>().LastOrDefault();
+                                    if (bodySectPr == null)
+                                    {
+                                        tempBody.AppendChild(new SectionProperties());
                                     }
                                 }
                             }
@@ -125,15 +145,13 @@ public static class MergeEndpoints
 
                     AltChunk altChunk = new AltChunk { Id = altChunkId };
                     
-                    var templateBody = mainPart.Document?.Body;
-                    var templateLastSectPr = templateBody?.Elements<SectionProperties>().LastOrDefault();
-                    if (templateLastSectPr != null)
+                    if (sectionBreakPara != null)
                     {
-                        templateBody?.InsertBefore(altChunk, templateLastSectPr);
+                        sectionBreakPara.InsertAfterSelf(altChunk);
                     }
                     else
                     {
-                        templateBody?.AppendChild(altChunk);
+                        body.AppendChild(altChunk);
                     }
 
                     if (System.IO.File.Exists(tempFilePath))

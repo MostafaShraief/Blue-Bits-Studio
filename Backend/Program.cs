@@ -46,8 +46,8 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-app.UseHttpsRedirection();
 // app.UseHttpsRedirection();
+// Commented to allow HTTP connections from frontend dev server
 
 app.UseCors("AllowFrontend");
 

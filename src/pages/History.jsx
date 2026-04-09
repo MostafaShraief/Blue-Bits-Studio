@@ -7,6 +7,7 @@ const FILTERS = [
     { value: 'all', label: 'الكل' },
     { value: 'lecture', label: 'محاضرات' },
     { value: 'bank', label: 'بنوك' },
+    { value: 'quiz', label: 'اختبارات' },
     { value: 'coordination', label: 'تنسيق' },
     { value: 'draw', label: 'رسم' },
     { value: 'pandoc', label: 'Pandoc' },
@@ -14,7 +15,8 @@ const FILTERS = [
 
 const TYPE_META = {
     lecture: { label: 'استخراج محاضرة', icon: FileSearch, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    bank: { label: 'استخراج بنك', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    bank: { label: 'بنك أسئلة', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    quiz: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
     coordination: { label: 'تنسيق', icon: AlignRight, bgClass: 'bg-success/10', textClass: 'text-success' },
     draw: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     pandoc: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
@@ -78,7 +80,27 @@ export default function History() {
                         const meta = TYPE_META[s.workflowType] || TYPE_META.lecture;
                         const Icon = meta.icon;
                         
-                        const linkTo = `/${s.workflowType === 'lecture' || s.workflowType === 'bank' ? 'extraction?type=' + s.workflowType + '&' : s.workflowType + '?'}id=${s.id}`;
+                        // Route logic:
+                        // - quiz type → /quiz
+                        // - bank type WITH quizData → /quiz (legacy fix for old sessions saved as bank)
+                        // - bank type WITHOUT quizData → /extraction (question bank extraction)
+                        // - lecture → /extraction
+                        // - other types → their respective pages
+                        let linkTo;
+                        if (s.workflowType === 'quiz') {
+                            linkTo = `/quiz?id=${s.id}`;
+                        } else if (s.workflowType === 'bank') {
+                            // Check if it's a legacy session with quiz data
+                            if (s.quizData) {
+                                linkTo = `/quiz?id=${s.id}`;
+                            } else {
+                                linkTo = `/extraction?type=bank&id=${s.id}`;
+                            }
+                        } else if (s.workflowType === 'lecture') {
+                            linkTo = `/extraction?type=lecture&id=${s.id}`;
+                        } else {
+                            linkTo = `/${s.workflowType}?id=${s.id}`;
+                        }
 
                         return (
                             <div

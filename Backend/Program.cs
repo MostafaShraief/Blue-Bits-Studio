@@ -15,9 +15,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174")
+            policy.SetIsOriginAllowed(origin => true) // Allow any origin for development
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // Often needed with any origin
         });
 });
 
@@ -38,7 +39,17 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Ensure database is created and migrations applied
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<BlueBitsDbContext>();
+    db.Database.EnsureCreated();
+}
+
 app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend");
 
 // Serve static files for uploaded images
 var uploadPath = Path.Join(app.Environment.ContentRootPath, "uploads");
@@ -50,10 +61,10 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
-app.UseCors("AllowFrontend");
-
 // Map Endpoints
 app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();
+
+app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi();
 
 app.MapGroup("/api/sessions")
    .MapSessionEndpoints()

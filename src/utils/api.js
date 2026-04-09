@@ -146,6 +146,34 @@ export async function generatePandoc(data) {
     }
 }
 
+/** Merge Docx Files */
+export const mergeDocxFiles = async (files, metadata) => {
+    try {
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        formData.append('materialName', metadata.materialName || '');
+        formData.append('lectureType', metadata.type || 'theoretical');
+
+        const res = await fetch('http://localhost:5135/api/merge/execute', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) throw new Error('Failed to merge files');
+        const json = await res.json();
+        
+        // Fetch the actual docx file using the returned URL
+        const fileUrl = `http://localhost:5135${json.url}`;
+        const fileRes = await fetch(fileUrl);
+        if (!fileRes.ok) throw new Error('Failed to download merged file');
+        
+        return await fileRes.blob();
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+};
+
 /** Get stats */
 export async function fetchStats() {
     const sessions = await fetchSessions();
@@ -153,8 +181,59 @@ export async function fetchStats() {
         total: sessions.length,
         lecture: sessions.filter((s) => s.workflowType === 'lecture').length,
         bank: sessions.filter((s) => s.workflowType === 'bank').length,
+        quiz: sessions.filter((s) => s.workflowType === 'quiz').length,
         draw: sessions.filter((s) => s.workflowType === 'draw').length,
         pandoc: sessions.filter((s) => s.workflowType === 'pandoc').length,
         coordination: sessions.filter((s) => s.workflowType === 'coordination').length,
     };
+}
+
+/**
+ * Save or update a quiz session (question bank).
+ * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'quiz' }
+ */
+export async function saveQuizSession(session) {
+    try {
+        const payload = {
+            materialName: session.materialName || 'بنك أسئلة بدون اسم',
+            workflowType: session.workflowType || 'quiz',
+            quizData: typeof session.quizData === 'string' 
+                ? session.quizData 
+                : JSON.stringify(session.quizData || [])
+        };
+
+        const url = session.id 
+            ? `${API_BASE}/${session.id}` 
+            : API_BASE;
+        
+        const method = session.id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to save quiz session');
+
+        let resultSession;
+        try {
+            resultSession = await res.json();
+        } catch (err) {
+            const location = res.headers.get('Location');
+            if (location) {
+                const parts = location.split('/');
+                resultSession = { id: parts[parts.length - 1] };
+            }
+        }
+
+        if (!resultSession || !resultSession.id) {
+            throw new Error('No session ID returned from save');
+        }
+
+        return resultSession;
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
 }

@@ -46,13 +46,14 @@ const QUICK_ACTIONS = [
 const TYPE_LABELS = {
     lecture: 'استخراج محاضرة',
     bank: 'استخراج بنك',
+    quiz: 'اختبار',
     draw: 'رسم',
     pandoc: 'تحويل Pandoc',
     coordination: 'تنسيق',
 };
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, lecture: 0, bank: 0, draw: 0, pandoc: 0, coordination: 0 });
+    const [stats, setStats] = useState({ total: 0, lecture: 0, bank: 0, quiz: 0, draw: 0, pandoc: 0, coordination: 0 });
     const [recent, setRecent] = useState([]);
 
     useEffect(() => {
@@ -161,7 +162,21 @@ export default function Dashboard() {
                 ) : (
                     <div className="space-y-2">
                         {recent.map((s) => {
-                            const linkTo = `/${s.workflowType === 'lecture' || s.workflowType === 'bank' ? 'extraction?type=' + s.workflowType + '&' : s.workflowType + '?'}id=${s.id}`;
+                            // Route logic: same as History.jsx
+                            let linkTo;
+                            if (s.workflowType === 'quiz') {
+                                linkTo = `/quiz?id=${s.id}`;
+                            } else if (s.workflowType === 'bank') {
+                                if (s.quizData) {
+                                    linkTo = `/quiz?id=${s.id}`;
+                                } else {
+                                    linkTo = `/extraction?type=bank&id=${s.id}`;
+                                }
+                            } else if (s.workflowType === 'lecture') {
+                                linkTo = `/extraction?type=lecture&id=${s.id}`;
+                            } else {
+                                linkTo = `/${s.workflowType}?id=${s.id}`;
+                            }
                             return (
                                 <Link
                                     key={s.id}

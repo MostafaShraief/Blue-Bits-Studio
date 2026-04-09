@@ -20,6 +20,7 @@ public static class SessionsEndpoints
                     s.LectureNumber,
                     s.Type,
                     s.WorkflowType,
+                    s.QuizData,
                     s.CreatedAt
                 })
                 .ToListAsync();
@@ -44,7 +45,8 @@ public static class SessionsEndpoints
                 MaterialName = req.MaterialName,
                 LectureNumber = req.LectureNumber,
                 Type = req.Type,
-                WorkflowType = req.WorkflowType
+                WorkflowType = req.WorkflowType,
+                QuizData = req.QuizData
             };
 
             if (!string.IsNullOrEmpty(req.PromptText))
@@ -134,7 +136,7 @@ public static class SessionsEndpoints
                     db.Notes.Add(new Note
                     {
                         SessionId = id,
-                        NoteText = notes[i],
+                        NoteText = notes[i]!,
                         NoteType = $"Image-{index}" // Note type referencing the image index
                     });
                 }
@@ -174,8 +176,33 @@ public static class SessionsEndpoints
             return Results.NoContent();
         });
 
+        group.MapPut("/{id}", async (Guid id, BlueBitsDbContext db, UpdateSessionRequest req) =>
+        {
+            var session = await db.Sessions.FindAsync(id);
+            if (session is null) return Results.NotFound();
+
+            if (req.MaterialName != null) session.MaterialName = req.MaterialName;
+            if (req.LectureNumber != null) session.LectureNumber = req.LectureNumber;
+            if (req.Type != null) session.Type = req.Type;
+            if (req.WorkflowType != null) session.WorkflowType = req.WorkflowType;
+            if (req.QuizData != null) session.QuizData = req.QuizData;
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(session);
+        });
+
         return group;
     }
+}
+
+public class UpdateSessionRequest
+{
+    public string? MaterialName { get; set; }
+    public string? LectureNumber { get; set; }
+    public string? Type { get; set; }
+    public string? WorkflowType { get; set; }
+    public string? QuizData { get; set; }
 }
 
 public class CreateSessionRequest
@@ -184,6 +211,7 @@ public class CreateSessionRequest
     public string LectureNumber { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public string WorkflowType { get; set; } = string.Empty;
+    public string? QuizData { get; set; }
     public string PromptText { get; set; } = string.Empty;
     public string GeneralNotes { get; set; } = string.Empty;
     public List<ImageNoteDto>? ImageNotes { get; set; }

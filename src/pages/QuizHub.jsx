@@ -108,7 +108,7 @@ export default function QuizHub() {
         id: sessionId || undefined,
         materialName: currentFile || 'بنك أسئلة',
         quizData: formQuizData,
-        workflowType: 'bank'
+        workflowType: 'quiz'
       });
       
       setSessionId(result.id);

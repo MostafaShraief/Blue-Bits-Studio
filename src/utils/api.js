@@ -181,6 +181,7 @@ export async function fetchStats() {
         total: sessions.length,
         lecture: sessions.filter((s) => s.workflowType === 'lecture').length,
         bank: sessions.filter((s) => s.workflowType === 'bank').length,
+        quiz: sessions.filter((s) => s.workflowType === 'quiz').length,
         draw: sessions.filter((s) => s.workflowType === 'draw').length,
         pandoc: sessions.filter((s) => s.workflowType === 'pandoc').length,
         coordination: sessions.filter((s) => s.workflowType === 'coordination').length,
@@ -189,13 +190,13 @@ export async function fetchStats() {
 
 /**
  * Save or update a quiz session (question bank).
- * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'bank' }
+ * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'quiz' }
  */
 export async function saveQuizSession(session) {
     try {
         const payload = {
             materialName: session.materialName || 'بنك أسئلة بدون اسم',
-            workflowType: session.workflowType || 'bank',
+            workflowType: session.workflowType || 'quiz',
             quizData: typeof session.quizData === 'string' 
                 ? session.quizData 
                 : JSON.stringify(session.quizData || [])

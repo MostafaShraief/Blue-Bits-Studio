@@ -80,10 +80,27 @@ export default function History() {
                         const meta = TYPE_META[s.workflowType] || TYPE_META.lecture;
                         const Icon = meta.icon;
                         
-                        // Route to QuizHub for bank/quiz types, else to extraction or other wizards
-                        const linkTo = (s.workflowType === 'bank' || s.workflowType === 'quiz') 
-                            ? `/quiz?id=${s.id}`
-                            : `/${s.workflowType === 'lecture' || s.workflowType === 'bank' ? 'extraction?type=' + s.workflowType + '&' : s.workflowType + '?'}id=${s.id}`;
+                        // Route logic:
+                        // - quiz type → /quiz
+                        // - bank type WITH quizData → /quiz (legacy fix for old sessions saved as bank)
+                        // - bank type WITHOUT quizData → /extraction (question bank extraction)
+                        // - lecture → /extraction
+                        // - other types → their respective pages
+                        let linkTo;
+                        if (s.workflowType === 'quiz') {
+                            linkTo = `/quiz?id=${s.id}`;
+                        } else if (s.workflowType === 'bank') {
+                            // Check if it's a legacy session with quiz data
+                            if (s.quizData) {
+                                linkTo = `/quiz?id=${s.id}`;
+                            } else {
+                                linkTo = `/extraction?type=bank&id=${s.id}`;
+                            }
+                        } else if (s.workflowType === 'lecture') {
+                            linkTo = `/extraction?type=lecture&id=${s.id}`;
+                        } else {
+                            linkTo = `/${s.workflowType}?id=${s.id}`;
+                        }
 
                         return (
                             <div

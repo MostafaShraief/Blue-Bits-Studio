@@ -136,7 +136,7 @@ public static class SessionsEndpoints
                     db.Notes.Add(new Note
                     {
                         SessionId = id,
-                        NoteText = notes[i],
+                        NoteText = notes[i]!,
                         NoteType = $"Image-{index}" // Note type referencing the image index
                     });
                 }

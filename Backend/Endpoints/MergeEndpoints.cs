@@ -1,0 +1,269 @@
+using Microsoft.AspNetCore.Mvc;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+
+namespace BlueBits.Api.Endpoints;
+
+public static class MergeEndpoints
+{
+    public static RouteGroupBuilder MapMergeEndpoints(this RouteGroupBuilder group)
+    {
+        // Debug endpoint to test if route is registered
+        group.MapGet("/test", () => Results.Ok("Merge endpoint working"));
+
+        group.MapPost("/execute", async (
+            HttpRequest request, 
+            IWebHostEnvironment env) =>
+        {
+            if (!request.HasFormContentType) return Results.BadRequest("Expected form data.");
+
+            var form = await request.ReadFormAsync();
+            var files = form.Files.GetFiles("files");
+            if (files == null || files.Count == 0) return Results.BadRequest("No files uploaded.");
+
+            var materialName = form["materialName"].ToString() ?? "";
+            if (string.IsNullOrEmpty(materialName)) materialName = "Merged_Document";
+
+            // Get lecture type (default to theoretical)
+            var lectureTypeRaw = form["lectureType"].ToString() ?? "";
+            var lectureType = string.IsNullOrEmpty(lectureTypeRaw) ? "theoretical" : lectureTypeRaw;
+            var typeLabel = lectureType.ToLower() != "practical" ? "نظري" : "عملي";
+
+            var uploadsDir = Path.Combine(env.ContentRootPath, "uploads");
+            Directory.CreateDirectory(uploadsDir);
+
+            // Select template based on lecture type (default to theoretical)
+            string templateName = lectureType.ToLower() == "practical"
+                ? "Pandoc-Prac-Final-Step.dotx" 
+                : "Pandoc-Theo-Final-Step.dotx";
+            string templatePath = Path.Combine(env.ContentRootPath, "..", "Resources", "PandocTemplates", templateName);
+
+            if (!System.IO.File.Exists(templatePath))
+            {
+                return Results.NotFound(new { error = $"Template file {templateName} not found at {templatePath}." });
+            }
+
+            // Naming: {MaterialName} - {Type} - ملف شامل.docx
+            string finalFileName = $"{materialName} - {typeLabel} - ملف شامل.docx";
+            string finalFilePath = Path.Combine(uploadsDir, finalFileName);
+
+            // Copy template to final path
+            System.IO.File.Copy(templatePath, finalFilePath, true);
+
+            // Process each file
+            using (WordprocessingDocument finalDoc = WordprocessingDocument.Open(finalFilePath, true))
+            {
+                finalDoc.ChangeDocumentType(WordprocessingDocumentType.Document);
+                var mainPart = finalDoc.MainDocumentPart;
+                if (mainPart?.Document?.Body == null) return Results.Problem("Invalid template.");
+                
+                var body = mainPart.Document.Body;
+
+                // 1. Remove the second page from the template (index 2) which is the empty paragraph with SectPr
+                var p2 = body.Elements<Paragraph>().ElementAtOrDefault(2);
+                if (p2 != null) p2.Remove();
+
+                // Extract and preserve the original template's page layout for middle pages
+                // This ensures middle pages maintain proper margins (header/footer from top/bottom)
+                var templateSectPr = body.Elements<SectionProperties>().LastOrDefault();
+                PageSize? templatePageSize = null;
+                PageMargin? templatePageMargin = null;
+
+                if (templateSectPr != null)
+                {
+                    templatePageSize = templateSectPr.GetFirstChild<PageSize>();
+                    templatePageMargin = templateSectPr.GetFirstChild<PageMargin>();
+                }
+
+                // 2. Find the first SectionBreak paragraph (end of cover page) to insert AltChunks after
+                var sectionBreakPara = body.Elements<Paragraph>().FirstOrDefault(p => 
+                    p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
+                );
+                
+                OpenXmlElement insertionPoint = sectionBreakPara;
+
+                for (int i = 0; i < files.Count; i++)
+                {
+                    var file = files[i];
+                    string tempFilePath = Path.Combine(uploadsDir, $"temp_{Guid.NewGuid()}.docx");
+
+                    using (var stream = new FileStream(tempFilePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    // Trim nodes (before first sectPr and after last sectPr)
+                    using (var tempDoc = WordprocessingDocument.Open(tempFilePath, true))
+                    {
+                        var tempMainPart = tempDoc.MainDocumentPart;
+                        if (tempMainPart != null && tempMainPart.Document?.Body != null)
+                        {
+                            var tempBody = tempMainPart.Document.Body;
+                            var sectPrs = tempBody.Descendants<SectionProperties>().ToList();
+                            
+                            if (sectPrs.Count > 0)
+                            {
+                                // Remove Cover
+                                var firstSectPr = sectPrs.First();
+                                var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? firstSectPr;
+                                
+                                var nodesToRemovePrefix = new List<OpenXmlElement>();
+                                var current = tempBody.FirstChild;
+                                while (current != null && current != firstBlock)
+                                {
+                                    nodesToRemovePrefix.Add(current);
+                                    current = current.NextSibling();
+                                }
+                                if (current == firstBlock)
+                                {
+                                    nodesToRemovePrefix.Add(current);
+                                }
+                                
+                                foreach (var node in nodesToRemovePrefix)
+                                {
+                                    if (node.Parent != null) node.Remove();
+                                }
+                                
+                                // Remove Back Cover
+                                if (sectPrs.Count > 1)
+                                {
+                                    var contentSectPr = sectPrs[sectPrs.Count - 2];
+                                    var contentBlock = contentSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? contentSectPr;
+                                    
+                                    var nodesToRemoveSuffix = new List<OpenXmlElement>();
+                                    current = contentBlock.NextSibling();
+                                    while (current != null)
+                                    {
+                                        nodesToRemoveSuffix.Add(current);
+                                        current = current.NextSibling();
+                                    }
+                                    
+                                    foreach (var node in nodesToRemoveSuffix)
+                                    {
+                                        if (node.Parent != null) node.Remove();
+                                    }
+
+                                    // Retain content page layout and avoid default margins
+                                    var clonedSectPr = (SectionProperties)contentSectPr.CloneNode(true);
+                                    contentSectPr.Remove(); // Remove from inside the paragraph to prevent an extra break
+                                    
+                                    var bodySectPr = tempBody.Elements<SectionProperties>().LastOrDefault();
+                                    if (bodySectPr != null) bodySectPr.Remove();
+                                    
+                                    tempBody.AppendChild(clonedSectPr);
+                                }
+                            }
+                            
+                            tempMainPart.Document.Save();
+                        }
+                    }
+
+                    // Inject via AltChunk
+                    string altChunkId = $"AltChunkId_{i}_{Guid.NewGuid():N}";
+                    AlternativeFormatImportPart chunk = mainPart.AddAlternativeFormatImportPart(AlternativeFormatImportPartType.WordprocessingML, altChunkId);
+
+                    using (var fs = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read))
+                    {
+                        chunk.FeedData(fs);
+                    }
+
+                    AltChunk altChunk = new AltChunk { Id = altChunkId };
+                    
+                    // Remove MatchSource to use host document formatting instead of source document
+                    // This prevents end page formatting from bleeding into inserted content
+                    
+                    if (insertionPoint != null)
+                    {
+                        insertionPoint.InsertAfterSelf(altChunk);
+                        insertionPoint = altChunk; // ensure multiple files don't insert in reverse
+                    }
+                    else
+                    {
+                        body.AppendChild(altChunk);
+                        insertionPoint = altChunk;
+                    }
+
+                    // Force a section + page break after the inserted content to isolate formatting
+                    // and ensure next content starts on a fresh page without end page background
+                    // Use the original template's page layout to maintain proper margins
+                    Paragraph breakPara = new Paragraph();
+                    ParagraphProperties breakParaPr = new ParagraphProperties();
+                    
+                    // Clone the template's SectionProperties to preserve page layout (margins, header/footer)
+                    SectionProperties breakSectPr = new SectionProperties();
+                    
+                    if (templatePageSize != null)
+                    {
+                        breakSectPr.AppendChild((PageSize)templatePageSize.CloneNode(true));
+                    }
+                    if (templatePageMargin != null)
+                    {
+                        // Clone the original margin to keep "header from top" and "footer from bottom"
+                        var clonedMargin = (PageMargin)templatePageMargin.CloneNode(true);
+                        breakSectPr.AppendChild(clonedMargin);
+                    }
+                    
+                    breakParaPr.AppendChild(breakSectPr);
+                    breakPara.AppendChild(breakParaPr);
+                    
+                    // Add page break in the same paragraph
+                    Run pageBreakRun = new Run();
+                    pageBreakRun.AppendChild(new Break() { Type = BreakValues.Page });
+                    breakPara.PrependChild(pageBreakRun);
+                    
+                    insertionPoint.InsertAfterSelf(breakPara);
+                    insertionPoint = breakPara;
+
+                    if (System.IO.File.Exists(tempFilePath))
+                    {
+                        System.IO.File.Delete(tempFilePath);
+                    }
+                }
+
+                // Apply template's page margins to all section properties in the final merged document
+                // This fixes the middle pages that came from uploaded files via AltChunk
+                var allBodySectPrs = body.Elements<SectionProperties>().ToList();
+                foreach (var sectPr in allBodySectPrs)
+                {
+                    if (templatePageSize != null)
+                    {
+                        var existingSize = sectPr.Elements<PageSize>().FirstOrDefault();
+                        if (existingSize != null)
+                        {
+                            existingSize.Width = templatePageSize.Width;
+                            existingSize.Height = templatePageSize.Height;
+                            existingSize.Orient = templatePageSize.Orient;
+                        }
+                    }
+                    
+                    if (templatePageMargin != null)
+                    {
+                        var existingMargin = sectPr.Elements<PageMargin>().FirstOrDefault();
+                        if (existingMargin != null)
+                        {
+                            existingMargin.Top = templatePageMargin.Top;
+                            existingMargin.Bottom = templatePageMargin.Bottom;
+                            existingMargin.Left = templatePageMargin.Left;
+                            existingMargin.Right = templatePageMargin.Right;
+                            existingMargin.Header = templatePageMargin.Header;
+                            existingMargin.Footer = templatePageMargin.Footer;
+                            existingMargin.Gutter = templatePageMargin.Gutter;
+                        }
+                        else
+                        {
+                            sectPr.AppendChild((PageMargin)templatePageMargin.CloneNode(true));
+                        }
+                    }
+                }
+                
+                mainPart.Document?.Save();
+            }
+
+            string downloadUrl = $"/uploads/{Uri.EscapeDataString(finalFileName)}";
+            return Results.Ok(new { url = downloadUrl, finalFileName = finalFileName });
+        }).DisableAntiforgery();
+
+        return group;
+    }
+}

@@ -146,6 +146,34 @@ export async function generatePandoc(data) {
     }
 }
 
+/** Merge Docx Files */
+export const mergeDocxFiles = async (files, metadata) => {
+    try {
+        const formData = new FormData();
+        files.forEach(f => formData.append('files', f));
+        formData.append('materialName', metadata.materialName || '');
+        formData.append('lectureType', metadata.type || 'theoretical');
+
+        const res = await fetch('http://localhost:5135/api/merge/execute', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) throw new Error('Failed to merge files');
+        const json = await res.json();
+        
+        // Fetch the actual docx file using the returned URL
+        const fileUrl = `http://localhost:5135${json.url}`;
+        const fileRes = await fetch(fileUrl);
+        if (!fileRes.ok) throw new Error('Failed to download merged file');
+        
+        return await fileRes.blob();
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+};
+
 /** Get stats */
 export async function fetchStats() {
     const sessions = await fetchSessions();

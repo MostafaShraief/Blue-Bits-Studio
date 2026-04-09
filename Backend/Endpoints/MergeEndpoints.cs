@@ -64,6 +64,18 @@ public static class MergeEndpoints
                 var p2 = body.Elements<Paragraph>().ElementAtOrDefault(2);
                 if (p2 != null) p2.Remove();
 
+                // Extract and preserve the original template's page layout for middle pages
+                // This ensures middle pages maintain proper margins (header/footer from top/bottom)
+                var templateSectPr = body.Elements<SectionProperties>().LastOrDefault();
+                PageSize? templatePageSize = null;
+                PageMargin? templatePageMargin = null;
+
+                if (templateSectPr != null)
+                {
+                    templatePageSize = templateSectPr.GetFirstChild<PageSize>();
+                    templatePageMargin = templateSectPr.GetFirstChild<PageMargin>();
+                }
+
                 // 2. Find the first SectionBreak paragraph (end of cover page) to insert AltChunks after
                 var sectionBreakPara = body.Elements<Paragraph>().FirstOrDefault(p => 
                     p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
@@ -174,10 +186,25 @@ public static class MergeEndpoints
 
                     // Force a section + page break after the inserted content to isolate formatting
                     // and ensure next content starts on a fresh page without end page background
+                    // Use the original template's page layout to maintain proper margins
                     Paragraph breakPara = new Paragraph();
                     ParagraphProperties breakParaPr = new ParagraphProperties();
-                    // Empty SectionProperties to break section inheritance
-                    breakParaPr.AppendChild(new SectionProperties());
+                    
+                    // Clone the template's SectionProperties to preserve page layout (margins, header/footer)
+                    SectionProperties breakSectPr = new SectionProperties();
+                    
+                    if (templatePageSize != null)
+                    {
+                        breakSectPr.AppendChild((PageSize)templatePageSize.CloneNode(true));
+                    }
+                    if (templatePageMargin != null)
+                    {
+                        // Clone the original margin to keep "header from top" and "footer from bottom"
+                        var clonedMargin = (PageMargin)templatePageMargin.CloneNode(true);
+                        breakSectPr.AppendChild(clonedMargin);
+                    }
+                    
+                    breakParaPr.AppendChild(breakSectPr);
                     breakPara.AppendChild(breakParaPr);
                     
                     // Add page break in the same paragraph

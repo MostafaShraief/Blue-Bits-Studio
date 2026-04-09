@@ -20,15 +20,16 @@ public static class MergeEndpoints
             if (files == null || files.Count == 0) return Results.BadRequest("No files uploaded.");
 
             var materialName = form["materialName"].ToString();
-            var lectureType = form["lectureType"].ToString();
-            if (string.IsNullOrEmpty(lectureType)) lectureType = "theoretical";
             if (string.IsNullOrEmpty(materialName)) materialName = "Merged_Document";
 
             var uploadsDir = Path.Combine(env.ContentRootPath, "uploads");
             Directory.CreateDirectory(uploadsDir);
 
-            // Select template
-            string templateName = lectureType.ToLower() == "practical" ? "Pandoc-Prac-Final-Step.dotx" : "Pandoc-Theo-Final-Step.dotx";
+            // Select template based on lecture type (default to theoretical)
+            var lectureType = form["lectureType"].ToString();
+            string templateName = string.IsNullOrEmpty(lectureType) || lectureType.ToLower() != "practical" 
+                ? "Pandoc-Theo-Final-Step.dotx" 
+                : "Pandoc-Prac-Final-Step.dotx";
             string templatePath = Path.Combine(env.ContentRootPath, "..", "Resources", "PandocTemplates", templateName);
 
             if (!System.IO.File.Exists(templatePath))
@@ -36,7 +37,8 @@ public static class MergeEndpoints
                 return Results.NotFound(new { error = $"Template file {templateName} not found at {templatePath}." });
             }
 
-            string finalFileName = $"{materialName}_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
+            // Naming: {MaterialName} - ملف شامل.docx
+            string finalFileName = $"{materialName} - ملف شامل.docx";
             string finalFilePath = Path.Combine(uploadsDir, finalFileName);
 
             // Copy template to final path

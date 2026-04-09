@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
-import { mergeDocxFiles, createSession } from '../utils/api';
+import { mergeDocxFiles } from '../utils/api';
 
 const STEPS = ['التسمية', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
 
@@ -10,15 +10,13 @@ export default function MergeWizard() {
     const fileInputRef = useRef(null);
 
     const [materialName, setMaterialName] = useState('');
-    const [finalFileName, setFinalFileName] = useState('');
-    const [lectureType, setLectureType] = useState('theoretical');
 
     const [files, setFiles] = useState([]);
 
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialName.trim() && finalFileName.trim();
+    const canProceedStep1 = materialName.trim();
     const canProceedStep2 = files.length > 1;
 
     const goNext = () => setStep((s) => Math.min(s + 1, 2));
@@ -51,21 +49,12 @@ export default function MergeWizard() {
             setStatus('loading');
             
             // Generate merged docx
-            const blob = await mergeDocxFiles(files, { materialName, type: lectureType });
+            const blob = await mergeDocxFiles(files, { materialName });
             
             // Create object URL
             const url = URL.createObjectURL(blob);
             setDownloadUrl(url);
             
-            // Save session
-            await createSession({
-                materialName: materialName,
-                lectureNumber: '1',
-                lectureType: lectureType,
-                workflowType: 'merge',
-                prompt: 'Merged files: ' + files.map(f => f.name).join(', ')
-            });
-
             setStatus('success');
         } catch (error) {
             console.error('Merge failed:', error);
@@ -91,45 +80,10 @@ export default function MergeWizard() {
                         <input
                             type="text"
                             value={materialName}
-                            onChange={e => {
-                                setMaterialName(e.target.value);
-                                if (!finalFileName || finalFileName === materialName) {
-                                    setFinalFileName(e.target.value);
-                                }
-                            }}
+                            onChange={e => setMaterialName(e.target.value)}
                             placeholder="مثال: باطنة 1"
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">اسم الملف النهائي</label>
-                        <input
-                            type="text"
-                            value={finalFileName}
-                            onChange={e => setFinalFileName(e.target.value)}
-                            placeholder="اسم الملف بعد الدمج"
-                            className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
-                        <div className="flex gap-3">
-                            {[
-                                { value: 'theoretical', label: 'نظري' },
-                                { value: 'practical', label: 'عملي' },
-                            ].map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => setLectureType(value)}
-                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                            ? 'border-primary bg-primary-light text-primary'
-                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                        }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
                     </div>
 
                     <button
@@ -279,7 +233,7 @@ export default function MergeWizard() {
                                 <div className="flex gap-3 justify-center">
                                     <a
                                         href={downloadUrl}
-                                        download={`${finalFileName}.docx`}
+                                        download={`${materialName} - ملف شامل.docx`}
                                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-success text-white font-bold text-sm hover:bg-success/90 transition-default shadow-lg shadow-success/25"
                                     >
                                         <Download size={16} />

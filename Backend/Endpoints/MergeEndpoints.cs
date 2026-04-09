@@ -155,6 +155,41 @@ public static class MergeEndpoints
                                 }
                             }
                             
+                            // Apply template's page size and margins to all remaining section properties in the middle document
+                            var remainingSectPrs = tempBody.Descendants<SectionProperties>().ToList();
+                            foreach (var sectPr in remainingSectPrs)
+                            {
+                                if (templatePageSize != null)
+                                {
+                                    var existingSize = sectPr.Elements<PageSize>().FirstOrDefault();
+                                    if (existingSize != null)
+                                    {
+                                        if (templatePageSize.Width != null) existingSize.Width = templatePageSize.Width;
+                                        if (templatePageSize.Height != null) existingSize.Height = templatePageSize.Height;
+                                        if (templatePageSize.Orient != null) existingSize.Orient = templatePageSize.Orient;
+                                    }
+                                }
+                                
+                                if (templatePageMargin != null)
+                                {
+                                    var existingMargin = sectPr.Elements<PageMargin>().FirstOrDefault();
+                                    if (existingMargin != null)
+                                    {
+                                        if (templatePageMargin.Top != null) existingMargin.Top = templatePageMargin.Top;
+                                        if (templatePageMargin.Bottom != null) existingMargin.Bottom = templatePageMargin.Bottom;
+                                        if (templatePageMargin.Left != null) existingMargin.Left = templatePageMargin.Left;
+                                        if (templatePageMargin.Right != null) existingMargin.Right = templatePageMargin.Right;
+                                        if (templatePageMargin.Header != null) existingMargin.Header = templatePageMargin.Header;
+                                        if (templatePageMargin.Footer != null) existingMargin.Footer = templatePageMargin.Footer;
+                                        if (templatePageMargin.Gutter != null) existingMargin.Gutter = templatePageMargin.Gutter;
+                                    }
+                                    else 
+                                    {
+                                        sectPr.AppendChild((PageMargin)templatePageMargin.CloneNode(true));
+                                    }
+                                }
+                            }
+
                             tempMainPart.Document.Save();
                         }
                     }

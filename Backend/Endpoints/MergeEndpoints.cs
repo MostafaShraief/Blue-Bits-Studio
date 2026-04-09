@@ -2,11 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using OpenXmlParagraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
-using OpenXmlParagraphProperties = DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties;
-using OpenXmlRun = DocumentFormat.OpenXml.Wordprocessing.Run;
-using OpenXmlBreak = DocumentFormat.OpenXml.Wordprocessing.Break;
-using System.IO;
 
 namespace BlueBits.Api.Endpoints;
 
@@ -66,12 +61,12 @@ public static class MergeEndpoints
                 var body = mainPart.Document.Body;
 
                 // 1. Remove the second page from the template (index 2) which is the empty paragraph with SectPr
-                var p2 = body.Elements<OpenXmlParagraph>().ElementAtOrDefault(2);
+                var p2 = body.Elements<Paragraph>().ElementAtOrDefault(2);
                 if (p2 != null) p2.Remove();
 
-                // 2. Find the first SectionBreak paragraph (end of cover page) to insert content after
-                var sectionBreakPara = body.Elements<OpenXmlParagraph>().FirstOrDefault(p => 
-                    p.Elements<OpenXmlParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
+                // 2. Find the first SectionBreak paragraph (end of cover page) to insert AltChunks after
+                var sectionBreakPara = body.Elements<Paragraph>().FirstOrDefault(p => 
+                    p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
                 );
                 
                 OpenXmlElement insertionPoint = sectionBreakPara;
@@ -86,10 +81,7 @@ public static class MergeEndpoints
                         await file.CopyToAsync(stream);
                     }
 
-                    // Extract middle content from temp file (remove cover and end pages)
-                    List<OpenXmlElement> contentElements = new List<OpenXmlElement>();
-                    List<(string ContentType, byte[] Data)> imageDataList = new List<(string, byte[])>();
-                    
+                    // Trim nodes (before first sectPr and after last sectPr)
                     using (var tempDoc = WordprocessingDocument.Open(tempFilePath, true))
                     {
                         var tempMainPart = tempDoc.MainDocumentPart;
@@ -100,106 +92,96 @@ public static class MergeEndpoints
                             
                             if (sectPrs.Count > 0)
                             {
-                                // Find content boundaries
+                                // Remove Cover
                                 var firstSectPr = sectPrs.First();
                                 var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? firstSectPr;
                                 
-                                // Get content start (after first section break)
-                                OpenXmlElement contentStart = firstBlock.NextSibling();
-                                
-                                // Find content end (before last section break)
-                                OpenXmlElement contentEnd = null;
-                                if (sectPrs.Count > 1)
+                                var nodesToRemovePrefix = new List<OpenXmlElement>();
+                                var current = tempBody.FirstChild;
+                                while (current != null && current != firstBlock)
                                 {
-                                    var lastSectPr = sectPrs[sectPrs.Count - 2];
-                                    contentEnd = lastSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? lastSectPr;
-                                }
-                                else if (sectPrs.Count == 1)
-                                {
-                                    // Only one section - content is everything after first block
-                                    contentEnd = tempBody.LastChild;
-                                }
-                                
-                                // Collect content elements
-                                var current = contentStart;
-                                while (current != null)
-                                {
-                                    if (current == contentEnd) break;
-                                    contentElements.Add(current);
+                                    nodesToRemovePrefix.Add(current);
                                     current = current.NextSibling();
                                 }
-                                if (contentEnd != null && contentElements.All(e => e != contentEnd))
+                                if (current == firstBlock)
                                 {
-                                    contentElements.Add(contentEnd);
+                                    nodesToRemovePrefix.Add(current);
                                 }
-                            }
-                            else
-                            {
-                                // No section properties - copy all elements
-                                contentElements = tempBody.ChildElements.ToList();
+                                
+                                foreach (var node in nodesToRemovePrefix)
+                                {
+                                    if (node.Parent != null) node.Remove();
+                                }
+                                
+                                // Remove Back Cover
+                                if (sectPrs.Count > 1)
+                                {
+                                    var contentSectPr = sectPrs[sectPrs.Count - 2];
+                                    var contentBlock = contentSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? contentSectPr;
+                                    
+                                    var nodesToRemoveSuffix = new List<OpenXmlElement>();
+                                    current = contentBlock.NextSibling();
+                                    while (current != null)
+                                    {
+                                        nodesToRemoveSuffix.Add(current);
+                                        current = current.NextSibling();
+                                    }
+                                    
+                                    foreach (var node in nodesToRemoveSuffix)
+                                    {
+                                        if (node.Parent != null) node.Remove();
+                                    }
+
+                                    // Retain content page layout and avoid default margins
+                                    var clonedSectPr = (SectionProperties)contentSectPr.CloneNode(true);
+                                    contentSectPr.Remove(); // Remove from inside the paragraph to prevent an extra break
+                                    
+                                    var bodySectPr = tempBody.Elements<SectionProperties>().LastOrDefault();
+                                    if (bodySectPr != null) bodySectPr.Remove();
+                                    
+                                    tempBody.AppendChild(clonedSectPr);
+                                }
                             }
                             
-                            // Read image data while document is open
-                            if (tempMainPart.ImageParts != null)
-                            {
-                                foreach (var imagePart in tempMainPart.ImageParts)
-                                {
-                                    using var imageStream = imagePart.GetStream();
-                                    using var ms = new MemoryStream();
-                                    imageStream.CopyTo(ms);
-                                    imageDataList.Add((imagePart.ContentType, ms.ToArray()));
-                                }
-                            }
+                            tempMainPart.Document.Save();
                         }
                     }
 
-                    // Copy image data to final document
-                    foreach (var (contentType, data) in imageDataList)
+                    // Inject via AltChunk
+                    string altChunkId = $"AltChunkId_{i}_{Guid.NewGuid():N}";
+                    AlternativeFormatImportPart chunk = mainPart.AddAlternativeFormatImportPart(AlternativeFormatImportPartType.WordprocessingML, altChunkId);
+
+                    using (var fs = new FileStream(tempFilePath, FileMode.Open, FileAccess.Read))
                     {
-                        var newImagePart = mainPart.AddNewPart<ImagePart>(contentType);
-                        using var ms = new MemoryStream(data);
-                        newImagePart.FeedData(ms);
+                        chunk.FeedData(fs);
                     }
 
-                    // Insert content elements directly into final document (clone to preserve styles)
-                    foreach (var element in contentElements)
-                    {
-                        var clonedElement = (OpenXmlElement)element.CloneNode(true);
-                        
-                        if (insertionPoint != null)
-                        {
-                            insertionPoint.InsertAfterSelf(clonedElement);
-                            insertionPoint = clonedElement;
-                        }
-                        else
-                        {
-                            body.AppendChild(clonedElement);
-                            insertionPoint = clonedElement;
-                        }
-                    }
-
-                    // Force a section break + page break to ensure next content starts on fresh page
-                    // This isolates the section properties to prevent end page formatting overlap
-                    OpenXmlParagraph sectionBreakPara2 = new OpenXmlParagraph();
-                    OpenXmlParagraphProperties sectionBreakProps = new OpenXmlParagraphProperties();
-                    sectionBreakProps.AppendChild(new SectionProperties());
-                    sectionBreakPara2.AppendChild(sectionBreakProps);
+                    AltChunk altChunk = new AltChunk { Id = altChunkId };
                     
-                    // Add page break in same paragraph
-                    OpenXmlRun pageBreakRun = new OpenXmlRun();
-                    pageBreakRun.AppendChild(new OpenXmlBreak() { Type = BreakValues.Page });
-                    sectionBreakPara2.PrependChild(pageBreakRun);
+                    AltChunkProperties altChunkPr = new AltChunkProperties();
+                    altChunkPr.MatchSource = new MatchSource() { Val = true };
+                    altChunk.Append(altChunkPr);
                     
                     if (insertionPoint != null)
                     {
-                        insertionPoint.InsertAfterSelf(sectionBreakPara2);
-                        insertionPoint = sectionBreakPara2;
+                        insertionPoint.InsertAfterSelf(altChunk);
+                        insertionPoint = altChunk; // ensure multiple files don't insert in reverse
                     }
                     else
                     {
-                        body.AppendChild(sectionBreakPara2);
-                        insertionPoint = sectionBreakPara2;
+                        body.AppendChild(altChunk);
+                        insertionPoint = altChunk;
                     }
+
+                    // Force a hard page break after the inserted file to prevent overlapping backgrounds 
+                    // and ensure the next document (or the final End Page) starts on a fresh page.
+                    Paragraph breakPara = new Paragraph(
+                        new Run(
+                            new Break() { Type = BreakValues.Page }
+                        )
+                    );
+                    insertionPoint.InsertAfterSelf(breakPara);
+                    insertionPoint = breakPara;
 
                     if (System.IO.File.Exists(tempFilePath))
                     {

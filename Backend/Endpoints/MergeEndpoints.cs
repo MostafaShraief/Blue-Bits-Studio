@@ -71,22 +71,17 @@ public static class MergeEndpoints
                 
                 OpenXmlElement insertionPoint = sectionBreakPara;
 
-                // Store page margins from each source file to apply to section breaks
-                List<PageMargin?> sourcePageMargins = new List<PageMargin?>();
-
                 for (int i = 0; i < files.Count; i++)
                 {
                     var file = files[i];
                     string tempFilePath = Path.Combine(uploadsDir, $"temp_{Guid.NewGuid()}.docx");
-
-                    PageMargin? extractedPageMargin = null;
 
                     using (var stream = new FileStream(tempFilePath, FileMode.Create))
                     {
                         await file.CopyToAsync(stream);
                     }
 
-                    // Trim nodes (before first sectPr and after last sectPr) and extract page margin
+                    // Trim nodes (before first sectPr and after last sectPr)
                     using (var tempDoc = WordprocessingDocument.Open(tempFilePath, true))
                     {
                         var tempMainPart = tempDoc.MainDocumentPart;
@@ -97,10 +92,6 @@ public static class MergeEndpoints
                             
                             if (sectPrs.Count > 0)
                             {
-                                // Extract PageMargin with header/footer distances from content section
-                                var contentSectPr = sectPrs.Count > 1 ? sectPrs[sectPrs.Count - 2] : sectPrs.First();
-                                extractedPageMargin = contentSectPr.Elements<PageMargin>().FirstOrDefault();
-                                
                                 // Remove Cover
                                 var firstSectPr = sectPrs.First();
                                 var firstBlock = firstSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? firstSectPr;
@@ -125,6 +116,7 @@ public static class MergeEndpoints
                                 // Remove Back Cover
                                 if (sectPrs.Count > 1)
                                 {
+                                    var contentSectPr = sectPrs[sectPrs.Count - 2];
                                     var contentBlock = contentSectPr.Ancestors().FirstOrDefault(a => a.Parent == tempBody) ?? contentSectPr;
                                     
                                     var nodesToRemoveSuffix = new List<OpenXmlElement>();
@@ -154,9 +146,6 @@ public static class MergeEndpoints
                             tempMainPart.Document.Save();
                         }
                     }
-                    
-                    // Store the extracted page margin for use in section break
-                    sourcePageMargins.Add(extractedPageMargin);
 
                     // Inject via AltChunk
                     string altChunkId = $"AltChunkId_{i}_{Guid.NewGuid():N}";
@@ -183,19 +172,12 @@ public static class MergeEndpoints
                         insertionPoint = altChunk;
                     }
 
-                    // Force a section + page break after the inserted content
-                    // Use original page margin (header/footer distances) from source document
+                    // Force a section + page break after the inserted content to isolate formatting
+                    // and ensure next content starts on a fresh page without end page background
                     Paragraph breakPara = new Paragraph();
                     ParagraphProperties breakParaPr = new ParagraphProperties();
-                    SectionProperties sectPr = new SectionProperties();
-                    
-                    // Apply the original page margin (with header/footer distances) if available
-                    if (extractedPageMargin != null)
-                    {
-                        sectPr.AppendChild((PageMargin)extractedPageMargin.CloneNode(true));
-                    }
-                    
-                    breakParaPr.AppendChild(sectPr);
+                    // Empty SectionProperties to break section inheritance
+                    breakParaPr.AppendChild(new SectionProperties());
                     breakPara.AppendChild(breakParaPr);
                     
                     // Add page break in the same paragraph

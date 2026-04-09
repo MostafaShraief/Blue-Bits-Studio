@@ -152,6 +152,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
         formData.append('materialName', metadata.materialName || '');
+        formData.append('lectureType', metadata.type || 'theoretical');
 
         const res = await fetch('http://localhost:5135/api/merge/execute', {
             method: 'POST',

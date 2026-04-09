@@ -10,6 +10,7 @@ export default function MergeWizard() {
     const fileInputRef = useRef(null);
 
     const [materialName, setMaterialName] = useState('');
+    const [lectureType, setLectureType] = useState('theoretical');
 
     const [files, setFiles] = useState([]);
 
@@ -17,10 +18,11 @@ export default function MergeWizard() {
     const [downloadUrl, setDownloadUrl] = useState(null);
 
     const canProceedStep1 = materialName.trim();
-    const canProceedStep2 = files.length > 1;
 
     const goNext = () => setStep((s) => Math.min(s + 1, 2));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));
+
+    const getTypeLabel = () => lectureType === 'practical' ? 'عملي' : 'نظري';
 
     const handleFileSelect = (e) => {
         if (!e.target.files) return;
@@ -49,7 +51,7 @@ export default function MergeWizard() {
             setStatus('loading');
             
             // Generate merged docx
-            const blob = await mergeDocxFiles(files, { materialName });
+            const blob = await mergeDocxFiles(files, { materialName, type: lectureType });
             
             // Create object URL
             const url = URL.createObjectURL(blob);
@@ -60,6 +62,11 @@ export default function MergeWizard() {
             console.error('Merge failed:', error);
             setStatus('error');
         }
+    };
+
+    const getDownloadFileName = () => {
+        const typeLabel = lectureType === 'practical' ? 'عملي' : 'نظري';
+        return `${materialName} - ${typeLabel} - ملف شامل.docx`;
     };
 
     return (
@@ -84,6 +91,26 @@ export default function MergeWizard() {
                             placeholder="مثال: باطنة 1"
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
+                        <div className="flex gap-3">
+                            {[
+                                { value: 'theoretical', label: 'نظري' },
+                                { value: 'practical', label: 'عملي' },
+                            ].map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setLectureType(value)}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                            ? 'border-primary bg-primary-light text-primary'
+                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                        }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <button
@@ -233,7 +260,7 @@ export default function MergeWizard() {
                                 <div className="flex gap-3 justify-center">
                                     <a
                                         href={downloadUrl}
-                                        download={`${materialName} - ملف شامل.docx`}
+                                        download={getDownloadFileName()}
                                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-success text-white font-bold text-sm hover:bg-success/90 transition-default shadow-lg shadow-success/25"
                                     >
                                         <Download size={16} />

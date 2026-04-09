@@ -22,11 +22,14 @@ public static class MergeEndpoints
             var materialName = form["materialName"].ToString();
             if (string.IsNullOrEmpty(materialName)) materialName = "Merged_Document";
 
+            // Get lecture type (default to theoretical)
+            var lectureType = form["lectureType"].ToString();
+            var typeLabel = string.IsNullOrEmpty(lectureType) || lectureType.ToLower() != "practical" ? "نظري" : "عملي";
+
             var uploadsDir = Path.Combine(env.ContentRootPath, "uploads");
             Directory.CreateDirectory(uploadsDir);
 
             // Select template based on lecture type (default to theoretical)
-            var lectureType = form["lectureType"].ToString();
             string templateName = string.IsNullOrEmpty(lectureType) || lectureType.ToLower() != "practical" 
                 ? "Pandoc-Theo-Final-Step.dotx" 
                 : "Pandoc-Prac-Final-Step.dotx";
@@ -37,8 +40,8 @@ public static class MergeEndpoints
                 return Results.NotFound(new { error = $"Template file {templateName} not found at {templatePath}." });
             }
 
-            // Naming: {MaterialName} - ملف شامل.docx
-            string finalFileName = $"{materialName} - ملف شامل.docx";
+            // Naming: {MaterialName} - {Type} - ملف شامل.docx
+            string finalFileName = $"{materialName} - {typeLabel} - ملف شامل.docx";
             string finalFilePath = Path.Combine(uploadsDir, finalFileName);
 
             // Copy template to final path

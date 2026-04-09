@@ -160,8 +160,8 @@ export async function fetchStats() {
 }
 
 /**
- * Save a quiz session (question bank).
- * @param {Object} session - { materialName, quizData (JSON string), workflowType: 'bank' }
+ * Save or update a quiz session (question bank).
+ * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'bank' }
  */
 export async function saveQuizSession(session) {
     try {
@@ -173,30 +173,36 @@ export async function saveQuizSession(session) {
                 : JSON.stringify(session.quizData || [])
         };
 
-        const res = await fetch(API_BASE, {
-            method: 'POST',
+        const url = session.id 
+            ? `${API_BASE}/${session.id}` 
+            : API_BASE;
+        
+        const method = session.id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         if (!res.ok) throw new Error('Failed to save quiz session');
 
-        let createdSession;
+        let resultSession;
         try {
-            createdSession = await res.json();
+            resultSession = await res.json();
         } catch (err) {
             const location = res.headers.get('Location');
             if (location) {
                 const parts = location.split('/');
-                createdSession = { id: parts[parts.length - 1] };
+                resultSession = { id: parts[parts.length - 1] };
             }
         }
 
-        if (!createdSession || !createdSession.id) {
-            throw new Error('No session ID returned from creation');
+        if (!resultSession || !resultSession.id) {
+            throw new Error('No session ID returned from save');
         }
 
-        return createdSession;
+        return resultSession;
     } catch (e) {
         console.error('API Error:', e);
         throw e;

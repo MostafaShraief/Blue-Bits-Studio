@@ -105,6 +105,7 @@ export default function QuizHub() {
     setIsSaving(true);
     try {
       const result = await saveQuizSession({
+        id: sessionId || undefined,
         materialName: currentFile || 'بنك أسئلة',
         quizData: formQuizData,
         workflowType: 'bank'
@@ -112,7 +113,7 @@ export default function QuizHub() {
       
       setSessionId(result.id);
       setHasUnsavedChanges(false);
-      alert('تم حفظ البنك بنجاح!');
+      alert(sessionId ? 'تم تحديث البنك بنجاح!' : 'تم حفظ البنك بنجاح!');
     } catch (err) {
       console.error('Failed to save session:', err);
       alert('فشل في حفظ البنك. يرجى المحاولة مرة أخرى.');
@@ -368,13 +369,13 @@ export default function QuizHub() {
 
       {/* Unsaved changes indicator */}
       {hasUnsavedChanges && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-            <AlertCircle size={18} className="text-amber-600" />
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+            <AlertCircle size={18} className="text-amber-600 dark:text-amber-400" />
           </div>
           <div className="flex-1">
-            <span className="text-sm font-medium text-amber-800">لديك تغييرات غير محفوظة</span>
-            <span className="text-xs text-amber-600 ms-2">فضّل حفظ التعديلات قبل المغادرة</span>
+            <span className="text-sm font-medium text-amber-800 dark:text-amber-200">لديك تغييرات غير محفوظة</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400 ms-2">فضّل حفظ التعديلات قبل المغادرة</span>
           </div>
         </div>
       )}
@@ -438,7 +439,7 @@ export default function QuizHub() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-default shadow-sm shadow-green-600/20"
           >
             <Save size={16} />
-            {isSaving ? 'جاري الحفظ...' : 'حفظ الجلسة'}
+            {isSaving ? 'جاري الحفظ...' : sessionId ? 'تحديث البنك' : 'حفظ البنك'}
           </button>
           <button
             onClick={copyToClipboard}
@@ -564,7 +565,7 @@ export default function QuizHub() {
                     <div className="flex justify-between items-start gap-4 mb-5">
                       <h3 className="text-lg font-semibold text-text leading-relaxed flex-1">
                         <span className="text-primary/60 me-3 font-mono">#{qIdx + 1}</span>
-                        {q.question || <span className="text-text-muted italic">بدون سؤال</span>}
+                        <span dir="auto">{q.question || <span className="text-text-muted italic">بدون سؤال</span>}</span>
                       </h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -588,7 +589,7 @@ export default function QuizHub() {
                             className={`text-start px-4 py-3.5 rounded-xl border transition-all relative overflow-hidden ${btnClass}`}
                           >
                             <span className="me-3 font-bold opacity-40">{String.fromCharCode(65 + oIdx)}</span>
-                            {opt || <span className="text-text-muted italic">فارغ</span>}
+                            <span dir="auto">{opt || <span className="text-text-muted italic">فارغ</span>}</span>
                             {isSubmitted && Array.isArray(q.correct_options) && q.correct_options.includes(oIdx) && (
                               <CheckCircle2 size={18} className="absolute inline top-1/2 -translate-y-1/2 inset-e-4 text-green-600" />
                             )}

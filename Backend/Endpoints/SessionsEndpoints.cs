@@ -176,8 +176,33 @@ public static class SessionsEndpoints
             return Results.NoContent();
         });
 
+        group.MapPut("/{id}", async (Guid id, BlueBitsDbContext db, UpdateSessionRequest req) =>
+        {
+            var session = await db.Sessions.FindAsync(id);
+            if (session is null) return Results.NotFound();
+
+            if (req.MaterialName != null) session.MaterialName = req.MaterialName;
+            if (req.LectureNumber != null) session.LectureNumber = req.LectureNumber;
+            if (req.Type != null) session.Type = req.Type;
+            if (req.WorkflowType != null) session.WorkflowType = req.WorkflowType;
+            if (req.QuizData != null) session.QuizData = req.QuizData;
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(session);
+        });
+
         return group;
     }
+}
+
+public class UpdateSessionRequest
+{
+    public string? MaterialName { get; set; }
+    public string? LectureNumber { get; set; }
+    public string? Type { get; set; }
+    public string? WorkflowType { get; set; }
+    public string? QuizData { get; set; }
 }
 
 public class CreateSessionRequest

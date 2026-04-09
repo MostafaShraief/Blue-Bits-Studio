@@ -158,3 +158,53 @@ export async function fetchStats() {
         coordination: sessions.filter((s) => s.workflowType === 'coordination').length,
     };
 }
+
+/**
+ * Save or update a quiz session (question bank).
+ * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'bank' }
+ */
+export async function saveQuizSession(session) {
+    try {
+        const payload = {
+            materialName: session.materialName || 'بنك أسئلة بدون اسم',
+            workflowType: session.workflowType || 'bank',
+            quizData: typeof session.quizData === 'string' 
+                ? session.quizData 
+                : JSON.stringify(session.quizData || [])
+        };
+
+        const url = session.id 
+            ? `${API_BASE}/${session.id}` 
+            : API_BASE;
+        
+        const method = session.id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to save quiz session');
+
+        let resultSession;
+        try {
+            resultSession = await res.json();
+        } catch (err) {
+            const location = res.headers.get('Location');
+            if (location) {
+                const parts = location.split('/');
+                resultSession = { id: parts[parts.length - 1] };
+            }
+        }
+
+        if (!resultSession || !resultSession.id) {
+            throw new Error('No session ID returned from save');
+        }
+
+        return resultSession;
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+}

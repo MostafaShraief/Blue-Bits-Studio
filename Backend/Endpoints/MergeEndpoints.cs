@@ -158,9 +158,8 @@ public static class MergeEndpoints
 
                     AltChunk altChunk = new AltChunk { Id = altChunkId };
                     
-                    AltChunkProperties altChunkPr = new AltChunkProperties();
-                    altChunkPr.MatchSource = new MatchSource() { Val = true };
-                    altChunk.Append(altChunkPr);
+                    // Remove MatchSource to use host document formatting instead of source document
+                    // This prevents end page formatting from bleeding into inserted content
                     
                     if (insertionPoint != null)
                     {
@@ -173,13 +172,19 @@ public static class MergeEndpoints
                         insertionPoint = altChunk;
                     }
 
-                    // Force a hard page break after the inserted file to prevent overlapping backgrounds 
-                    // and ensure the next document (or the final End Page) starts on a fresh page.
-                    Paragraph breakPara = new Paragraph(
-                        new Run(
-                            new Break() { Type = BreakValues.Page }
-                        )
-                    );
+                    // Force a section + page break after the inserted content to isolate formatting
+                    // and ensure next content starts on a fresh page without end page background
+                    Paragraph breakPara = new Paragraph();
+                    ParagraphProperties breakParaPr = new ParagraphProperties();
+                    // Empty SectionProperties to break section inheritance
+                    breakParaPr.AppendChild(new SectionProperties());
+                    breakPara.AppendChild(breakParaPr);
+                    
+                    // Add page break in the same paragraph
+                    Run pageBreakRun = new Run();
+                    pageBreakRun.AppendChild(new Break() { Type = BreakValues.Page });
+                    breakPara.PrependChild(pageBreakRun);
+                    
                     insertionPoint.InsertAfterSelf(breakPara);
                     insertionPoint = breakPara;
 

@@ -18,6 +18,7 @@ export default function MergeWizard() {
     const [downloadUrl, setDownloadUrl] = useState(null);
 
     const canProceedStep1 = materialName.trim();
+    const canProceedStep2 = files.length > 1;
 
     const goNext = () => setStep((s) => Math.min(s + 1, 2));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));

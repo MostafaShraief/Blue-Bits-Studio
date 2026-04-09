@@ -20,6 +20,7 @@ public static class SessionsEndpoints
                     s.LectureNumber,
                     s.Type,
                     s.WorkflowType,
+                    s.QuizData,
                     s.CreatedAt
                 })
                 .ToListAsync();
@@ -44,7 +45,8 @@ public static class SessionsEndpoints
                 MaterialName = req.MaterialName,
                 LectureNumber = req.LectureNumber,
                 Type = req.Type,
-                WorkflowType = req.WorkflowType
+                WorkflowType = req.WorkflowType,
+                QuizData = req.QuizData
             };
 
             if (!string.IsNullOrEmpty(req.PromptText))
@@ -184,6 +186,7 @@ public class CreateSessionRequest
     public string LectureNumber { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public string WorkflowType { get; set; } = string.Empty;
+    public string? QuizData { get; set; }
     public string PromptText { get; set; } = string.Empty;
     public string GeneralNotes { get; set; } = string.Empty;
     public List<ImageNoteDto>? ImageNotes { get; set; }

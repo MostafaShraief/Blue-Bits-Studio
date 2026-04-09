@@ -7,6 +7,7 @@ public class Session
     public string LectureNumber { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty; // Theoretical/Practical
     public string WorkflowType { get; set; } = string.Empty; // Lecture/Bank/Draw/Pandoc
+    public string? QuizData { get; set; } // JSON string for quiz question bank
     private DateTime _createdAt = DateTime.UtcNow;
     public DateTime CreatedAt 
     { 

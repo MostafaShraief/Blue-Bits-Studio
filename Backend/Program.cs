@@ -38,6 +38,13 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Ensure database is created and migrations applied
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<BlueBitsDbContext>();
+    db.Database.EnsureCreated();
+}
+
 app.UseHttpsRedirection();
 
 // Serve static files for uploaded images

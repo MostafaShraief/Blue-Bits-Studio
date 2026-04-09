@@ -158,3 +158,47 @@ export async function fetchStats() {
         coordination: sessions.filter((s) => s.workflowType === 'coordination').length,
     };
 }
+
+/**
+ * Save a quiz session (question bank).
+ * @param {Object} session - { materialName, quizData (JSON string), workflowType: 'bank' }
+ */
+export async function saveQuizSession(session) {
+    try {
+        const payload = {
+            materialName: session.materialName || 'بنك أسئلة بدون اسم',
+            workflowType: session.workflowType || 'bank',
+            quizData: typeof session.quizData === 'string' 
+                ? session.quizData 
+                : JSON.stringify(session.quizData || [])
+        };
+
+        const res = await fetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to save quiz session');
+
+        let createdSession;
+        try {
+            createdSession = await res.json();
+        } catch (err) {
+            const location = res.headers.get('Location');
+            if (location) {
+                const parts = location.split('/');
+                createdSession = { id: parts[parts.length - 1] };
+            }
+        }
+
+        if (!createdSession || !createdSession.id) {
+            throw new Error('No session ID returned from creation');
+        }
+
+        return createdSession;
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+}

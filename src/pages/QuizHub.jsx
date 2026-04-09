@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useSearchParams } from 'react-router';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
 import {
   FileJson,
   Upload,
@@ -14,20 +14,112 @@ import {
   ArrowLeft,
   ExternalLink,
   Trash2,
-  Plus
+  Plus,
+  Save
 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import { PROMPTS } from '../data/prompts';
+import { saveQuizSession, fetchSession } from '../utils/api';
 
 const STEPS = ['القائمة', 'برومبت الأسئلة', 'محرر JSON'];
 
 export default function QuizHub() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const fileInputRef = useRef(null);
 
   const [formQuizData, setFormQuizData] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+
+  // Load session from URL param on mount
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      loadSession(id);
+    }
+  }, [searchParams]);
+
+  const loadSession = async (id) => {
+    try {
+      const session = await fetchSession(id);
+      if (session && session.quizData) {
+        const quizArray = typeof session.quizData === 'string' 
+          ? JSON.parse(session.quizData) 
+          : session.quizData;
+        setFormQuizData(quizArray.map(q => ({ ...q })));
+        setCurrentFile(session.materialName || 'بنك محفوظ');
+        setSessionId(id);
+        setHasUnsavedChanges(false);
+        // Go to step 2 (JSON Editor)
+        setStep(2);
+      }
+    } catch (err) {
+      console.error('Failed to load session:', err);
+    }
+  };
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (formQuizData.length > 0 && step === 2) {
+      setHasUnsavedChanges(true);
+    }
+  }, [formQuizData, step]);
+
+  // beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Handle navigation attempt
+  const handleNavigateAway = () => {
+    if (!hasUnsavedChanges) return true;
+    
+    const userChoice = window.confirm(
+      'لديك تغييرات غير محفوظة. هل تريد المتابعة بدون حفظ؟\n\nاضغط "موافق" لتجاهل التغييرات أو "إلغاء" للبقاء.'
+    );
+    
+    if (userChoice) {
+      setHasUnsavedChanges(false);
+      return true;
+    }
+    return false;
+  };
+
+  const handleSaveSession = async () => {
+    if (formQuizData.length === 0) {
+      alert('لا توجد أسئلة لحفظها');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const result = await saveQuizSession({
+        materialName: currentFile || 'بنك أسئلة',
+        quizData: formQuizData,
+        workflowType: 'bank'
+      });
+      
+      setSessionId(result.id);
+      setHasUnsavedChanges(false);
+      alert('تم حفظ البنك بنجاح!');
+    } catch (err) {
+      console.error('Failed to save session:', err);
+      alert('فشل في حفظ البنك. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Viewer/Quiz mode state
   const [viewMode, setViewMode] = useState('preview'); // preview | quiz
@@ -193,7 +285,7 @@ export default function QuizHub() {
           </button>
 
           <button
-            onClick={() => goToStep(2)}
+            onClick={() => setStep(2)}
             className="w-full bg-surface-card border border-border rounded-2xl p-6 flex items-center gap-4 hover:border-primary/40 hover:shadow-lg transition-default group"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-default">
@@ -274,6 +366,19 @@ export default function QuizHub() {
         ارفع ملف JSON، عدّله، ثم طبّق التعديلات للمعاينة والاختبار
       </p>
 
+      {/* Unsaved changes indicator */}
+      {hasUnsavedChanges && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+            <AlertCircle size={18} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <span className="text-sm font-medium text-amber-800">لديك تغييرات غير محفوظة</span>
+            <span className="text-xs text-amber-600 ms-2">فضّل حفظ التعديلات قبل المغادرة</span>
+          </div>
+        </div>
+      )}
+
       <WizardStepper steps={STEPS} current={step} />
 
       {/* Header */}
@@ -326,14 +431,24 @@ export default function QuizHub() {
           </button>
         </div>
 
-        <button
-          onClick={copyToClipboard}
-          disabled={formQuizData.length === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface transition-default disabled:opacity-50"
-        >
-          <Clipboard size={16} />
-          نسخ الكل كنص
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveSession}
+            disabled={formQuizData.length === 0 || isSaving}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-default shadow-sm shadow-green-600/20"
+          >
+            <Save size={16} />
+            {isSaving ? 'جاري الحفظ...' : 'حفظ الجلسة'}
+          </button>
+          <button
+            onClick={copyToClipboard}
+            disabled={formQuizData.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface transition-default disabled:opacity-50"
+          >
+            <Clipboard size={16} />
+            نسخ الكل كنص
+          </button>
+        </div>
       </div>
 
       {/* Editor/Quiz Area */}

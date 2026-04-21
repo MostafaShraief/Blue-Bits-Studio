@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
+import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { mergeDocxFiles } from '../utils/api';
 
 const STEPS = ['التسمية', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
@@ -10,20 +11,21 @@ export default function MergeWizard() {
     const fileInputRef = useRef(null);
 
     const [materialName, setMaterialName] = useState('');
-    const [lectureType, setLectureType] = useState('theoretical');
+    const [lectureType, setLectureType] = useState('Theoretical');
+    const [lectureNumber, setLectureNumber] = useState(1);
 
     const [files, setFiles] = useState([]);
 
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialName.trim();
+    const canProceedStep1 = materialName.trim() && lectureNumber;
     const canProceedStep2 = files.length > 1;
 
     const goNext = () => setStep((s) => Math.min(s + 1, 2));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
-    const getTypeLabel = () => lectureType === 'practical' ? 'عملي' : 'نظري';
+    const getTypeLabel = () => lectureType === 'Practical' ? 'عملي' : 'نظري';
 
     const handleFileSelect = (e) => {
         if (!e.target.files) return;
@@ -66,7 +68,7 @@ export default function MergeWizard() {
     };
 
     const getDownloadFileName = () => {
-        const typeLabel = lectureType === 'practical' ? 'عملي' : 'نظري';
+        const typeLabel = lectureType === 'Practical' ? 'عملي' : 'نظري';
         return `${materialName} - ${typeLabel} - ملف شامل.docx`;
     };
 
@@ -83,13 +85,14 @@ export default function MergeWizard() {
             {/* STEP 0: Naming */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
+                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
                     <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
+                        <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
-                            type="text"
-                            value={materialName}
-                            onChange={e => setMaterialName(e.target.value)}
-                            placeholder="مثال: باطنة 1"
+                            type="number"
+                            min="1"
+                            value={lectureNumber}
+                            onChange={(e) => setLectureNumber(e.target.value)}
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
                     </div>
@@ -97,8 +100,8 @@ export default function MergeWizard() {
                         <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
                         <div className="flex gap-3">
                             {[
-                                { value: 'theoretical', label: 'نظري' },
-                                { value: 'practical', label: 'عملي' },
+                                { value: 'Theoretical', label: 'نظري' },
+                                { value: 'Practical', label: 'عملي' },
                             ].map(({ value, label }) => (
                                 <button
                                     key={value}

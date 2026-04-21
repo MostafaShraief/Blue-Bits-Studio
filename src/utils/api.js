@@ -212,7 +212,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         const formData = new FormData();
         files.forEach(f => formData.append('files', f));
         formData.append('materialName', metadata.materialName || '');
-        formData.append('lectureType', metadata.type || 'theoretical');
+        formData.append('lectureType', metadata.type || 'Theoretical');
 
         const res = await authFetch('http://localhost:5135/api/merge/execute', {
             method: 'POST',
@@ -250,7 +250,7 @@ export async function fetchStats() {
 
 /**
  * Save or update a quiz session (question bank).
- * @param {Object} session - { id, materialName, quizData (JSON string), workflowType: 'quiz' }
+ * @param {Object} session - { materialName, lectureNumber, lectureType, quizData, workflowSystemCode }
  */
 export async function saveQuizSession(session) {
     try {
@@ -258,4 +258,35 @@ export async function saveQuizSession(session) {
             materialName: session.materialName,
             workflowSystemCode: session.workflowSystemCode || 'BANK_QS',
             lectureNumber: session.lectureNumber,
+            lectureType: session.lectureType,
+            quizData: typeof session.quizData === 'string' ? session.quizData : JSON.stringify(session.quizData),
+            generalNotes: session.generalNotes || ''
+        };
+
+        const res = await authFetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Failed to save quiz session');
+        
+        let result;
+        try {
+            result = await res.json();
+        } catch {
+            const location = res.headers.get('Location');
+            if (location) {
+                const parts = location.split('/');
+                result = { id: parts[parts.length - 1] };
+            }
+        }
+
+        return result || {};
+    } catch (e) {
+        console.error('Failed to save quiz session:', e);
+        throw e;
+    }
+}
+
     

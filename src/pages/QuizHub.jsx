@@ -18,10 +18,10 @@ import {
   Save
 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
-import { PROMPTS } from '../data/prompts';
-import { saveQuizSession, fetchSession } from '../utils/api';
+import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
+import { saveQuizSession, fetchSession, createSession, compilePromptStateless } from '../utils/api';
 
-const STEPS = ['القائمة', 'برومبت الأسئلة', 'محرر JSON'];
+const STEPS = ['القائمة', 'إعداد الجلسة', 'برومبت الأسئلة', 'محرر JSON'];
 
 export default function QuizHub() {
   const [searchParams] = useSearchParams();
@@ -34,6 +34,15 @@ export default function QuizHub() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  
+  // Metadata state for prompts
+  const [materialName, setMaterialName] = useState('');
+  const [lectureNumber, setLectureNumber] = useState(1);
+  const [lectureType, setLectureType] = useState('Theoretical');
+  const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
+
+  const [promptText, setPromptText] = useState('');
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
 
   // Load session from URL param on mount
   useEffect(() => {
@@ -51,11 +60,15 @@ export default function QuizHub() {
           ? JSON.parse(session.quizData) 
           : session.quizData;
         setFormQuizData(quizArray.map(q => ({ ...q })));
-        setCurrentFile(session.materialName || 'بنك محفوظ');
+        
+        setMaterialName(session.material?.materialName || '');
+        setLectureNumber(session.lectureNumber || 1);
+        setLectureType(session.lectureType || 'Theoretical');
+        setCurrentFile(session.material?.materialName || 'بنك محفوظ');
+        
         setSessionId(id);
         setHasUnsavedChanges(false);
-        // Go to step 2 (JSON Editor)
-        setStep(2);
+        setStep(3); // Go to JSON Editor
       }
     } catch (err) {
       console.error('Failed to load session:', err);
@@ -64,7 +77,7 @@ export default function QuizHub() {
 
   // Track unsaved changes
   useEffect(() => {
-    if (formQuizData.length > 0 && step === 2) {
+    if (formQuizData.length > 0 && step === 3) {
       setHasUnsavedChanges(true);
     }
   }, [formQuizData, step]);
@@ -102,13 +115,22 @@ export default function QuizHub() {
       return;
     }
 
+    if (!materialName.trim()) {
+        alert('الرجاء إدخال اسم المادة قبل الحفظ.');
+        setStep(1); // take them to metadata to fill it
+        return;
+    }
+
     setIsSaving(true);
     try {
       const result = await saveQuizSession({
         id: sessionId || undefined,
-        materialName: currentFile || 'بنك أسئلة',
+        materialName: materialName,
+        lectureNumber: Number(lectureNumber),
+        lectureType: lectureType,
+        workflowSystemCode: 'BANK_QS',
+        generalNotes: '',
         quizData: formQuizData,
-        workflowType: 'quiz'
       });
       
       setSessionId(result.id);
@@ -133,6 +155,43 @@ export default function QuizHub() {
 
   const goToStep = (newStep) => {
     setStep(newStep);
+  };
+
+  const handleNextStep1 = async () => {
+    if (!materialName.trim() || !lectureNumber || !lectureType) {
+        alert('الرجاء إدخال جميع البيانات المطلوبة (اسم المادة، رقم المحاضرة، نوع المحاضرة)');
+        return;
+    }
+    
+    setIsLoadingPrompt(true);
+    try {
+      if (saveSessionEnabled) {
+          const createdSession = await createSession({
+              materialName,
+              lectureNumber: Number(lectureNumber),
+              lectureType,
+              workflowSystemCode: 'BANK_QS',
+              generalNotes: '',
+          });
+          const id = createdSession.sessionId || createdSession.id;
+          setSessionId(id);
+          
+          const sessionData = await fetchSession(id);
+          setPromptText(sessionData?.compiledPrompt || '');
+      } else {
+          const res = await compilePromptStateless({
+              systemCode: 'BANK_QS',
+              generalNotes: '',
+              fileNotes: []
+          });
+          setPromptText(res?.compiledPrompt || '');
+      }
+      setStep(2);
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ أثناء تحضير البرومبت');
+    }
+    setIsLoadingPrompt(false);
   };
 
   const safeParseQuizArray = (value) => {
@@ -273,20 +332,23 @@ export default function QuizHub() {
 
         <div className="space-y-5 mt-8">
           <button
-            onClick={() => goToStep(1)}
-            className="w-full bg-surface-card border border-border rounded-2xl p-6 flex items-center gap-4 hover:border-primary/40 hover:shadow-lg transition-default group"
+            onClick={() => setStep(1)}
+            disabled={isLoadingPrompt}
+            className="w-full bg-surface-card border border-border rounded-2xl p-6 flex items-center gap-4 hover:border-primary/40 hover:shadow-lg transition-default group disabled:opacity-40"
           >
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-default">
               <Wand2 size={24} />
             </div>
             <div className="text-start flex-1">
-              <div className="font-bold text-text text-lg">برومبت بناء بنك أسئلة</div>
+              <div className="font-bold text-text text-lg">
+                  {isLoadingPrompt ? 'جاري التحضير...' : 'برومبت بناء بنك أسئلة'}
+              </div>
               <div className="text-sm text-text-secondary">انسخ البرومبت الجاهز للاستخدام مع الذكاء الاصطناعي</div>
             </div>
           </button>
 
           <button
-            onClick={() => setStep(2)}
+            onClick={() => setStep(3)}
             className="w-full bg-surface-card border border-border rounded-2xl p-6 flex items-center gap-4 hover:border-primary/40 hover:shadow-lg transition-default group"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-default">
@@ -302,10 +364,69 @@ export default function QuizHub() {
     );
   }
 
-  // Step 1: Prompt Copy
+  // Step 1: Session Setup
   if (step === 1) {
-    const promptText = PROMPTS?.mcqGeneration || '';
+    return (
+      <div className="max-w-3xl mx-auto animate-fade-slide-in">
+        <h1 className="text-2xl font-bold text-text mb-2">إعداد الجلسة</h1>
+        <p className="text-sm text-text-secondary mb-6">أدخل بيانات المحاضرة لإنشاء البرومبت المخصص</p>
+        <WizardStepper steps={STEPS} current={step} />
 
+        <div className="bg-surface-card border border-border rounded-2xl p-6 space-y-4 mt-8">
+            <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+                    <input
+                        type="number"
+                        min="1"
+                        value={lectureNumber}
+                        onChange={(e) => setLectureNumber(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
+                    <select
+                        value={lectureType}
+                        onChange={(e) => setLectureType(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                        <option value="Theoretical">نظري</option>
+                        <option value="Practical">عملي</option>
+                        <option value="Summary">ملخص</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+                <input
+                    type="checkbox"
+                    id="saveSession"
+                    checked={saveSessionEnabled}
+                    onChange={(e) => setSaveSessionEnabled(e.target.checked)}
+                    className="w-4 h-4 text-primary bg-surface border-border rounded focus:ring-primary focus:ring-2"
+                />
+                <label htmlFor="saveSession" className="text-sm text-text">حفظ الجلسة في قاعدة البيانات</label>
+            </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+            <button onClick={() => setStep(0)} className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default">رجوع</button>
+            <button 
+                onClick={handleNextStep1}
+                disabled={isLoadingPrompt || !materialName.trim() || !lectureNumber || !lectureType} 
+                className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+            >
+                {isLoadingPrompt ? 'جاري التحضير...' : 'توليد البرومبت'}
+            </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Prompt Copy
+  if (step === 2) {
     return (
       <div className="max-w-3xl mx-auto animate-fade-slide-in">
         <h1 className="text-2xl font-bold text-text mb-2">برومبت بناء بنك أسئلة</h1>
@@ -343,13 +464,13 @@ export default function QuizHub() {
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={() => goToStep(0)}
+            onClick={() => goToStep(1)}
             className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
           >
             رجوع
           </button>
           <button
-            onClick={() => goToStep(2)}
+            onClick={() => goToStep(3)}
             className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
           >
             الانتقال للمحرر
@@ -359,7 +480,7 @@ export default function QuizHub() {
     );
   }
 
-  // Step 2: JSON Editor
+  // Step 3: JSON Editor
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-28 animate-fade-slide-in">
       <h1 className="text-2xl font-bold text-text mb-2">عارض ومحرر JSON</h1>

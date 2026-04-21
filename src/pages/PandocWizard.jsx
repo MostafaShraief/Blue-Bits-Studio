@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
+import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession, generatePandoc } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -36,7 +37,7 @@ export default function PandocWizard() {
     // Step 1
     const [materialName, setMaterialName] = useState('');
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('theoretical');
+    const [lectureType, setLectureType] = useState('Theoretical');
 
     // Step 2
     const [mdText, setMdText] = useState('');
@@ -78,18 +79,17 @@ export default function PandocWizard() {
         try {
             await createSession({
                 materialName,
-                lectureNumber,
+                lectureNumber: Number(lectureNumber),
                 lectureType,
-                workflowType: 'pandoc',
-                prompt: mdText,
-                generalNotes: `Template: ${lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}`,
+                workflowSystemCode: 'PANDOC',
+                generalNotes: `Template: ${lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}`,
             });
             
             const result = await generatePandoc({
                 markdownText: mdText,
-                templateName: lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
+                templateName: lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
                 materialName,
-                lectureNumber,
+                lectureNumber: Number(lectureNumber),
                 lectureType
             });
             
@@ -113,16 +113,7 @@ export default function PandocWizard() {
             {/* Step 1: Naming */}
             {step === 0 && (
                 <div data-tour="pandoc-metadata" className="space-y-5 animate-fade-slide-in">
-                    <div>
-                        <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
-                        <input
-                            type="text"
-                            value={materialName}
-                            onChange={(e) => setMaterialName(e.target.value)}
-                            placeholder="مثال: قواعد البيانات"
-                            className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                        />
-                    </div>
+                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
 
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
@@ -154,8 +145,8 @@ export default function PandocWizard() {
                         <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
                         <div className="flex gap-3">
                             {[
-                                { value: 'theoretical', label: 'نظري' },
-                                { value: 'practical', label: 'عملي' },
+                                { value: 'Theoretical', label: 'نظري' },
+                                { value: 'Practical', label: 'عملي' },
                             ].map(({ value, label }) => (
                                 <button
                                     key={value}
@@ -172,7 +163,7 @@ export default function PandocWizard() {
                         <p className="text-xs text-text-muted mt-2">
                             سيتم استخدام القالب:{' '}
                             <span className="font-mono text-primary">
-                                {lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
+                                {lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
                             </span>
                         </p>
                     </div>
@@ -253,7 +244,7 @@ export default function PandocWizard() {
                                 <p className="text-sm text-text">
                                     جاهز لتحويل الملف باستخدام{' '}
                                     <span className="font-mono text-primary">
-                                        {lectureType === 'theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
+                                        {lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
                                     </span>
                                 </p>
                                 

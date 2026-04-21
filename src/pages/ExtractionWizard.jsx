@@ -6,7 +6,7 @@ import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
-import { buildExtractionPrompt } from '../data/prompts';
+import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -21,10 +21,10 @@ export default function ExtractionWizard() {
     const [step, setStep] = useState(0);
 
     // Step 1 — Naming
-    const [workflowType, setWorkflowType] = useState(initialType);
+    const [workflowSystemCode, setWorkflowSystemCode] = useState(initialType === 'bank' ? 'BANK_EXT' : 'LEC_EXT');
     const [materialName, setMaterialName] = useState('');
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('theoretical');
+    const [lectureType, setLectureType] = useState('Theoretical');
 
     // Step 2 — Images + Notes
     const [images, setImages] = useState([]); // { file, url, note }
@@ -33,6 +33,7 @@ export default function ExtractionWizard() {
     // Step 3 — Generated prompt
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
+    const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -41,17 +42,17 @@ export default function ExtractionWizard() {
                     if (data.materialName) setMaterialName(data.materialName);
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
-                    if (data.workflowType) setWorkflowType(data.workflowType);
+                    if (data.workflowType) setWorkflowSystemCode(data.workflowType);
                     if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
                     
                     const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
                     if (notes) setGeneralNotes(notes);
                     
-                    if (data.images && data.images.length > 0) {
-                        const loadedImages = data.images.map(img => ({
+                    if (data.files && data.files.length > 0) {
+                        const loadedImages = data.files.map(img => ({
                             file: null,
                             url: 'http://localhost:5135/uploads/' + img.localFilePath,
-                            note: data.notes?.find(n => n.noteType === `Image-${img.orderIndex}`)?.noteText || ''
+                            note: data.notes?.find(n => n.noteType === `FileNote` && n.fileId === img.fileId)?.noteText || ''
                         }));
                         setImages(loadedImages);
                     }
@@ -113,17 +114,49 @@ export default function ExtractionWizard() {
     }, [addImage, step]);
 
     /* ── Step transitions ───────────────── */
-    const goNext = () => {
+    const goNext = async () => {
         if (step === 1) {
-            // Build prompt when moving to step 3
-            const built = buildExtractionPrompt(
-                workflowType,
-                { materialName, lectureNumber, lectureType },
-                images,
-                generalNotes,
-            );
-            setPrompt(built);
-            setSaved(false);
+            setIsLoadingPrompt(true);
+            try {
+                // 1) Prepare images
+                const processedImages = await Promise.all(images.map(async (img, i) => {
+                    if (!img.file && img.url) {
+                        try {
+                            const res = await fetch(img.url);
+                            const blob = await res.blob();
+                            const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
+                            return { ...img, file };
+                        } catch (err) {
+                            return img;
+                        }
+                    }
+                    return img;
+                }));
+
+                // 2) Create session in DB to get SessionId
+                const createdSession = await createSession({
+                    materialName,
+                    lectureNumber: parseInt(lectureNumber, 10),
+                    lectureType,
+                    workflowSystemCode,
+                    generalNotes,
+                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
+                });
+
+                // 3) Fetch session to get compiled prompt
+                const idToFetch = createdSession.sessionId || createdSession.id;
+                const sessionData = await fetchSession(idToFetch);
+                const finalPrompt = sessionData?.compiledPrompt || '';
+                
+                setPrompt(finalPrompt);
+                setSaved(true);
+            } catch (err) {
+                console.error("Failed to generate prompt or save session", err);
+                alert("Failed to generate prompt. Please try again.");
+                setIsLoadingPrompt(false);
+                return; // Stop step transition
+            }
+            setIsLoadingPrompt(false);
         }
         setStep((s) => Math.min(s + 1, STEPS.length - 1));
     };
@@ -132,38 +165,8 @@ export default function ExtractionWizard() {
 
     /* ── Save session ───────────────────── */
     const handleSave = useCallback(async () => {
-        if (saved) return;
-        try {
-            const processedImages = await Promise.all(images.map(async (img, i) => {
-                if (!img.file && img.url) {
-                    try {
-                        const res = await fetch(img.url);
-                        const blob = await res.blob();
-                        const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
-                        return { ...img, file };
-                    } catch (err) {
-                        console.error('Failed to fetch image blob', err);
-                        return img;
-                    }
-                }
-                return img;
-            }));
-
-            await createSession({
-                materialName,
-                lectureNumber,
-                lectureType,
-                workflowType,
-                prompt,
-                generalNotes,
-                images: processedImages,
-                imageNotes: processedImages.map((img) => ({ note: img.note })),
-            });
-            setSaved(true);
-        } catch (e) {
-            console.error("Failed to save session", e);
-        }
-    }, [materialName, lectureNumber, lectureType, workflowType, prompt, generalNotes, images, saved]);
+        // Session is now saved automatically during goNext.
+    }, []);
 
     /* ── Auto Save ──────────────────────── */
     useEffect(() => {
@@ -178,7 +181,7 @@ export default function ExtractionWizard() {
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
             {/* Title */}
             <h1 className="text-2xl font-bold text-text mb-2">
-                {workflowType === 'lecture' ? 'استخراج محاضرة' : 'استخراج بنك أسئلة'}
+                {workflowSystemCode === 'LEC_EXT' ? 'استخراج محاضرة' : 'استخراج بنك أسئلة'}
             </h1>
             <p className="text-sm text-text-secondary mb-6">
                 معالج خطوة بخطوة لإنشاء البرومبت وتجهيز الصور
@@ -192,13 +195,13 @@ export default function ExtractionWizard() {
                     {/* Workflow type toggle */}
                     <div data-tour="extraction-type" className="flex gap-3">
                         {[
-                            { value: 'lecture', label: 'محاضرة' },
-                            { value: 'bank', label: 'بنك أسئلة' },
+                            { value: 'LEC_EXT', label: 'محاضرة' },
+                            { value: 'BANK_EXT', label: 'بنك أسئلة' },
                         ].map(({ value, label }) => (
                             <button
                                 key={value}
-                                onClick={() => setWorkflowType(value)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-default ${workflowType === value
+                                onClick={() => setWorkflowSystemCode(value)}
+                                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-default ${workflowSystemCode === value
                                     ? 'border-primary bg-primary text-white'
                                     : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                     }`}
@@ -210,16 +213,7 @@ export default function ExtractionWizard() {
 
                     <div data-tour="extraction-metadata" className="space-y-5">
                         {/* Material Name */}
-                        <div>
-                            <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
-                            <input
-                                type="text"
-                                value={materialName}
-                                onChange={(e) => setMaterialName(e.target.value)}
-                                placeholder="مثال: قواعد البيانات"
-                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                            />
-                        </div>
+                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
 
                         {/* Lecture Number */}
                         <div>
@@ -253,8 +247,8 @@ export default function ExtractionWizard() {
                             <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
                             <div className="flex gap-3">
                                 {[
-                                    { value: 'theoretical', label: 'نظري' },
-                                    { value: 'practical', label: 'عملي' },
+                                    { value: 'Theoretical', label: 'نظري' },
+                                    { value: 'Practical', label: 'عملي' },
                                 ].map(({ value, label }) => (
                                     <button
                                         key={value}
@@ -329,15 +323,17 @@ export default function ExtractionWizard() {
                     <div className="flex gap-3">
                         <button
                             onClick={goBack}
-                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
+                            disabled={isLoadingPrompt}
+                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default disabled:opacity-40"
                         >
                             رجوع
                         </button>
                         <button
                             onClick={goNext}
-                            className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                            disabled={isLoadingPrompt}
+                            className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25 disabled:opacity-40"
                         >
-                            معاينة البرومبت
+                            {isLoadingPrompt ? 'جاري التحضير...' : 'معاينة البرومبت'}
                         </button>
                     </div>
                 </div>

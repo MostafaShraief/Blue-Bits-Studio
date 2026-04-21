@@ -81,7 +81,7 @@ public static class MergeEndpoints
                     p.Elements<ParagraphProperties>().Any(pp => pp.Elements<SectionProperties>().Any())
                 );
                 
-                OpenXmlElement insertionPoint = sectionBreakPara;
+                OpenXmlElement? insertionPoint = sectionBreakPara;
 
                 for (int i = 0; i < files.Count; i++)
                 {

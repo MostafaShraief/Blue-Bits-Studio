@@ -193,7 +193,7 @@ public static class PandocEndpoints
                     para.Append(el);
                 }
             }
-            document.MainDocumentPart.Document.Save();
+            document.MainDocumentPart?.Document?.Save();
         }
     }
 
@@ -315,7 +315,7 @@ public static class PandocEndpoints
                 body.AppendChild(altChunk);
             }
 
-            finalDoc.MainDocumentPart.Document.Save();
+            finalDoc.MainDocumentPart?.Document?.Save();
         }
     }
 }

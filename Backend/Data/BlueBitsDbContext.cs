@@ -25,11 +25,13 @@ public class BlueBitsDbContext : DbContext
         modelBuilder.Entity<User>(e => {
             e.HasIndex(u => u.TelegramUsername).IsUnique();
             e.HasIndex(u => u.Username).IsUnique();
-            e.HasCheckConstraint("CHK_UserRole", "\"UserRole\" IN ('Admin', 'TechMember', 'ScientificMember')");
-            e.HasCheckConstraint("CHK_BatchNumber", "\"BatchNumber\" > 0");
+            e.ToTable(t => {
+                t.HasCheckConstraint("CHK_UserRole", "\"UserRole\" IN ('Admin', 'TechMember', 'ScientificMember')");
+                t.HasCheckConstraint("CHK_BatchNumber", "\"BatchNumber\" > 0");
+            });
         });
 
-        modelBuilder.Entity<Material>(e => e.HasCheckConstraint("CHK_MaterialYear", "\"MaterialYear\" BETWEEN 1 AND 5"));
+        modelBuilder.Entity<Material>(e => e.ToTable(t => t.HasCheckConstraint("CHK_MaterialYear", "\"MaterialYear\" BETWEEN 1 AND 5")));
         
         modelBuilder.Entity<Workflow>(e => {
             e.HasIndex(w => w.SystemCode).IsUnique();
@@ -41,16 +43,18 @@ public class BlueBitsDbContext : DbContext
 
         modelBuilder.Entity<WorkflowPermission>(e => {
             e.HasIndex(wp => new { wp.RoleName, wp.WorkflowId }).IsUnique();
-            e.HasCheckConstraint("CHK_RoleName", "\"RoleName\" IN ('TechMember', 'ScientificMember')");
+            e.ToTable(t => t.HasCheckConstraint("CHK_RoleName", "\"RoleName\" IN ('TechMember', 'ScientificMember')"));
         });
 
         modelBuilder.Entity<Session>(e => {
-            e.HasCheckConstraint("CHK_LectureNumber", "\"LectureNumber\" > 0");
-            e.HasCheckConstraint("CHK_LectureType", "\"LectureType\" IN ('Theoretical', 'Practical')");
+            e.ToTable(t => {
+                t.HasCheckConstraint("CHK_LectureNumber", "\"LectureNumber\" > 0");
+                t.HasCheckConstraint("CHK_LectureType", "\"LectureType\" IN ('Theoretical', 'Practical')");
+            });
         });
 
-        modelBuilder.Entity<File>(e => e.HasCheckConstraint("CHK_FileType", "\"FileType\" IN ('Image', 'Docx', 'Other')"));
-        modelBuilder.Entity<Note>(e => e.HasCheckConstraint("CHK_NoteType", "\"NoteType\" IN ('GeneralNote', 'FileNote')"));
+        modelBuilder.Entity<File>(e => e.ToTable(t => t.HasCheckConstraint("CHK_FileType", "\"FileType\" IN ('Image', 'Docx', 'Other')")));
+        modelBuilder.Entity<Note>(e => e.ToTable(t => t.HasCheckConstraint("CHK_NoteType", "\"NoteType\" IN ('GeneralNote', 'FileNote')")));
 
         // --- 2. Relationships & Foreign Keys ---
         modelBuilder.Entity<WorkflowPermission>()

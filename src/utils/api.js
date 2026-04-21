@@ -21,6 +21,34 @@ async function authFetch(url, options = {}) {
     });
 }
 
+/** Get all materials */
+export async function fetchMaterials() {
+    try {
+        const res = await authFetch('http://localhost:5135/api/materials');
+        if (!res.ok) throw new Error('Failed to fetch materials');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to fetch materials:', e);
+        return [];
+    }
+}
+
+/** Compile prompt statelessly */
+export async function compilePromptStateless(payload) {
+    try {
+        const res = await authFetch('http://localhost:5135/api/prompts/compile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Failed to compile prompt');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to compile prompt:', e);
+        return null;
+    }
+}
+
 /** Get all sessions */
 export async function fetchSessions() {
     try {
@@ -51,13 +79,12 @@ export async function fetchSession(id) {
 export async function createSession(session) {
     try {
         const payload = {
-            materialName: session.materialName || '',
-            lectureNumber: session.lectureNumber || '',
-            type: session.lectureType || '',
-            workflowType: session.workflowType || '',
-            promptText: session.prompt || '',
-            generalNotes: session.generalNotes || '',
-            imageNotes: session.images ? session.images.map(img => ({ note: img.note || '' })) : []
+            materialName: session.materialName,
+            workflowSystemCode: session.workflowSystemCode,
+            lectureNumber: session.lectureNumber,
+            lectureType: session.lectureType,
+            quizData: session.quizData,
+            generalNotes: session.generalNotes
         };
 
         const res = await authFetch(API_BASE, {
@@ -84,18 +111,18 @@ export async function createSession(session) {
              throw new Error('No session ID returned from creation');
         }
 
-        // Now upload images if any exist
-        if (session.images && session.images.length > 0) {
+        // Now upload files if any exist
+        if (session.files && session.files.length > 0) {
             const formData = new FormData();
             
-            session.images.forEach((img, index) => {
+            session.files.forEach((img, index) => {
                 if (img.file) {
-                    formData.append('images', img.file, img.file.name || `image-${index}.png`);
+                    formData.append('files', img.file, img.file.name || `file-${index}.png`);
                     formData.append('notes', img.note || '');
                 }
             });
 
-            const uploadRes = await authFetch(`${API_BASE}/${createdSession.id}/images`, {
+            const uploadRes = await authFetch(`${API_BASE}/${createdSession.id}/files`, {
                 method: 'POST',
                 body: formData
             });
@@ -112,24 +139,36 @@ export async function createSession(session) {
     }
 }
 
-/** Upload images for a session */
-export async function uploadImages(sessionId, files) {
+/** Upload files for a session */
+export async function uploadFiles(sessionId, files) {
     if (!files || files.length === 0) return [];
     
     try {
         const formData = new FormData();
-        files.forEach(f => formData.append('images', f));
+        files.forEach(f => formData.append('files', f));
 
-        const res = await authFetch(`${API_BASE}/${sessionId}/images`, {
+        const res = await authFetch(`${API_BASE}/${sessionId}/files`, {
             method: 'POST',
             body: formData
         });
 
-        if (!res.ok) throw new Error('Failed to upload images');
+        if (!res.ok) throw new Error('Failed to upload files');
         return await res.json();
     } catch (e) {
-        console.error('Failed to upload images:', e);
+        console.error('Failed to upload files:', e);
         throw e;
+    }
+}
+
+/** Fetch prompt for a session */
+export async function fetchPrompt(sessionId, systemCode) {
+    try {
+        const res = await authFetch(`http://localhost:5135/api/prompts/${sessionId}/${systemCode}`);
+        if (!res.ok) throw new Error('Failed to fetch prompt');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to fetch prompt:', e);
+        return null;
     }
 }
 
@@ -216,45 +255,7 @@ export async function fetchStats() {
 export async function saveQuizSession(session) {
     try {
         const payload = {
-            materialName: session.materialName || 'بنك أسئلة بدون اسم',
-            workflowType: session.workflowType || 'quiz',
-            quizData: typeof session.quizData === 'string' 
-                ? session.quizData 
-                : JSON.stringify(session.quizData || [])
-        };
-
-        const url = session.id 
-            ? `${API_BASE}/${session.id}` 
-            : API_BASE;
-        
-        const method = session.id ? 'PUT' : 'POST';
-
-        const res = await authFetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) throw new Error('Failed to save quiz session');
-
-        let resultSession;
-        try {
-            resultSession = await res.json();
-        } catch (err) {
-            const location = res.headers.get('Location');
-            if (location) {
-                const parts = location.split('/');
-                resultSession = { id: parts[parts.length - 1] };
-            }
-        }
-
-        if (!resultSession || !resultSession.id) {
-            throw new Error('No session ID returned from save');
-        }
-
-        return resultSession;
-    } catch (e) {
-        console.error('API Error:', e);
-        throw e;
-    }
-}
+            materialName: session.materialName,
+            workflowSystemCode: session.workflowSystemCode || 'BANK_QS',
+            lectureNumber: session.lectureNumber,
+    

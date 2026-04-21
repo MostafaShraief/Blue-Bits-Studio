@@ -42,6 +42,7 @@ export interface Session {
     workflow?: Workflow;
     notes?: Note[];
     files?: File[];
+    compiledPrompt?: string;
 }
 
 export interface SessionSummary {

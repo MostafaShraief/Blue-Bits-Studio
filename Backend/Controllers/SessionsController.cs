@@ -122,7 +122,7 @@ public class SessionsController : ControllerBase
 
         var workflow = await _db.Workflows
             .Include(w => w.Permissions)
-            .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
+            .FirstOrDefaultAsync(w => w.SystemCode == req.workflowSystemCode);
 
         if (workflow == null || workflow.IsActive == 0)
             return BadRequest(new { message = "Invalid or inactive workflow." });
@@ -130,13 +130,15 @@ public class SessionsController : ControllerBase
         if (role != "Admin" && !workflow.Permissions.Any(p => p.RoleName == role))
             return Forbid();
 
-        int? materialId = null;
-        if (!string.IsNullOrWhiteSpace(req.MaterialName))
+int? materialId = null;
+        if (!string.IsNullOrWhiteSpace(req.materialName))
         {
             var material = await _db.Materials
-                .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
+                .FirstOrDefaultAsync(m => m.MaterialName == req.materialName);
             if (material != null)
+            {
                 materialId = material.MaterialId;
+            }
         }
 
         var session = new Session
@@ -144,13 +146,13 @@ public class SessionsController : ControllerBase
             UserId = userId,
             MaterialId = materialId,
             WorkflowId = workflow.WorkflowId,
-            LectureNumber = req.LectureNumber,
-            LectureType = req.LectureType,
-            QuizData = req.QuizData
+            LectureNumber = req.lectureNumber,
+            LectureType = req.lectureType,
+            QuizData = req.quizData
         };
 
-        if (!string.IsNullOrEmpty(req.GeneralNotes))
-            session.Notes.Add(new Note { NoteText = req.GeneralNotes, NoteType = "GeneralNote" });
+        if (!string.IsNullOrEmpty(req.generalNotes))
+            session.Notes.Add(new Note { NoteText = req.generalNotes, NoteType = "GeneralNote" });
 
         _db.Sessions.Add(session);
         await _db.SaveChangesAsync();
@@ -234,10 +236,10 @@ public class SessionsController : ControllerBase
 // DTO for creating a session
 public class CreateSessionRequest
 {
-    public required string WorkflowSystemCode { get; set; }
-    public required string MaterialName { get; set; }
-    public required int LectureNumber { get; set; }
-    public required string LectureType { get; set; }
-    public string? QuizData { get; set; }
-    public string? GeneralNotes { get; set; }
+    public required string workflowSystemCode { get; set; }
+    public required int lectureNumber { get; set; }
+    public required string lectureType { get; set; }
+    public string? materialName { get; set; }
+    public string? quizData { get; set; }
+    public string? generalNotes { get; set; }
 }

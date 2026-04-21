@@ -32,10 +32,23 @@ public class AuthController : ControllerBase
         }
 
         // Get authorized workflows from RBAC table mapping
-        var authorizedWorkflows = await _db.Workflows
-            .Where(w => w.IsActive == 1 && w.Permissions.Any(p => p.RoleName == user.UserRole))
-            .Select(w => w.SystemCode)
-            .ToListAsync();
+        // Admin gets ALL active workflows (no permission entry needed)
+        // Other roles get workflows where they have explicit permission AND workflow is active
+        List<string> authorizedWorkflows;
+        if (user.UserRole == "Admin")
+        {
+            authorizedWorkflows = await _db.Workflows
+                .Where(w => w.IsActive == 1)
+                .Select(w => w.SystemCode)
+                .ToListAsync();
+        }
+        else
+        {
+            authorizedWorkflows = await _db.Workflows
+                .Where(w => w.IsActive == 1 && w.Permissions.Any(p => p.RoleName == user.UserRole))
+                .Select(w => w.SystemCode)
+                .ToListAsync();
+        }
 
         // Generate JWT
         var jwtSettings = _config.GetSection("Jwt");

@@ -13,6 +13,17 @@ const FILTERS = [
     { value: 'pandoc', label: 'Pandoc' },
 ];
 
+// Map workflow system codes to filter keys
+const WORKFLOW_CATEGORIES = {
+    'LEC_EXT': 'lecture',
+    'BANK_EXT': 'bank',
+    'LEC_COORD': 'coordination',
+    'BANK_COORD': 'coordination',
+    'BANK_QS': 'quiz',
+    'DRAW': 'draw',
+    'PANDOC': 'pandoc',
+};
+
 const TYPE_META = {
     lecture: { label: 'استخراج محاضرة', icon: FileSearch, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     bank: { label: 'بنك أسئلة', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
@@ -37,7 +48,10 @@ export default function History() {
 
     const filtered = useMemo(() => {
         if (filter === 'all') return sessions;
-        return sessions.filter((s) => s.workflowType === filter);
+        return sessions.filter((s) => {
+            const category = WORKFLOW_CATEGORIES[s.workflowType];
+            return category === filter;
+        });
     }, [sessions, filter]);
 
     const handleDelete = async (id) => {
@@ -77,30 +91,25 @@ export default function History() {
             ) : (
                 <div className="space-y-3">
                     {filtered.map((s) => {
-                        const meta = TYPE_META[s.workflowType] || TYPE_META.lecture;
+                        const category = WORKFLOW_CATEGORIES[s.workflowType] || 'lecture';
+                        const meta = TYPE_META[category] || TYPE_META.lecture;
                         const Icon = meta.icon;
                         
-                        // Route logic:
-                        // - quiz type → /quiz
-                        // - bank type WITH quizData → /quiz (legacy fix for old sessions saved as bank)
-                        // - bank type WITHOUT quizData → /extraction (question bank extraction)
-                        // - lecture → /extraction
-                        // - other types → their respective pages
-                        let linkTo;
-                        if (s.workflowType === 'quiz') {
-                            linkTo = `/quiz?id=${s.id}`;
-                        } else if (s.workflowType === 'bank') {
-                            // Check if it's a legacy session with quiz data
-                            if (s.quizData) {
-                                linkTo = `/quiz?id=${s.id}`;
-                            } else {
-                                linkTo = `/extraction?type=bank&id=${s.id}`;
-                            }
-                        } else if (s.workflowType === 'lecture') {
-                            linkTo = `/extraction?type=lecture&id=${s.id}`;
-                        } else {
-                            linkTo = `/${s.workflowType}?id=${s.id}`;
-                        }
+                        // Route logic: Use actual workflow system code from backend to build route
+                        // Map systemCode -> route path
+                        const ROUTE_MAP = {
+                            'LEC_EXT': '/extraction?type=lecture',
+                            'BANK_EXT': '/bank',
+                            'LEC_COORD': '/coordination',
+                            'BANK_COORD': '/bank-coord',
+                            'BANK_QS': '/quiz',
+                            'PANDOC': '/pandoc',
+                            'MERGE': '/merge',
+                            'DRAW': '/draw',
+                        };
+                        
+                        const routePrefix = ROUTE_MAP[s.workflowType] || '/extraction';
+                        const linkTo = `${routePrefix}&id=${s.id}`;
 
                         return (
                             <div

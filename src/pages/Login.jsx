@@ -12,9 +12,11 @@ export default function Login() {
     const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // If already logged in, redirect to dashboard
+    // If already logged in, redirect based on role
     if (user) {
-        navigate('/', { replace: true });
+        // Admins go to admin dashboard, others go to regular dashboard
+        const redirectPath = user.role === 'Admin' ? '/admin/users' : '/';
+        navigate(redirectPath, { replace: true });
         return null;
     }
 
@@ -24,8 +26,11 @@ export default function Login() {
         setIsSubmitting(true);
 
         try {
-            await login(username, password);
-            navigate('/');
+            // Login returns the user data with role
+            const userData = await login(username, password);
+            // Redirect based on role from login response
+            const redirectPath = userData?.role === 'Admin' ? '/admin/users' : '/';
+            navigate(redirectPath);
         } catch (err) {
             setError(err.message);
         } finally {

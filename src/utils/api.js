@@ -5,7 +5,7 @@ const API_BASE = 'http://localhost:5135/api/sessions';
  * Preserves existing headers (like Content-Type) and correctly
  * handles FormData.
  */
-async function authFetch(url, options = {}) {
+export async function authFetch(url, options = {}) {
     const token = localStorage.getItem('token');
     
     // Ensure options.headers exists
@@ -28,6 +28,18 @@ async function authFetch(url, options = {}) {
         if (!window.location.pathname.includes('/login')) {
             window.location.href = '/login';
         }
+    }
+
+    // If response is not OK, throw an error with message
+    if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Request failed with status ${response.status}`);
+    }
+
+    // Return parsed JSON if content-type is json
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        return await response.json();
     }
 
     return response;

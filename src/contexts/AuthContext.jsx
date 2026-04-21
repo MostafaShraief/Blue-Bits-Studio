@@ -52,6 +52,9 @@ export function AuthProvider({ children }) {
 
         setUser(userData);
         localStorage.setItem('bluebits_user', JSON.stringify(userData));
+
+        // Return userData so caller can access role immediately
+        return userData;
     };
 
     const logout = useCallback(() => {

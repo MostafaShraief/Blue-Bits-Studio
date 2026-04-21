@@ -1,0 +1,316 @@
+import { useState, useEffect } from 'react';
+import { authFetch } from '../../utils/api';
+import { Users, Plus, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
+
+export default function AdminUsers() {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [showForm, setShowForm] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        username: '',
+        password: '',
+        userRole: 'TechMember',
+        batchNumber: '',
+        telegramUsername: ''
+    });
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        try {
+            const data = await authFetch('/admin/users');
+            setUsers(data);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        
+        const payload = {
+            ...formData,
+            batchNumber: parseInt(formData.batchNumber) || 1
+        };
+
+        try {
+            if (editingUser) {
+                await authFetch(`/admin/users/${editingUser}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                await authFetch('/admin/users', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+            }
+            
+            setShowForm(false);
+            setEditingUser(null);
+            resetForm();
+            fetchUsers();
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleEdit = (user) => {
+        setFormData({
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            password: '',
+            userRole: user.userRole,
+            batchNumber: user.batchNumber?.toString() || '',
+            telegramUsername: user.telegramUsername || ''
+        });
+        setEditingUser(user.userId);
+        setShowForm(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+        
+        try {
+            await authFetch(`/admin/users/${id}`, { method: 'DELETE' });
+            fetchUsers();
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            firstName: '',
+            lastName: '',
+            username: '',
+            password: '',
+            userRole: 'TechMember',
+            batchNumber: '',
+            telegramUsername: ''
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
+                <button
+                    onClick={() => {
+                        resetForm();
+                        setEditingUser(null);
+                        setShowForm(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default"
+                >
+                    <Plus size={18} />
+                    إضافة مستخدم
+                </button>
+            </div>
+
+            {/* Error */}
+            {error && (
+                <div className="flex items-center gap-3 bg-danger-light border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm">
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
+                </div>
+            )}
+
+            {/* Form Modal */}
+            {showForm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-surface-card border border-border rounded-2xl p-6 w-full max-w-lg space-y-4">
+                        <h2 className="text-xl font-bold text-text">
+                            {editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}
+                        </h2>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-text mb-1.5">الاسم الأول</label>
+                                    <input
+                                        type="text"
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-text mb-1.5">اسم العائلة</label>
+                                    <input
+                                        type="text"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-1.5">اسم المستخدم</label>
+                                <input
+                                    type="text"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-1.5">
+                                    كلمة المرور {editingUser && '(اتركها فارغة لإبقاء الحالية)'}
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                    required={!editingUser}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-text mb-1.5">الدور</label>
+                                    <select
+                                        value={formData.userRole}
+                                        onChange={(e) => setFormData({...formData, userRole: e.target.value})}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                    >
+                                        <option value="TechMember">عضو تقني</option>
+                                        <option value="ScientificMember">عضو علمي</option>
+                                        <option value="Admin">مسؤول</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-text mb-1.5">الدفعة</label>
+                                    <input
+                                        type="number"
+                                        value={formData.batchNumber}
+                                        onChange={(e) => setFormData({...formData, batchNumber: e.target.value})}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-1.5">用户名 Telegram (اختياري)</label>
+                                <input
+                                    type="text"
+                                    value={formData.telegramUsername}
+                                    onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowForm(false);
+                                        setEditingUser(null);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text font-bold text-sm"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm"
+                                >
+                                    {editingUser ? 'تحديث' : 'إضافة'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Users Table */}
+            <div className="bg-surface-card border border-border rounded-2xl overflow-hidden">
+                <table className="w-full">
+                    <thead className="bg-surface border-b border-border">
+                        <tr>
+                            <th className="text-start px-4 py-3 text-sm font-bold text-text">المستخدم</th>
+                            <th className="text-start px-4 py-3 text-sm font-bold text-text">الدور</th>
+                            <th className="text-start px-4 py-3 text-sm font-bold text-text">الدفعة</th>
+                            <th className="text-start px-4 py-3 text-sm font-bold text-text">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((user) => (
+                            <tr key={user.userId} className="border-b border-border last:border-0">
+                                <td className="px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <span className="text-primary font-bold text-sm">
+                                                {user.firstName?.[0]}{user.lastName?.[0]}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-text">{user.firstName} {user.lastName}</p>
+                                            <p className="text-xs text-text-muted">@{user.username}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                                        user.userRole === 'Admin' 
+                                            ? 'bg-amber/20 text-amber' 
+                                            : user.userRole === 'TechMember'
+                                                ? 'bg-primary/20 text-primary'
+                                                : 'bg-green-500/20 text-green-600'
+                                    }`}>
+                                        {user.userRole === 'Admin' ? 'مسؤول' : 
+                                         user.userRole === 'TechMember' ? 'تقني' : 'علمي'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-text">{user.batchNumber}</td>
+                                <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleEdit(user)}
+                                            className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-default"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        {user.userId !== 1 && (
+                                            <button
+                                                onClick={() => handleDelete(user.userId)}
+                                                className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-default"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}

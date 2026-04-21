@@ -110,9 +110,4 @@ app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi().RequireAuthorizat
 
 app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi().RequireAuthorization();
 
-app.MapGroup("/api/sessions")
-   .MapSessionEndpoints()
-   .WithOpenApi()
-   .RequireAuthorization();
-
 app.Run();

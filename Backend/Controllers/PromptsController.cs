@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.Services;
 
 namespace BlueBits.Api.Controllers;
 
@@ -13,10 +14,12 @@ namespace BlueBits.Api.Controllers;
 public class PromptsController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;
+    private readonly IPromptCompilationService _promptCompilationService;
 
-    public PromptsController(BlueBitsDbContext db)
+    public PromptsController(BlueBitsDbContext db, IPromptCompilationService promptCompilationService)
     {
         _db = db;
+        _promptCompilationService = promptCompilationService;
     }
 
     [HttpGet("{sessionId}/{systemCode}")]
@@ -41,4 +44,28 @@ public class PromptsController : ControllerBase
 
         return Ok(new { prompt.PromptText, prompt.PromptName });
     }
+
+    [HttpPost("compile")]
+    public async Task<IActionResult> CompilePrompt([FromBody] CompilePromptRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.SystemCode))
+        {
+            return BadRequest("SystemCode is required.");
+        }
+
+        var compiled = await _promptCompilationService.CompilePromptAsync(
+            req.SystemCode, 
+            req.GeneralNotes, 
+            req.FileNotes ?? new List<string>()
+        );
+
+        return Ok(new { CompiledPrompt = compiled });
+    }
+}
+
+public class CompilePromptRequest
+{
+    public string SystemCode { get; set; } = string.Empty;
+    public string? GeneralNotes { get; set; }
+    public List<string>? FileNotes { get; set; }
 }

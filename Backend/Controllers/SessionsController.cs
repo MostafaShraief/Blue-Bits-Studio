@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.Services;
 
 namespace BlueBits.Api.Controllers;
 
@@ -14,20 +15,22 @@ public class SessionsController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly IPromptCompilationService _promptCompilationService;
 
-    public SessionsController(BlueBitsDbContext db, IWebHostEnvironment env)
+    public SessionsController(BlueBitsDbContext db, IWebHostEnvironment env, IPromptCompilationService promptCompilationService)
     {
         _db = db;
         _env = env;
+        _promptCompilationService = promptCompilationService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetSessions()
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
-        // Non-admins can only see their own sessions
         var query = _db.Sessions.AsQueryable();
         if (role != "Admin")
         {
@@ -56,10 +59,12 @@ public class SessionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetSession(int id)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
         var session = await _db.Sessions
+            .Include(s => s.User)
             .Include(s => s.Material)
             .Include(s => s.Workflow)
             .Include(s => s.Workflow.Prompts)
@@ -70,7 +75,37 @@ public class SessionsController : ControllerBase
         if (session == null) return NotFound();
         if (role != "Admin" && session.UserId != userId) return Forbid();
 
-        return Ok(session);
+        var generalNotes = session.Notes.FirstOrDefault(n => n.NoteType == "GeneralNote")?.NoteText;
+        var fileNotes = session.Notes.Where(n => n.NoteType == "FileNote").OrderBy(n => n.FileId).Select(n => n.NoteText).ToList();
+
+        // Default to the first prompt associated with this workflow, or fallback to workflow's system code
+        string targetSystemCode = session.Workflow.Prompts.FirstOrDefault()?.SystemCode ?? session.Workflow.SystemCode;
+
+        var compiledPrompt = await _promptCompilationService.CompilePromptAsync(
+            targetSystemCode,
+            generalNotes,
+            fileNotes
+        );
+
+        var result = new
+        {
+            session.SessionId,
+            session.UserId,
+            session.MaterialId,
+            session.WorkflowId,
+            session.LectureNumber,
+            session.LectureType,
+            session.QuizData,
+            session.CreatedAt,
+            session.User,
+            session.Material,
+            session.Workflow,
+            session.Files,
+            session.Notes,
+            CompiledPrompt = compiledPrompt
+        };
+
+        return Ok(result);
     }
 
     [HttpPost]
@@ -84,26 +119,29 @@ public class SessionsController : ControllerBase
             
         int userId = int.Parse(userIdStr);
 
-        // Dynamically find Workflow by SystemCode
         var workflow = await _db.Workflows
             .Include(w => w.Permissions)
             .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
 
         if (workflow == null || workflow.IsActive == 0)
-        {
             return BadRequest(new { message = "Invalid or inactive workflow." });
-        }
 
-        // RBAC Enforcement
         if (role != "Admin" && !workflow.Permissions.Any(p => p.RoleName == role))
-        {
             return Forbid();
+
+        int? materialId = null;
+        if (!string.IsNullOrWhiteSpace(req.MaterialName))
+        {
+            var material = await _db.Materials
+                .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
+            if (material != null)
+                materialId = material.MaterialId;
         }
 
         var session = new Session
         {
             UserId = userId,
-            MaterialId = req.MaterialId,
+            MaterialId = materialId,
             WorkflowId = workflow.WorkflowId,
             LectureNumber = req.LectureNumber,
             LectureType = req.LectureType,
@@ -111,9 +149,7 @@ public class SessionsController : ControllerBase
         };
 
         if (!string.IsNullOrEmpty(req.GeneralNotes))
-        {
             session.Notes.Add(new Note { NoteText = req.GeneralNotes, NoteType = "GeneralNote" });
-        }
 
         _db.Sessions.Add(session);
         await _db.SaveChangesAsync();
@@ -124,7 +160,9 @@ public class SessionsController : ControllerBase
     [HttpPost("{id}/files")]
     public async Task<IActionResult> UploadFiles(int id, [FromForm] IFormCollection form)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
+        var role = User.FindFirstValue(ClaimTypes.Role);
         
         var session = await _db.Sessions
             .Include(s => s.Files)
@@ -132,7 +170,7 @@ public class SessionsController : ControllerBase
             .FirstOrDefaultAsync(s => s.SessionId == id);
 
         if (session == null) return NotFound();
-        if (session.UserId != userId && User.FindFirstValue(ClaimTypes.Role) != "Admin") return Forbid();
+        if (session.UserId != userId && role != "Admin") return Forbid();
 
         var files = form.Files.GetFiles("files");
         var notes = form["notes"];
@@ -171,7 +209,7 @@ public class SessionsController : ControllerBase
             };
 
             _db.Files.Add(fileEntity);
-            await _db.SaveChangesAsync(); // save immediately to get FileId
+            await _db.SaveChangesAsync();
 
             if (notes.Count > i && !string.IsNullOrWhiteSpace(notes[i]))
             {
@@ -192,30 +230,4 @@ public class SessionsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteSession(int id)
-    {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-        var role = User.FindFirstValue(ClaimTypes.Role);
-
-        var session = await _db.Sessions.FindAsync(id);
-        if (session == null) return NotFound();
-
-        if (role != "Admin" && session.UserId != userId) return Forbid();
-
-        // Note: The physical files will be caught by the nightly OrphanFileCleanupService
-        _db.Sessions.Remove(session);
-        await _db.SaveChangesAsync();
-
-        return NoContent();
-    }
-}
-
-public class CreateSessionRequest
-{
-    public int? MaterialId { get; set; }
-    public string WorkflowSystemCode { get; set; } = string.Empty;
-    public int LectureNumber { get; set; }
-    public string LectureType { get; set; } = string.Empty; // Theoretical or Practical
-    public string? QuizData { get; set; }
-    public string GeneralNotes { get; set; } = string.Empty;
-}
+    public async Task<IActionResult> DeleteSessi

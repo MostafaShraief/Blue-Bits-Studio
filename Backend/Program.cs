@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Register controllers
 builder.Services.AddControllers();
+builder.Services.AddScoped<IPromptCompilationService, PromptCompilationService>();
 
 // JWT Config
 var jwtSettings = builder.Configuration.GetSection("Jwt");

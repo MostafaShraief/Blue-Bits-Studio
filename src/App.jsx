@@ -15,8 +15,8 @@ import History from './pages/History';
 import Tour from './pages/Tour';
 import MergeWizard from './pages/MergeWizard';
 import Login from './pages/Login';
-import AdminUsers from './pages/admin/Users';
-import AdminMaterials from './pages/admin/Materials';
+import AdminUsers from './pages/admin/UsersManager';
+import AdminMaterials from './pages/admin/MaterialsManager';
 import AdminSystem from './pages/admin/System';
 
 export default function App() {

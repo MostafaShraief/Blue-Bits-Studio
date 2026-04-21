@@ -313,4 +313,97 @@ export async function saveQuizSession(session) {
     }
 }
 
+// ============================================
+// Admin API Endpoints
+// ============================================
+
+const ADMIN_API_BASE = 'http://localhost:5135/api/admin';
+
+/** Get all users */
+export async function fetchAdminUsers() {
+    return await authFetch(`${ADMIN_API_BASE}/users`);
+}
+
+/** Create a new user */
+export async function createAdminUser(userData) {
+    return await authFetch(`${ADMIN_API_BASE}/users`, {
+        method: 'POST',
+        body: JSON.stringify(userData)
+    });
+}
+
+/** Update a user */
+export async function updateAdminUser(id, userData) {
+    return await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData)
+    });
+}
+
+/** Delete a user */
+export async function deleteAdminUser(id) {
+    return await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
+        method: 'DELETE'
+    });
+}
+
+/** Get all materials */
+export async function fetchAdminMaterials() {
+    return await authFetch(`${ADMIN_API_BASE}/materials`);
+}
+
+/** Create a new material */
+export async function createAdminMaterial(materialData) {
+    return await authFetch(`${ADMIN_API_BASE}/materials`, {
+        method: 'POST',
+        body: JSON.stringify(materialData)
+    });
+}
+
+/** Update a material */
+export async function updateAdminMaterial(id, materialData) {
+    return await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(materialData)
+    });
+}
+
+/** Delete a material */
+export async function deleteAdminMaterial(id) {
+    return await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
+        method: 'DELETE'
+    });
+}
+
+/** Get all workflows */
+export async function fetchAdminWorkflows() {
+    return await authFetch(`${ADMIN_API_BASE}/workflows`);
+}
+
+/** Toggle workflow active status */
+export async function toggleAdminWorkflow(id, isActive) {
+    return await authFetch(`${ADMIN_API_BASE}/workflows/${id}/toggle`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive })
+    });
+}
+
+/** Get all prompts */
+export async function fetchAdminPrompts() {
+    return await authFetch(`${ADMIN_API_BASE}/prompts`);
+}
+
+/** Update a prompt */
+export async function updateAdminPrompt(id, promptText) {
+    return await authFetch(`${ADMIN_API_BASE}/prompts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ promptText })
+    });
+}
+
+/** Get all permissions */
+export async function fetchAdminPermissions() {
+    return await authFetch(`${ADMIN_API_BASE}/permissions`);
+}
+
     

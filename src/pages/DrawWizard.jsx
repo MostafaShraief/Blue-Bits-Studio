@@ -6,8 +6,8 @@ import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import ImageUploader from '../components/ImageUploader';
 import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
-import { buildDrawingPrompt } from '../data/prompts';
-import { createSession, fetchSession } from '../utils/api';
+import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
+import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['الإدراج', 'المعاينة والنسخ'];
@@ -21,7 +21,11 @@ export default function DrawWizard() {
         if (id) {
             fetchSession(id).then(data => {
                 if (data) {
-                    if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
+                    if (data.material && data.material.materialName) setMaterialName(data.material.materialName);
+                    if (data.lectureNumber) setLectureNumber(data.lectureNumber);
+                    if (data.lectureType) setLectureType(data.lectureType);
+                    if (data.compiledPrompt) setPrompt(data.compiledPrompt);
+                    setSessionId(data.id || id);
                     const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
                     if (notes) setDescription(notes);
 
@@ -41,10 +45,16 @@ export default function DrawWizard() {
     }, [id]);
 
     const [step, setStep] = useState(0);
+    const [materialName, setMaterialName] = useState('');
+    const [lectureNumber, setLectureNumber] = useState(1);
+    const [lectureType, setLectureType] = useState('Theoretical');
+    const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
+    const [sessionId, setSessionId] = useState(null);
     const [description, setDescription] = useState('');
     const [images, setImages] = useState([]); // { file, url, note }
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
+    const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
 
     const addImage = useCallback((file) => {
         setImages((prev) => {
@@ -93,17 +103,15 @@ export default function DrawWizard() {
         return () => window.removeEventListener('paste', handleGlobalPaste);
     }, [step, addImage]);
 
-    const goNext = () => {
-        const p = buildDrawingPrompt(description, images);
-        setPrompt(p);
-        setSaved(false);
-        setStep(1);
-    };
+    const goNext = async () => {
+        setIsLoadingPrompt(true);
+        
+        if (!materialName.trim() || !lectureNumber || !lectureType) {
+            alert('الرجاء إدخال جميع البيانات المطلوبة (اسم المادة، رقم المحاضرة، نوع المحاضرة)');
+            setIsLoadingPrompt(false);
+            return;
+        }
 
-    const goBack = () => setStep(0);
-
-    const handleSave = useCallback(async () => {
-        if (saved) return;
         try {
             const processedImages = await Promise.all(images.map(async (img, i) => {
                 if (!img.file && img.url) {
@@ -113,28 +121,55 @@ export default function DrawWizard() {
                         const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
                         return { ...img, file };
                     } catch (err) {
-                        console.error('Failed to fetch image blob', err);
                         return img;
                     }
                 }
                 return img;
             }));
 
-            await createSession({
-                materialName: 'رسم بياني',
-                lectureNumber: '',
-                lectureType: '',
-                workflowType: 'draw',
-                prompt,
-                generalNotes: description,
-                images: processedImages,
-                imageNotes: processedImages.map((img) => ({ note: img.note })),
-            });
-            setSaved(true);
-        } catch (e) {
-            console.error("Failed to save session", e);
+            let finalPrompt = '';
+
+            if (saveSessionEnabled) {
+                const createdSession = await createSession({
+                    materialId: null,
+                    materialName,
+                    lectureNumber: Number(lectureNumber),
+                    lectureType,
+                    workflowSystemCode: 'DRAW',
+                    generalNotes: description,
+                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
+                });
+
+                const idToFetch = createdSession.sessionId || createdSession.id;
+                setSessionId(idToFetch);
+                
+                const sessionData = await fetchSession(idToFetch);
+                finalPrompt = sessionData?.compiledPrompt || '';
+                setSaved(true);
+            } else {
+                const res = await compilePromptStateless({
+                    systemCode: 'DRAW',
+                    generalNotes: description,
+                    fileNotes: processedImages.map(img => img.note || ''),
+                });
+                finalPrompt = res?.compiledPrompt || '';
+                setSaved(false);
+            }
+
+            setPrompt(finalPrompt);
+            setStep(1);
+        } catch (err) {
+            console.error("Failed to generate prompt or save session", err);
+            alert("Failed to generate prompt. Please try again.");
         }
-    }, [saved, prompt, description, images]);
+        setIsLoadingPrompt(false);
+    };
+
+    const goBack = () => setStep(0);
+
+    const handleSave = useCallback(async () => {
+        // Automatically saved on step transition
+    }, []);
 
     /* ── Auto Save ──────────────────────── */
     useEffect(() => {
@@ -157,6 +192,44 @@ export default function DrawWizard() {
             {/* Step 1: Insertion */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 mb-6">
+                        <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
+                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={lectureNumber}
+                                    onChange={(e) => setLectureNumber(e.target.value)}
+                                    className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
+                                <select
+                                    value={lectureType}
+                                    onChange={(e) => setLectureType(e.target.value)}
+                                    className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                >
+                                    <option value="Theoretical">نظري</option>
+                                    <option value="Practical">عملي</option>
+                                    <option value="Summary">ملخص</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+                            <input
+                                type="checkbox"
+                                id="saveSession"
+                                checked={saveSessionEnabled}
+                                onChange={(e) => setSaveSessionEnabled(e.target.checked)}
+                                className="w-4 h-4 text-primary bg-surface border-border rounded focus:ring-primary focus:ring-2"
+                            />
+                            <label htmlFor="saveSession" className="text-sm text-text">حفظ الجلسة في قاعدة البيانات</label>
+                        </div>
+                    </div>
                     {/* Image upload (optional) */}
                     <div data-tour="draw-images">
                         <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3><PasteImageButton onPasteImage={addImage} /></div>
@@ -212,10 +285,10 @@ export default function DrawWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!description.trim()}
+                        disabled={!description.trim() || isLoadingPrompt}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
-                        معاينة البرومبت
+                        {isLoadingPrompt ? 'جاري التحضير...' : 'معاينة البرومبت'}
                     </button>
                 </div>
             )}

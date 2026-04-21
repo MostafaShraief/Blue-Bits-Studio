@@ -228,6 +228,15 @@ public class SessionsController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok();
     }
+}
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteSessi
+// DTO for creating a session
+public class CreateSessionRequest
+{
+    public required string WorkflowSystemCode { get; set; }
+    public required string MaterialName { get; set; }
+    public required int LectureNumber { get; set; }
+    public required string LectureType { get; set; }
+    public string? QuizData { get; set; }
+    public string? GeneralNotes { get; set; }
+}

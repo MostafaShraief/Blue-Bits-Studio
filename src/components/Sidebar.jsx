@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router';
+import { useContext } from 'react';
 import {
     LayoutDashboard,
     FileSearch,
@@ -14,19 +15,21 @@ import {
     Sparkles
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
+import { AuthContext } from '../contexts/AuthContext';
 
 const NAV_ITEMS = [
-    { to: '/', label: 'الرئيسية', icon: LayoutDashboard },
-    { to: '/extraction', label: 'استخراج', icon: FileSearch },
-    { to: '/coordination', label: 'تنسيق', icon: AlignRight },
-    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput },
-    { to: '/merge', label: 'دمج الملفات', icon: Layers },
-    { to: '/draw', label: 'الرسم', icon: Palette },
-    { to: '/quiz', label: 'الاختبارات', icon: FileJson },
-    { to: '/history', label: 'السجل', icon: Clock },
+    { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null },
+    { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT' },
+    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'COORD' },
+    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC' },
+    { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE' },
+    { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW' },
+    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'QUIZ' },
+    { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST' },
 ];
 export default function Sidebar() {
     const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();
+    const { user } = useContext(AuthContext);
 
     return (
         <aside className="hidden md:flex flex-col fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shrink-0">
@@ -41,23 +44,27 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 flex flex-col gap-1 p-3 mt-2">
-                {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                        key={to}
-                        to={to}
-                        end={to === '/'}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-default
-               ${isActive
-                                ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                : 'text-white/70 hover:bg-sidebar-hover hover:text-white'
-                            }`
-                        }
-                    >
-                        <Icon size={20} strokeWidth={1.8} />
-                        <span>{label}</span>
-                    </NavLink>
-                ))}
+                {NAV_ITEMS.map(({ to, label, icon: Icon, systemCode }) => {
+                    const isAuthorized = !systemCode || user?.allowedWorkflows?.includes(systemCode);
+                    if (!isAuthorized) return null;
+                    return (
+                        <NavLink
+                            key={to}
+                            to={to}
+                            end={to === '/'}
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-default
+                               ${isActive
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                    : 'text-white/70 hover:bg-sidebar-hover hover:text-white'
+                                }`
+                            }
+                        >
+                            <Icon size={20} strokeWidth={1.8} />
+                            <span>{label}</span>
+                        </NavLink>
+                    );
+                })}
             </nav>
 
             {/* Settings */}

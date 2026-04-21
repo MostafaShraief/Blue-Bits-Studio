@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
+import { AuthProvider } from './contexts/AuthContext';
 import { TourProvider } from './contexts/TourContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -10,25 +11,29 @@ import QuizHub from './pages/QuizHub';
 import History from './pages/History';
 import Tour from './pages/Tour';
 import MergeWizard from './pages/MergeWizard';
+import Login from './pages/Login';
 
 export default function App() {
     return (
-        <BrowserRouter>
-            <TourProvider>
-                <Routes>
-                    <Route element={<Layout />}>
-                        <Route index element={<Dashboard />} />
-                        <Route path="tour" element={<Tour />} />
-                        <Route path="extraction" element={<ExtractionWizard />} />
-                        <Route path="coordination" element={<CoordinationWizard />} />
-                        <Route path="pandoc" element={<PandocWizard />} />
-                        <Route path="draw" element={<DrawWizard />} />
-                        <Route path="merge" element={<MergeWizard />} />
-                        <Route path="quiz" element={<QuizHub />} />
-                        <Route path="history" element={<History />} />
-                    </Route>
-                </Routes>
-            </TourProvider>
-        </BrowserRouter>
+        <AuthProvider>
+            <BrowserRouter>
+                <TourProvider>
+                    <Routes>
+                        <Route path="login" element={<Login />} />
+                        <Route element={<Layout />}>
+                            <Route index element={<Dashboard />} />
+                            <Route path="tour" element={<Tour />} />
+                            <Route path="extraction" element={<ExtractionWizard />} />
+                            <Route path="coordination" element={<CoordinationWizard />} />
+                            <Route path="pandoc" element={<PandocWizard />} />
+                            <Route path="draw" element={<DrawWizard />} />
+                            <Route path="merge" element={<MergeWizard />} />
+                            <Route path="quiz" element={<QuizHub />} />
+                            <Route path="history" element={<History />} />
+                        </Route>
+                    </Routes>
+                </TourProvider>
+            </BrowserRouter>
+        </AuthProvider>
     );
 }

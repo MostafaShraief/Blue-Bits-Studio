@@ -1,9 +1,30 @@
 const API_BASE = 'http://localhost:5135/api/sessions';
 
+/**
+ * Helper to automatically attach JWT token to all API requests.
+ * Preserves existing headers (like Content-Type) and correctly
+ * handles FormData.
+ */
+async function authFetch(url, options = {}) {
+    const token = localStorage.getItem('token');
+    
+    // Ensure options.headers exists
+    const headers = new Headers(options.headers || {});
+    
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    return fetch(url, {
+        ...options,
+        headers
+    });
+}
+
 /** Get all sessions */
 export async function fetchSessions() {
     try {
-        const res = await fetch(API_BASE);
+        const res = await authFetch(API_BASE);
         if (!res.ok) throw new Error('Network response was not ok');
         return await res.json();
     } catch (e) {
@@ -15,7 +36,7 @@ export async function fetchSessions() {
 /** Get a single session by id */
 export async function fetchSession(id) {
     try {
-        const res = await fetch(`${API_BASE}/${id}`);
+        const res = await authFetch(`${API_BASE}/${id}`);
         if (!res.ok) throw new Error('Session not found');
         return await res.json();
     } catch (e) {
@@ -39,7 +60,7 @@ export async function createSession(session) {
             imageNotes: session.images ? session.images.map(img => ({ note: img.note || '' })) : []
         };
 
-        const res = await fetch(API_BASE, {
+        const res = await authFetch(API_BASE, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -74,7 +95,7 @@ export async function createSession(session) {
                 }
             });
 
-            const uploadRes = await fetch(`${API_BASE}/${createdSession.id}/images`, {
+            const uploadRes = await authFetch(`${API_BASE}/${createdSession.id}/images`, {
                 method: 'POST',
                 body: formData
             });
@@ -99,7 +120,7 @@ export async function uploadImages(sessionId, files) {
         const formData = new FormData();
         files.forEach(f => formData.append('images', f));
 
-        const res = await fetch(`${API_BASE}/${sessionId}/images`, {
+        const res = await authFetch(`${API_BASE}/${sessionId}/images`, {
             method: 'POST',
             body: formData
         });
@@ -115,7 +136,7 @@ export async function uploadImages(sessionId, files) {
 /** Delete a session by id */
 export async function removeSession(id) {
     try {
-        await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+        await authFetch(`${API_BASE}/${id}`, { method: 'DELETE' });
     } catch (e) {
         console.error('Failed to delete session:', e);
     }
@@ -132,7 +153,7 @@ export async function generatePandoc(data) {
             type: data.lectureType
         };
 
-        const res = await fetch('http://localhost:5135/api/pandoc/generate', {
+        const res = await authFetch('http://localhost:5135/api/pandoc/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -154,7 +175,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         formData.append('materialName', metadata.materialName || '');
         formData.append('lectureType', metadata.type || 'theoretical');
 
-        const res = await fetch('http://localhost:5135/api/merge/execute', {
+        const res = await authFetch('http://localhost:5135/api/merge/execute', {
             method: 'POST',
             body: formData
         });
@@ -164,7 +185,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         
         // Fetch the actual docx file using the returned URL
         const fileUrl = `http://localhost:5135${json.url}`;
-        const fileRes = await fetch(fileUrl);
+        const fileRes = await authFetch(fileUrl);
         if (!fileRes.ok) throw new Error('Failed to download merged file');
         
         return await fileRes.blob();
@@ -208,7 +229,7 @@ export async function saveQuizSession(session) {
         
         const method = session.id ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const res = await authFetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

@@ -106,6 +106,24 @@ public class BlueBitsDbContext : DbContext
             .OnDelete(DeleteBehavior.SetNull);
 
         // --- 3. Initial Seed Data ---
+        
+        // Default Admin User (Password stored as plain text as per system requirement)
+        modelBuilder.Entity<User>().HasData(
+            new User 
+            { 
+                UserId = 1, 
+                FirstName = "System", 
+                LastName = "Admin", 
+                UserRole = "Admin", 
+                BatchNumber = 1, 
+                Username = "admin", 
+                Password = "Admin@123",
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                TeamJoinDate = null,
+                TelegramUsername = null
+            }
+        );
+
         modelBuilder.Entity<Workflow>().HasData(
             new Workflow { WorkflowId = 1, SystemCode = "LEC_EXT", AdminNote = "Lecture Extraction Workflow", IsActive = 1 },
             new Workflow { WorkflowId = 2, SystemCode = "BANK_EXT", AdminNote = "Bank Extraction Workflow", IsActive = 1 },

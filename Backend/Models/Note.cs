@@ -1,12 +1,22 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlueBits.Api.Models;
 
 public class Note
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid SessionId { get; set; }
-    public string NoteText { get; set; } = string.Empty;
-    public string NoteType { get; set; } = "General"; // General or ImageLinked
-    public Guid? ImageId { get; set; }
+    [Key]
+    public int NoteId { get; set; }
+    
+    public int SessionId { get; set; }
+    
+    [Required]
+    public required string NoteText { get; set; }
+    
+    [Required]
+    public required string NoteType { get; set; }
+    
+    public int? FileId { get; set; }
 
     public Session Session { get; set; } = null!;
+    public File? File { get; set; }
 }

@@ -59,3 +59,4 @@ temp_test_*
 test_merged_*
 test_trimmed.docx
 nul
+*.db-journal

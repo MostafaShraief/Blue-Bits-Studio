@@ -1,4 +1,10 @@
-Implement PRD.md, continue where we are, mark what you have achived step by step in phases.
+# Master Project Orchestration Agent
+
+If you are working on Backend, read `BACKEND_AGENTS.md`.
+
+**System Vision:** This is a Unified Academic Platform. It acts as a single centralized portal where various AI-assisted workflows are categorized and accessible as independent sub-systems (tabs/cards), strictly governed by dynamic Role-Based Access Control (RBAC).
+
+**Server Ready:** Ensure that your current step can work on a server (VPS), not only in the current local host machine.
 
 ### Tech Stack
 
@@ -6,25 +12,30 @@ Implement PRD.md, continue where we are, mark what you have achived step by step
 | :---------- | :------------------------------- |
 | Frontend    | Vite 7, React 19, React Router 7 |
 | Styling     | Tailwind CSS v4 (Vite plugin)    |
-| Backend     | C# .Net                          |
-| DB          | SQL Lite                       |
+| Backend     | C# .NET                          |
+| DB          | SQLite                           |
 | API         | RESTful                          |
 | Package Mgr | pnpm                             |
 
-### **Code Rules**
+### Sub-Agents Reference
+For domain-specific rules, strictly refer to:
+- **Backend Tasks:** Consult `Backend/BACKEND_AGENTS.md` for C#, DB structure, SystemCodes, and physical file management.
+- **Frontend Tasks:** Consult `src/FRONTEND_AGENT.md` for UI categorization, Arabic RTL styling, dynamic feature rendering, and Tailwind v4 rules.
+
+### Master Code Rules
 
 *   **Tailwind CSS v4 exclusively** — no inline `style={}` unless dynamic values require it.
 *   Never use hardcoded hex color values in Tailwind classes.
 *   Dark mode: use `dark:` variant (respects `prefers-color-scheme`).
 *   Use `lucide-react` for icons; do not create custom inline SVG icons from scratch.
 *   RTL: this is an Arabic-first app. Use logical properties instead of physical `left` / `right` properties.
-*   Log errors with sufficient context (function name, relevant IDs).
-*   `main` is protected, always create new branches for tasks if you're not already on one.
+*   Log errors with sufficient context (function name, relevant IDs, SystemCodes).
+*   `main` branch is protected. Always create new feature/fix branches for tasks if you're not already on one.
 *   Always do atomic commits.
-*   After the job completed and branch finish its role, merge branch into main.
-*   Update `.gitignore`.
+*   Keep `.gitignore` updated.
 
-### **QA**
+### Quality Assurance (QA)
 
 *   For end-to-end testing, always use DevTools MCP tool to test changes *yourself*.
-*   If you did a significant change, ensure that your work is clean through an E2E testing.
+*   If you did a significant change, ensure that your work is clean through a full E2E test.
+*   Verify RBAC UI enforcement: Ensure users cannot see or navigate to UI tabs they do not have database permission for.

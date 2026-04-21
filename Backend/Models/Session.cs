@@ -1,22 +1,32 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlueBits.Api.Models;
 
 public class Session
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string MaterialName { get; set; } = string.Empty;
-    public string LectureNumber { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty; // Theoretical/Practical
-    public string WorkflowType { get; set; } = string.Empty; // Lecture/Bank/Draw/Pandoc
-    public string? QuizData { get; set; } // JSON string for quiz question bank
-    private DateTime _createdAt = DateTime.UtcNow;
-    public DateTime CreatedAt 
-    { 
-        get => _createdAt; 
-        set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc); 
-    }
+    [Key]
+    public int SessionId { get; set; }
+    
+    public int UserId { get; set; }
+    
+    public int? MaterialId { get; set; }
+    
+    public int WorkflowId { get; set; }
+    
+    public int LectureNumber { get; set; }
+    
+    [Required]
+    public required string LectureType { get; set; }
+    
+    public string? QuizData { get; set; }
+    
+    [Required]
+    public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("O");
 
-    // Navigation properties
-    public Prompt? Prompt { get; set; }
+    public User User { get; set; } = null!;
+    public Material? Material { get; set; }
+    public Workflow Workflow { get; set; } = null!;
+
+    public ICollection<File> Files { get; set; } = new List<File>();
     public ICollection<Note> Notes { get; set; } = new List<Note>();
-    public ICollection<Image> Images { get; set; } = new List<Image>();
 }

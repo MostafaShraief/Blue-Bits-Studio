@@ -25,7 +25,7 @@ public class User
     public required string Username { get; set; }
     
     [Required]
-    public required string PasswordHash { get; set; }
+    public required string Password { get; set; }
     
     [Required]
     public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("O");

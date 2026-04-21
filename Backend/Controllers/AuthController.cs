@@ -26,7 +26,7 @@ public class AuthController : ControllerBase
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
         
-        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (user == null || user.Password != request.Password)
         {
             return Unauthorized(new { message = "Invalid username or password" });
         }

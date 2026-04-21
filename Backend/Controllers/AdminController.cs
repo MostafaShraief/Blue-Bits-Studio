@@ -66,7 +66,6 @@ public class AdminController : ControllerBase
     [HttpPost("users")]
     public async Task<IActionResult> CreateUser([FromBody] User user)
     {
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
         return Created($"/api/admin/users/{user.UserId}", user);
@@ -84,9 +83,9 @@ public class AdminController : ControllerBase
         user.BatchNumber = updatedUser.BatchNumber;
         user.TelegramUsername = updatedUser.TelegramUsername;
         
-        if (!string.IsNullOrEmpty(updatedUser.PasswordHash))
+        if (!string.IsNullOrEmpty(updatedUser.Password))
         {
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
+            user.Password = updatedUser.Password;
         }
 
         await _db.SaveChangesAsync();

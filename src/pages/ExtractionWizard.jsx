@@ -43,15 +43,15 @@ export default function ExtractionWizard() {
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
                     if (data.workflowType) setWorkflowSystemCode(data.workflowType);
-                    if (data.prompt && data.prompt.promptText) setPrompt(data.prompt.promptText);
+                    if (data.compiledPrompt) setPrompt(data.compiledPrompt);
                     
-                    const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
+                    const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
                     if (notes) setGeneralNotes(notes);
                     
                     if (data.files && data.files.length > 0) {
                         const loadedImages = data.files.map(img => ({
                             file: null,
-                            url: 'http://localhost:5135/uploads/' + img.localFilePath,
+                            url: '/uploads/' + img.localFilePath,
                             note: data.notes?.find(n => n.noteType === `FileNote` && n.fileId === img.fileId)?.noteText || ''
                         }));
                         setImages(loadedImages);

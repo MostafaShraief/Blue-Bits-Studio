@@ -21,19 +21,19 @@ export default function DrawWizard() {
         if (id) {
             fetchSession(id).then(data => {
                 if (data) {
-                    if (data.material && data.material.materialName) setMaterialName(data.material.materialName);
+if (data.material && data.material.materialName) setMaterialName(data.material.materialName);
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
                     if (data.compiledPrompt) setPrompt(data.compiledPrompt);
-                    setSessionId(data.id || id);
-                    const notes = data.notes?.filter(n => n.noteType === 'General').map(n => n.noteText).join('\n') || '';
+                    setSessionId(data.id || data.sessionId || id);
+                    const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
                     if (notes) setDescription(notes);
 
-                    if (data.images && data.images.length > 0) {
-                        const loadedImages = data.images.map(img => ({
+                    if (data.files && data.files.length > 0) {
+                        const loadedImages = data.files.map(img => ({
                             file: null,
-                            url: 'http://localhost:5135/uploads/' + img.localFilePath,
-                            note: data.notes?.find(n => n.noteType === `Image-${img.orderIndex}`)?.noteText || ''
+                            url: '/uploads/' + img.localFilePath,
+                            note: data.notes?.find(n => n.noteType === 'FileNote' && n.fileId === img.fileId)?.noteText || ''
                         }));
                         setImages(loadedImages);
                     }

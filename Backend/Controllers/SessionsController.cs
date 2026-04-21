@@ -43,13 +43,13 @@ public class SessionsController : ControllerBase
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new
             {
-                s.SessionId,
-                MaterialName = s.Material != null ? s.Material.MaterialName : "Unknown",
-                s.LectureNumber,
-                Type = s.LectureType,
-                WorkflowType = s.Workflow.SystemCode,
-                s.QuizData,
-                s.CreatedAt
+                id = s.SessionId,
+                materialName = s.Material != null ? s.Material.MaterialName : "Unknown",
+                lectureNumber = s.LectureNumber,
+                type = s.LectureType,
+                workflowType = s.Workflow.SystemCode,
+                quizData = s.QuizData,
+                createdAt = s.CreatedAt
             })
             .ToListAsync();
 
@@ -89,20 +89,21 @@ public class SessionsController : ControllerBase
 
         var result = new
         {
-            session.SessionId,
+            id = session.SessionId,
+            sessionId = session.SessionId,
             session.UserId,
             session.MaterialId,
             session.WorkflowId,
-            session.LectureNumber,
-            session.LectureType,
-            session.QuizData,
-            session.CreatedAt,
+            lectureNumber = session.LectureNumber,
+            lectureType = session.LectureType,
+            quizData = session.QuizData,
+            createdAt = session.CreatedAt,
             session.User,
             session.Material,
             session.Workflow,
             session.Files,
             session.Notes,
-            CompiledPrompt = compiledPrompt
+            compiledPrompt = compiledPrompt
         };
 
         return Ok(result);

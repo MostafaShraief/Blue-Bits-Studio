@@ -8,7 +8,7 @@ namespace BlueBits.Api.Controllers;
 
 [Authorize(Roles = "Admin")]
 [ApiController]
-[Route("api/admin/[controller]")]
+[Route("api/admin/materials")]
 public class AdminMaterialsController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;

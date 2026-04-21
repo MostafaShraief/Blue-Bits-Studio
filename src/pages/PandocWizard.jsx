@@ -20,10 +20,10 @@ export default function PandocWizard() {
         if (id) {
             fetchSession(id).then(data => {
                 if (data) {
-                    if (data.materialName) setMaterialName(data.materialName);
+                    if (data.material?.materialName) setMaterialName(data.material.materialName);
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
-                    if (data.prompt && data.prompt.promptText) setMdText(data.prompt.promptText);
+                    if (data.compiledPrompt) setMdText(data.compiledPrompt);
                     setSaved(true);
                     setStep(STEPS.length - 1);
                 }

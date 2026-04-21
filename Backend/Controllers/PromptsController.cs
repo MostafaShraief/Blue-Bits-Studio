@@ -48,13 +48,13 @@ public class PromptsController : ControllerBase
     [HttpPost("compile")]
     public async Task<IActionResult> CompilePrompt([FromBody] CompilePromptRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.SystemCode))
+        if (string.IsNullOrWhiteSpace(req.systemCode))
         {
-            return BadRequest("SystemCode is required.");
+            return BadRequest("systemCode is required.");
         }
 
         var compiled = await _promptCompilationService.CompilePromptAsync(
-            req.SystemCode, 
+            req.systemCode, 
             req.GeneralNotes, 
             req.FileNotes ?? new List<string>()
         );
@@ -65,7 +65,7 @@ public class PromptsController : ControllerBase
 
 public class CompilePromptRequest
 {
-    public string SystemCode { get; set; } = string.Empty;
+    public string systemCode { get; set; } = string.Empty;
     public string? GeneralNotes { get; set; }
     public List<string>? FileNotes { get; set; }
 }

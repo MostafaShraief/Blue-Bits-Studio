@@ -8,7 +8,7 @@ namespace BlueBits.Api.Controllers;
 
 [Authorize(Roles = "Admin")]
 [ApiController]
-[Route("api/admin/[controller]")]
+[Route("api/admin/prompts")]
 public class AdminPromptsController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;

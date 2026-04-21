@@ -1,8 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
+using BlueBits.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Register the Background Cleanup Service
+builder.Services.AddHostedService<OrphanFileCleanupService>();
 
 // DbContext
 var dbPath = Path.Join(builder.Environment.ContentRootPath, "bluebits.db");
@@ -62,6 +66,8 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // Map Endpoints
+app.MapGroup("/api/auth").MapAuthEndpoints().WithOpenApi();
+
 app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();
 
 app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi();

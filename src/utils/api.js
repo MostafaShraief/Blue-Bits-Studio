@@ -406,4 +406,19 @@ export async function fetchAdminPermissions() {
     return await authFetch(`${ADMIN_API_BASE}/permissions`);
 }
 
+/** Create a permission (role-workflow mapping) */
+export async function createAdminPermission(permissionData) {
+    return await authFetch(`${ADMIN_API_BASE}/permissions`, {
+        method: 'POST',
+        body: JSON.stringify(permissionData)
+    });
+}
+
+/** Delete a permission */
+export async function deleteAdminPermission(id) {
+    return await authFetch(`${ADMIN_API_BASE}/permissions/${id}`, {
+        method: 'DELETE'
+    });
+}
+
     

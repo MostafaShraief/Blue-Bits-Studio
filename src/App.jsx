@@ -17,7 +17,7 @@ import MergeWizard from './pages/MergeWizard';
 import Login from './pages/Login';
 import AdminUsers from './pages/admin/UsersManager';
 import AdminMaterials from './pages/admin/MaterialsManager';
-import AdminSystem from './pages/admin/System';
+import AdminSystem from './pages/admin/SystemConfig';
 
 export default function App() {
     return (

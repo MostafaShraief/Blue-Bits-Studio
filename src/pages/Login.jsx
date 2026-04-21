@@ -1,16 +1,22 @@
 import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
-import { LogIn, User, Lock, Loader2 } from 'lucide-react';
+import { LogIn, User, Lock, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const { login } = useContext(AuthContext);
+
+    const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
+
+    // If already logged in, redirect to dashboard
+    if (user) {
+        navigate('/', { replace: true });
+        return null;
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -28,73 +34,107 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 dir-rtl font-cairo">
-            <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">تسجيل الدخول</h1>
-                    <p className="text-gray-500 dark:text-gray-400">أهلاً بك في منصة بلو بتس الأكاديمية</p>
+        <div className="min-h-screen bg-surface flex items-center justify-center p-4" dir="rtl">
+            {/* Background decoration */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-20%] start-[-10%] w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl" />
+                <div className="absolute bottom-[-15%] end-[-5%] w-[400px] h-[400px] rounded-full bg-cyan/5 blur-3xl" />
+            </div>
+
+            <div className="relative w-full max-w-md">
+                {/* Logo */}
+                <div className="flex justify-center mb-8">
+                    <img
+                        src="/logos/Horizontal logo.png"
+                        alt="Blue Bits Studio"
+                        className="h-12 object-contain dark:brightness-0 dark:invert"
+                    />
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg mb-6 text-sm text-center">
-                        {error}
+                {/* Card */}
+                <div className="bg-surface-card border border-border rounded-2xl shadow-xl shadow-primary/5 p-8 space-y-6">
+                    <div className="text-center space-y-1.5">
+                        <h1 className="text-2xl font-bold text-text">تسجيل الدخول</h1>
+                        <p className="text-sm text-text-secondary">أدخل بياناتك للوصول إلى المنصة</p>
                     </div>
-                )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            اسم المستخدم
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-                                <User className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="block w-full ps-10 pe-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                                placeholder="أدخل اسم المستخدم"
-                                required
-                            />
+                    {/* Error banner */}
+                    {error && (
+                        <div className="flex items-center gap-3 bg-danger-light border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm animate-fade-slide-in">
+                            <AlertCircle size={18} className="shrink-0" />
+                            <span>{error}</span>
                         </div>
-                    </div>
+                    )}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            كلمة المرور
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none">
-                                <Lock className="h-5 w-5 text-gray-400" />
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {/* Username */}
+                        <div>
+                            <label htmlFor="login-username" className="block text-sm font-medium text-text mb-1.5">
+                                اسم المستخدم
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                    <User className="h-[18px] w-[18px] text-text-muted" />
+                                </div>
+                                <input
+                                    id="login-username"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                    placeholder="أدخل اسم المستخدم"
+                                    required
+                                    autoComplete="username"
+                                    autoFocus
+                                />
                             </div>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="block w-full ps-10 pe-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                                placeholder="أدخل كلمة المرور"
-                                required
-                            />
                         </div>
-                    </div>
 
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSubmitting ? (
-                            <Loader2 className="animate-spin h-5 w-5" />
-                        ) : (
-                            <>
-                                <LogIn className="me-2 h-5 w-5" />
-                                دخول
-                            </>
-                        )}
-                    </button>
-                </form>
+                        {/* Password */}
+                        <div>
+                            <label htmlFor="login-password" className="block text-sm font-medium text-text mb-1.5">
+                                كلمة المرور
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                    <Lock className="h-[18px] w-[18px] text-text-muted" />
+                                </div>
+                                <input
+                                    id="login-password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                    placeholder="أدخل كلمة المرور"
+                                    required
+                                    autoComplete="current-password"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Submit */}
+                        <button
+                            id="login-submit"
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="w-full flex justify-center items-center gap-2 py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        >
+                            {isSubmitting ? (
+                                <Loader2 className="animate-spin h-5 w-5" />
+                            ) : (
+                                <>
+                                    <LogIn className="h-5 w-5" />
+                                    دخول
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
+
+                {/* Footer */}
+                <p className="text-center text-xs text-text-muted mt-6">
+                    Blue Bits Studio &copy; {new Date().getFullYear()}
+                </p>
             </div>
         </div>
     );

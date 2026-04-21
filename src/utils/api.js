@@ -15,10 +15,22 @@ async function authFetch(url, options = {}) {
         headers.set('Authorization', `Bearer ${token}`);
     }
 
-    return fetch(url, {
+    const response = await fetch(url, {
         ...options,
         headers
     });
+
+    // Handle 401 Unauthorized — token expired or invalid
+    if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('bluebits_user');
+        // Only redirect if not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+        }
+    }
+
+    return response;
 }
 
 /** Get all materials */

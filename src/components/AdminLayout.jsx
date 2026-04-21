@@ -7,7 +7,7 @@ import {
     LogOut,
     Moon,
     Sun,
-    Palette
+    Crown
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';

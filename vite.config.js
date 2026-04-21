@@ -8,4 +8,10 @@ export default defineConfig({
     react(),
   ],
   assetsInclude: ['**/*.md'],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5135',
+      '/uploads': 'http://localhost:5135'
+    }
+  }
 });

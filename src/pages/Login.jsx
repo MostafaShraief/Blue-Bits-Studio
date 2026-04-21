@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
 import { LogIn, User, Lock, Loader2, AlertCircle } from 'lucide-react';
@@ -12,13 +12,13 @@ export default function Login() {
     const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // If already logged in, redirect based on role
-    if (user) {
-        // Admins go to admin dashboard, others go to regular dashboard
-        const redirectPath = user.role === 'Admin' ? '/admin/users' : '/';
-        navigate(redirectPath, { replace: true });
-        return null;
-    }
+    // Redirect after mount if already logged in
+    useEffect(() => {
+        if (user) {
+            const redirectPath = user.role === 'Admin' ? '/admin/users' : '/';
+            navigate(redirectPath, { replace: true });
+        }
+    }, [user, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -26,9 +26,7 @@ export default function Login() {
         setIsSubmitting(true);
 
         try {
-            // Login returns the user data with role
             const userData = await login(username, password);
-            // Redirect based on role from login response
             const redirectPath = userData?.role === 'Admin' ? '/admin/users' : '/';
             navigate(redirectPath);
         } catch (err) {

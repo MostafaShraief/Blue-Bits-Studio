@@ -1,9 +1,11 @@
-const API_BASE = 'http://localhost:5135/api/sessions';
+const API_BASE = '/api/sessions';
 
 /**
  * Helper to automatically attach JWT token to all API requests.
  * Preserves existing headers (like Content-Type) and correctly
  * handles FormData.
+ * 
+ * Returns the Response object so callers can check .ok and parse JSON.
  */
 export async function authFetch(url, options = {}) {
     const token = localStorage.getItem('token');
@@ -30,25 +32,13 @@ export async function authFetch(url, options = {}) {
         }
     }
 
-    // If response is not OK, throw an error with message
-    if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || `Request failed with status ${response.status}`);
-    }
-
-    // Return parsed JSON if content-type is json
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-    }
-
     return response;
 }
 
 /** Get all materials */
 export async function fetchMaterials() {
     try {
-        const res = await authFetch('http://localhost:5135/api/materials');
+        const res = await authFetch('/api/materials');
         if (!res.ok) throw new Error('Failed to fetch materials');
         return await res.json();
     } catch (e) {
@@ -60,7 +50,7 @@ export async function fetchMaterials() {
 /** Compile prompt statelessly */
 export async function compilePromptStateless(payload) {
     try {
-        const res = await authFetch('http://localhost:5135/api/prompts/compile', {
+        const res = await authFetch('/api/prompts/compile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -131,9 +121,13 @@ export async function createSession(session) {
             }
         }
 
-        if (!createdSession || !createdSession.id) {
+        // Handle both 'id' and 'sessionId' from backend
+        const sessionId = createdSession?.id || createdSession?.sessionId;
+        if (!sessionId) {
              throw new Error('No session ID returned from creation');
         }
+        
+        createdSession.id = sessionId;
 
         // Now upload files if any exist
         if (session.files && session.files.length > 0) {
@@ -187,7 +181,7 @@ export async function uploadFiles(sessionId, files) {
 /** Fetch prompt for a session */
 export async function fetchPrompt(sessionId, systemCode) {
     try {
-        const res = await authFetch(`http://localhost:5135/api/prompts/${sessionId}/${systemCode}`);
+        const res = await authFetch(`/api/prompts/${sessionId}/${systemCode}`);
         if (!res.ok) throw new Error('Failed to fetch prompt');
         return await res.json();
     } catch (e) {
@@ -210,19 +204,22 @@ export async function generatePandoc(data) {
     try {
         const payload = {
             markdownText: data.markdownText,
-            templateName: data.templateName,
-            materialName: data.materialName,
-            lectureNumber: data.lectureNumber,
-            type: data.lectureType
+            templateName: data.templateName || '',
+            materialName: data.materialName || '',
+            lectureNumber: data.lectureNumber?.toString() || '',
+            type: data.lectureType || ''
         };
 
-        const res = await authFetch('http://localhost:5135/api/pandoc/generate', {
+        const res = await authFetch('/api/pandoc/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (!res.ok) throw new Error('Failed to generate Pandoc docx');
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || errData.message || 'Failed to generate Pandoc docx');
+        }
         return await res.json();
     } catch (e) {
         console.error('API Error:', e);
@@ -238,7 +235,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         formData.append('materialName', metadata.materialName || '');
         formData.append('lectureType', metadata.type || 'Theoretical');
 
-        const res = await authFetch('http://localhost:5135/api/merge/execute', {
+        const res = await authFetch('/api/merge/execute', {
             method: 'POST',
             body: formData
         });
@@ -247,7 +244,7 @@ export const mergeDocxFiles = async (files, metadata) => {
         const json = await res.json();
         
         // Fetch the actual docx file using the returned URL
-        const fileUrl = `http://localhost:5135${json.url}`;
+        const fileUrl = `${json.url}`;
         const fileRes = await authFetch(fileUrl);
         if (!fileRes.ok) throw new Error('Failed to download merged file');
         
@@ -317,108 +314,135 @@ export async function saveQuizSession(session) {
 // Admin API Endpoints
 // ============================================
 
-const ADMIN_API_BASE = 'http://localhost:5135/api/admin';
+const ADMIN_API_BASE = '/api/admin';
 
 /** Get all users */
 export async function fetchAdminUsers() {
-    return await authFetch(`${ADMIN_API_BASE}/users`);
+    const res = await authFetch(`${ADMIN_API_BASE}/users`);
+    if (!res.ok) throw new Error('Failed to fetch users');
+    return await res.json();
 }
 
 /** Create a new user */
 export async function createAdminUser(userData) {
-    return await authFetch(`${ADMIN_API_BASE}/users`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/users`, {
         method: 'POST',
         body: JSON.stringify(userData)
     });
+    if (!res.ok) throw new Error('Failed to create user');
+    return await res.json();
 }
 
 /** Update a user */
 export async function updateAdminUser(id, userData) {
-    return await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
         method: 'PUT',
         body: JSON.stringify(userData)
     });
+    if (!res.ok) throw new Error('Failed to update user');
+    return await res.json();
 }
 
 /** Delete a user */
 export async function deleteAdminUser(id) {
-    return await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/users/${id}`, {
         method: 'DELETE'
     });
+    if (!res.ok) throw new Error('Failed to delete user');
 }
 
 /** Get all materials */
 export async function fetchAdminMaterials() {
-    return await authFetch(`${ADMIN_API_BASE}/materials`);
+    const res = await authFetch(`${ADMIN_API_BASE}/materials`);
+    if (!res.ok) throw new Error('Failed to fetch materials');
+    return await res.json();
 }
 
 /** Create a new material */
 export async function createAdminMaterial(materialData) {
-    return await authFetch(`${ADMIN_API_BASE}/materials`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/materials`, {
         method: 'POST',
         body: JSON.stringify(materialData)
     });
+    if (!res.ok) throw new Error('Failed to create material');
+    return await res.json();
 }
 
 /** Update a material */
 export async function updateAdminMaterial(id, materialData) {
-    return await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
         method: 'PUT',
         body: JSON.stringify(materialData)
     });
+    if (!res.ok) throw new Error('Failed to update material');
+    return await res.json();
 }
 
 /** Delete a material */
 export async function deleteAdminMaterial(id) {
-    return await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/materials/${id}`, {
         method: 'DELETE'
     });
+    if (!res.ok) throw new Error('Failed to delete material');
 }
 
 /** Get all workflows */
 export async function fetchAdminWorkflows() {
-    return await authFetch(`${ADMIN_API_BASE}/workflows`);
+    const res = await authFetch(`${ADMIN_API_BASE}/workflows`);
+    if (!res.ok) throw new Error('Failed to fetch workflows');
+    return await res.json();
 }
 
 /** Toggle workflow active status */
 export async function toggleAdminWorkflow(id, isActive) {
-    return await authFetch(`${ADMIN_API_BASE}/workflows/${id}/toggle`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/workflows/${id}/toggle`, {
         method: 'PUT',
         body: JSON.stringify({ isActive })
     });
+    if (!res.ok) throw new Error('Failed to toggle workflow');
+    return await res.json();
 }
 
 /** Get all prompts */
 export async function fetchAdminPrompts() {
-    return await authFetch(`${ADMIN_API_BASE}/prompts`);
+    const res = await authFetch(`${ADMIN_API_BASE}/prompts`);
+    if (!res.ok) throw new Error('Failed to fetch prompts');
+    return await res.json();
 }
 
 /** Update a prompt */
 export async function updateAdminPrompt(id, promptText) {
-    return await authFetch(`${ADMIN_API_BASE}/prompts/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/prompts/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ promptText })
     });
+    if (!res.ok) throw new Error('Failed to update prompt');
+    return await res.json();
 }
 
 /** Get all permissions */
 export async function fetchAdminPermissions() {
-    return await authFetch(`${ADMIN_API_BASE}/permissions`);
+    const res = await authFetch(`${ADMIN_API_BASE}/permissions`);
+    if (!res.ok) throw new Error('Failed to fetch permissions');
+    return await res.json();
 }
 
 /** Create a permission (role-workflow mapping) */
 export async function createAdminPermission(permissionData) {
-    return await authFetch(`${ADMIN_API_BASE}/permissions`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/permissions`, {
         method: 'POST',
         body: JSON.stringify(permissionData)
     });
+    if (!res.ok) throw new Error('Failed to create permission');
+    return await res.json();
 }
 
 /** Delete a permission */
 export async function deleteAdminPermission(id) {
-    return await authFetch(`${ADMIN_API_BASE}/permissions/${id}`, {
+    const res = await authFetch(`${ADMIN_API_BASE}/permissions/${id}`, {
         method: 'DELETE'
     });
+    if (!res.ok) throw new Error('Failed to delete permission');
 }
 
     

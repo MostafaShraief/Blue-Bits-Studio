@@ -37,7 +37,7 @@ public class PromptsController : ControllerBase
 
         // Fetch the Prompt based on the Session's WorkflowId AND the requested SystemCode
         var prompt = await _db.Prompts
-            .FirstOrDefaultAsync(p => p.WorkflowId == session.WorkflowId && p.SystemCode == systemCode);
+            .FirstOrDefaultAsync(p => p.WorkflowId == session.WorkflowId && (p.SystemCode == systemCode || p.Workflow.SystemCode == systemCode));
 
         if (prompt == null)
             return NotFound("Prompt not found for this workflow.");

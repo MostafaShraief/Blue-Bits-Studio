@@ -1,5 +1,7 @@
 const API_BASE = '/api/sessions';
 
+const AUTH_API_BASE = '/api/auth';
+
 /**
  * Helper to automatically attach JWT token to all API requests.
  * Preserves existing headers (like Content-Type) and correctly
@@ -38,6 +40,21 @@ export async function authFetch(url, options = {}) {
     }
 
     return response;
+}
+
+/**
+ * Fetch current user's profile with fresh authorized workflows.
+ * Used to sync permissions on app initialization.
+ * 
+ * Returns: { userId, username, firstName, lastName, role, authorizedWorkflows[] }
+ */
+export async function fetchUserProfile() {
+    const res = await authFetch(`${AUTH_API_BASE}/me`);
+    if (!res.ok) {
+        // If 401, authFetch already handles cleanup and redirect
+        throw new Error('Failed to fetch user profile');
+    }
+    return await res.json();
 }
 
 /** Get all materials */

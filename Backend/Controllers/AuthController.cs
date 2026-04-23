@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +20,42 @@ public class AuthController : ControllerBase
     {
         _db = db;
         _config = config;
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        // Extract user ID from JWT claims
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        
+        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(new { message = "Invalid token claims" });
+        }
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found" });
+        }
+
+        // Get fresh authorized workflows from RBAC table mapping
+        var authorizedWorkflows = await _db.Workflows
+            .Where(w => w.IsActive == 1 && w.Permissions.Any(p => p.RoleName == user.UserRole))
+            .Select(w => w.SystemCode)
+            .ToListAsync();
+
+        return Ok(new LoginResponse
+        {
+            UserId = user.UserId,
+            Username = user.Username,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.UserRole,
+            AuthorizedWorkflows = authorizedWorkflows
+        });
     }
 
     [HttpPost("login")]

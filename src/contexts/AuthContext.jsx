@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
+import { fetchUserProfile } from '../utils/api';
 
 const API_BASE = 'http://localhost:5135/api';
 
@@ -21,7 +22,45 @@ export function AuthProvider({ children }) {
                 localStorage.removeItem('token');
             }
         }
-        setLoading(false);
+        
+        // Sync permissions with backend on mount
+        // Keep loading=true until sync completes to prevent UI flickering
+        const syncUserProfile = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+            
+            try {
+                const profile = await fetchUserProfile();
+                const userData = {
+                    userId: profile.userId,
+                    username: profile.username,
+                    firstName: profile.firstName,
+                    lastName: profile.lastName,
+                    role: profile.role,
+                    allowedWorkflows: profile.authorizedWorkflows || []
+                };
+                
+                setUser(userData);
+                localStorage.setItem('bluebits_user', JSON.stringify(userData));
+            } catch (err) {
+                // Token invalid or expired - clear storage and redirect
+                console.error("AuthContext: Profile sync failed:", err);
+                setUser(null);
+                localStorage.removeItem('bluebits_user');
+                localStorage.removeItem('token');
+                // Redirect to login if not already there
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        syncUserProfile();
     }, []);
 
     const login = async (username, password) => {

@@ -62,6 +62,14 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Response Compression (Brotli + Gzip)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
 // Avoid cyclic JSON serialization
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -90,6 +98,8 @@ using (var scope = app.Services.CreateScope())
 // Commented to allow HTTP connections from frontend dev server
 
 app.UseCors("AllowFrontend");
+
+app.UseResponseCompression();
 
 app.UseAuthentication();
 app.UseAuthorization();

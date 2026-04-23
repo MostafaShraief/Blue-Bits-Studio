@@ -29,7 +29,18 @@ const NAV_ITEMS = [
 ];
 export default function Sidebar() {
     const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();
-    const { user } = useContext(AuthContext);
+    const { user, loading } = useContext(AuthContext);
+
+    // Wait for auth to load to avoid race condition
+    if (loading) {
+        return (
+            <aside className="hidden md:flex flex-col fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shrink-0">
+                <div className="flex items-center justify-center h-full">
+                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                </div>
+            </aside>
+        );
+    }
 
     return (
         <aside className="hidden md:flex flex-col fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shrink-0">
@@ -47,9 +58,13 @@ export default function Sidebar() {
                 {NAV_ITEMS.map(({ to, label, icon: Icon, systemCode }) => {
                     // History is universal for authenticated non-Admins, not a workflow SystemCode
                     const isHistory = systemCode === 'HIST';
+                    // Extraction is a special case: check for either LEC_EXT or BANK_EXT
+                    const isExtraction = systemCode === 'LEC_EXT';
                     const isAuthorized = isHistory
                         ? (!!user && user.role !== 'Admin')
-                        : (!systemCode || user?.allowedWorkflows?.includes(systemCode));
+                        : isExtraction
+                            ? (user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT'))
+                            : (!systemCode || user?.allowedWorkflows?.includes(systemCode));
                     if (!isAuthorized) return null;
                     return (
                         <NavLink
@@ -58,7 +73,7 @@ export default function Sidebar() {
                             end={to === '/'}
                             className={({ isActive }) =>
                                 `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-default
-                               ${isActive
+                                ${isActive
                                     ? 'bg-primary text-white shadow-lg shadow-primary/30'
                                     : 'text-white/70 hover:bg-sidebar-hover hover:text-white'
                                 }`

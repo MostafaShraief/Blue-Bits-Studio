@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router';
+import { useState, useCallback, useEffect, useContext } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router';
 import WizardStepper from '../components/WizardStepper';
 import ImageUploader from '../components/ImageUploader';
 import PromptPreview from '../components/PromptPreview';
@@ -9,6 +9,7 @@ import PasteImageButton from '../components/PasteImageButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
+import { AuthContext } from '../contexts/AuthContext';
 
 const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -17,11 +18,48 @@ export default function ExtractionWizard() {
     const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
     const id = searchParams.get('id');
     const { autoSave } = useSettings();
+    const { user, loading } = useContext(AuthContext);
+    const navigate = useNavigate();
 
+    // Permission checks - wait until auth is loaded
+    const isAdmin = user?.role === 'Admin';
+    const canDoLecture = user?.allowedWorkflows?.includes('LEC_EXT') ?? false;
+    const canDoBank = user?.allowedWorkflows?.includes('BANK_EXT') ?? false;
+
+    // Helper function to determine initial workflow code - must be defined before useState
+    const getInitialWorkflowCode = () => {
+        // Check if the requested type in URL is actually allowed
+        if (initialType === 'bank' && canDoBank) return 'BANK_EXT';
+        if (initialType === 'lecture' && canDoLecture) return 'LEC_EXT';
+        // Fallback: prioritize the enabled workflow
+        if (canDoLecture) return 'LEC_EXT';
+        if (canDoBank) return 'BANK_EXT';
+        return 'LEC_EXT'; // Default (will be blocked by useEffect above)
+    };
+
+    // Access control: redirect to 403 if both workflows are disabled and user is not admin
+    // Only check after auth is loaded to avoid race condition
+    useEffect(() => {
+        if (loading) return; // Wait for auth to load
+        if (!isAdmin && !canDoLecture && !canDoBank) {
+            navigate('/403', { replace: true });
+        }
+    }, [loading, isAdmin, canDoLecture, canDoBank, navigate]);
+
+    // Update workflow state after auth loads
+    useEffect(() => {
+        if (loading) return;
+        setWorkflowSystemCode(getInitialWorkflowCode());
+    }, [loading, canDoLecture, canDoBank]);
+
+    // Initial state - default to LEC_EXT while loading, will be updated after auth loads
     const [step, setStep] = useState(0);
 
     // Step 1 — Naming
-    const [workflowSystemCode, setWorkflowSystemCode] = useState(initialType === 'bank' ? 'BANK_EXT' : 'LEC_EXT');
+    const [workflowSystemCode, setWorkflowSystemCode] = useState(() => {
+        if (loading) return 'LEC_EXT'; // Default while loading
+        return getInitialWorkflowCode();
+    });
     const [materialName, setMaterialName] = useState('');
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('Theoretical');
@@ -195,9 +233,9 @@ export default function ExtractionWizard() {
                     {/* Workflow type toggle */}
                     <div data-tour="extraction-type" className="flex gap-3">
                         {[
-                            { value: 'LEC_EXT', label: 'محاضرة' },
-                            { value: 'BANK_EXT', label: 'بنك أسئلة' },
-                        ].map(({ value, label }) => (
+                            { value: 'LEC_EXT', label: 'محاضرة', enabled: canDoLecture || isAdmin },
+                            { value: 'BANK_EXT', label: 'بنك أسئلة', enabled: canDoBank || isAdmin },
+                        ].filter(opt => opt.enabled).map(({ value, label }) => (
                             <button
                                 key={value}
                                 onClick={() => setWorkflowSystemCode(value)}

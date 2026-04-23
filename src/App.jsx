@@ -15,6 +15,7 @@ import History from './pages/History';
 import Tour from './pages/Tour';
 import MergeWizard from './pages/MergeWizard';
 import Login from './pages/Login';
+import Unauthorized from './pages/Unauthorized';
 import AdminUsers from './pages/admin/UsersManager';
 import AdminMaterials from './pages/admin/MaterialsManager';
 import AdminSystem from './pages/admin/SystemConfig';
@@ -27,6 +28,7 @@ export default function App() {
                     <Routes>
                         {/* Public route */}
                         <Route path="login" element={<Login />} />
+                        <Route path="403" element={<Unauthorized />} />
 
                         {/* Admin routes — require Admin role */}
                         <Route element={<AdminRoute />}>
@@ -44,7 +46,8 @@ export default function App() {
                                 <Route path="tour" element={<Tour />} />
 
                                 {/* Workflow routes — require specific SystemCode access */}
-                                <Route element={<ProtectedRoute requiredCode="LEC_EXT" />}>
+                                {/* Extraction is handled by ExtractionWizard double-gate logic */}
+                                <Route element={<ProtectedRoute />}>
                                     <Route path="extraction" element={<ExtractionWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="COORD" />}>

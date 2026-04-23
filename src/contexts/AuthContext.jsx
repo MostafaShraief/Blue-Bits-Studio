@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
      * Check if the current user has access to a specific workflow by SystemCode.
      * Admins bypass this check.
      */
-    const hasWorkflowAccess = useCallback((systemCode) => {
+const hasWorkflowAccess = useCallback((systemCode) => {
         if (!user) return false;
         if (user.role === 'Admin') return true;
         return user.allowedWorkflows?.includes(systemCode) ?? false;

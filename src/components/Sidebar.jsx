@@ -45,7 +45,11 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="flex-1 flex flex-col gap-1 p-3 mt-2">
                 {NAV_ITEMS.map(({ to, label, icon: Icon, systemCode }) => {
-                    const isAuthorized = !systemCode || user?.allowedWorkflows?.includes(systemCode);
+                    // History is universal for authenticated non-Admins, not a workflow SystemCode
+                    const isHistory = systemCode === 'HIST';
+                    const isAuthorized = isHistory
+                        ? (!!user && user.role !== 'Admin')
+                        : (!systemCode || user?.allowedWorkflows?.includes(systemCode));
                     if (!isAuthorized) return null;
                     return (
                         <NavLink

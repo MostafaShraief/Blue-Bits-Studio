@@ -17,10 +17,10 @@ If you are working on Backend, read `BACKEND_AGENTS.md`.
 | API         | RESTful                          |
 | Package Mgr | pnpm                             |
 
-### Sub-Agents Reference
-For domain-specific rules, strictly refer to:
-- **Backend Tasks:** Consult `Backend/BACKEND_AGENTS.md` for C#, DB structure, SystemCodes, and physical file management.
-- **Frontend Tasks:** Consult `src/FRONTEND_AGENT.md` for UI categorization, Arabic RTL styling, dynamic feature rendering, and Tailwind v4 rules.
+### Reference
+To understand both frontend and backend, **always** read:
+- **AGENTS.md for Backend:** Read `Backend/AGENTS.md` and `DATABASE.md` for C#, DB structure, SystemCodes, physical file management, and files documentation.
+- **AGENTS.md for Frontend:** Read `src/AGENT.md` for UI categorization, Arabic RTL styling, dynamic feature rendering, Tailwind v4 rules, and files documentation.
 
 ### Master Code Rules
 

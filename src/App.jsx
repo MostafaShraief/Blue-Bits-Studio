@@ -62,9 +62,8 @@ export default function App() {
                                 <Route element={<ProtectedRoute requiredCode="QUIZ" />}>
                                     <Route path="quiz" element={<QuizHub />} />
                                 </Route>
-                                <Route element={<ProtectedRoute requiredCode="HIST" />}>
-                                    <Route path="history" element={<History />} />
-                                </Route>
+                                {/* No SystemCode — universal for all authenticated non-Admins */}
+                                <Route path="history" element={<History />} />
                             </Route>
                         </Route>
                     </Routes>

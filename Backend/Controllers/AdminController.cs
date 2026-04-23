@@ -3,8 +3,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using Microsoft.Extensions.Logging;
 
 namespace BlueBits.Api.Controllers;
+
+// DTO for updating users (separate from entity to avoid validation on required fields)
+public class UpdateUserRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string UserRole { get; set; } = string.Empty;
+    public int BatchNumber { get; set; }
+    public string? TelegramUsername { get; set; }
+    public string? Password { get; set; } // Optional: only updated if provided
+}
 
 [Authorize(Roles = "Admin")]
 [ApiController]
@@ -12,10 +24,12 @@ namespace BlueBits.Api.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(BlueBitsDbContext db)
+    public AdminController(BlueBitsDbContext db, ILogger<AdminController> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     // --- USER MANAGEMENT ---
@@ -34,20 +48,25 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest dto)
     {
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        user.FirstName = updatedUser.FirstName;
-        user.LastName = updatedUser.LastName;
-        user.UserRole = updatedUser.UserRole;
-        user.BatchNumber = updatedUser.BatchNumber;
-        user.TelegramUsername = updatedUser.TelegramUsername;
+        // Log incoming payload for debugging
+        _logger.LogInformation("UpdateUser {Id}: BatchNumber={BatchNumber}, Password={HasPassword}", 
+            id, dto.BatchNumber, !string.IsNullOrEmpty(dto.Password));
+
+        user.FirstName = dto.FirstName;
+        user.LastName = dto.LastName;
+        user.UserRole = dto.UserRole;
+        user.BatchNumber = dto.BatchNumber;
+        user.TelegramUsername = dto.TelegramUsername;
         
-        if (!string.IsNullOrEmpty(updatedUser.Password))
+        // Only update password if provided
+        if (!string.IsNullOrWhiteSpace(dto.Password))
         {
-            user.Password = updatedUser.Password;
+            user.Password = dto.Password;
         }
 
         await _db.SaveChangesAsync();

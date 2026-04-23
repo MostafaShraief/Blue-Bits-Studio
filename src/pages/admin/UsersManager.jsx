@@ -51,15 +51,24 @@ export default function UsersManager() {
         e.preventDefault();
         setError('');
 
+        // Create base payload with common fields
         const payload = {
             firstName: formData.firstName,
             lastName: formData.lastName,
-            username: formData.username,
-            password: formData.password,
             userRole: formData.userRole,
-            batchNumber: parseInt(formData.batchNumber) || 1,
+            batchNumber: parseInt(formData.batchNumber, 10) || 1,
             telegramUsername: formData.telegramUsername || null
         };
+
+        // Only include password if provided (for create or update with new password)
+        if (formData.password.trim() !== '') {
+            payload.password = formData.password;
+        }
+
+        // Only include username for create (not for update)
+        if (!editingId) {
+            payload.username = formData.username;
+        }
 
         try {
             if (editingId) {

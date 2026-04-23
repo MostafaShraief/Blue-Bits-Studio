@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { fetchUserProfile } from '../utils/api';
 
 const API_BASE = 'http://localhost:5135/api';
@@ -117,4 +117,8 @@ const hasWorkflowAccess = useCallback((systemCode) => {
             {children}
         </AuthContext.Provider>
     );
+}
+
+export function useAuth() {
+    return useContext(AuthContext);
 }

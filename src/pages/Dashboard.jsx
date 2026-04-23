@@ -12,6 +12,7 @@ import {
     ArrowLeft,
 } from 'lucide-react';
 import { fetchSessions, fetchStats } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const STAT_CARDS = [
     { label: 'محاضرات', value: 'lecture', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
@@ -25,21 +26,25 @@ const QUICK_ACTIONS = [
         to: '/extraction?type=lecture', label: 'محاضرة جديدة', icon: FileSearch,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
+        systemCode: 'LEC_EXT',
     },
     {
         to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
         iconCls: 'text-cyan',
+        systemCode: 'BANK_EXT',
     },
     {
         to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
+        systemCode: 'PANDOC',
     },
     {
         to: '/draw', label: 'رسم بالذكاء', icon: Palette,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
+        systemCode: 'DRAW',
     },
 ];
 
@@ -55,6 +60,13 @@ const TYPE_LABELS = {
 export default function Dashboard() {
     const [stats, setStats] = useState({ total: 0, lecture: 0, bank: 0, quiz: 0, draw: 0, pandoc: 0, coordination: 0 });
     const [recent, setRecent] = useState([]);
+    const { hasWorkflowAccess } = useAuth();
+
+    // Filter quick actions based on user's RBAC permissions
+    const authorizedActions = QUICK_ACTIONS.filter(action => {
+        if (!action.systemCode) return true;
+        return hasWorkflowAccess(action.systemCode);
+    });
 
     useEffect(() => {
         const load = async () => {
@@ -119,25 +131,27 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions */}
-            <section>
-                <h2 className="text-lg font-semibold text-text mb-4">إجراء سريع</h2>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {QUICK_ACTIONS.map(({ to, label, icon: Icon, cls, iconCls }) => (
-                        <Link
-                            key={to}
-                            to={to}
-                            className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 ${cls} transition-default group`}
-                        >
-                            <Icon
-                                size={28}
-                                className={`${iconCls} group-hover:scale-110 transition-default`}
-                                strokeWidth={1.5}
-                            />
-                            <span className="text-sm font-medium text-text">{label}</span>
-                        </Link>
-                    ))}
-                </div>
-            </section>
+            {authorizedActions.length > 0 && (
+                <section>
+                    <h2 className="text-lg font-semibold text-text mb-4">إجراء سريع</h2>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {authorizedActions.map(({ to, label, icon: Icon, cls, iconCls }) => (
+                            <Link
+                                key={to}
+                                to={to}
+                                className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 ${cls} transition-default group`}
+                            >
+                                <Icon
+                                    size={28}
+                                    className={`${iconCls} group-hover:scale-110 transition-default`}
+                                    strokeWidth={1.5}
+                                />
+                                <span className="text-sm font-medium text-text">{label}</span>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Recent Sessions */}
             <section>

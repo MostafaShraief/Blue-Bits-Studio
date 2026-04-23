@@ -17,19 +17,15 @@ import {
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
 
-// Define allowed workflow system codes per navigation item
-// Note: If workflow is disabled, it won't appear in user's authorizedWorkflows from backend
 const NAV_ITEMS = [
     { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null },
-    { to: '/extraction', label: 'استخراج محاضرات', icon: FileSearch, systemCode: 'LEC_EXT' },
-    { to: '/bank', label: 'استخراج بنوك', icon: FileSearch, systemCode: 'BANK_EXT' },
-    { to: '/coordination', label: 'تنسيق محاضرات', icon: AlignRight, systemCode: 'LEC_COORD' },
-    { to: '/bank-coord', label: 'تنسيق بنوك', icon: AlignRight, systemCode: 'BANK_COORD' },
+    { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT' },
+    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'COORD' },
     { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC' },
     { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE' },
-    { to: '/draw', label: 'الرسم بالذكاء', icon: Palette, systemCode: 'DRAW' },
-    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS' },
-    { to: '/history', label: 'السجل', icon: Clock, systemCode: null },  // History is always available
+    { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW' },
+    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'QUIZ' },
+    { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST' },
 ];
 export default function Sidebar() {
     const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();

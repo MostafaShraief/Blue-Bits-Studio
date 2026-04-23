@@ -26,66 +26,32 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    public async Task<IActionResult> CreateUser([FromBody] User user)
     {
-        var user = new User
-        {
-            FirstName = request.firstName,
-            LastName = request.lastName,
-            Username = request.username,
-            Password = request.password ?? "",
-            UserRole = request.userRole,
-            BatchNumber = request.batchNumber,
-            TelegramUsername = request.telegramUsername
-        };
-
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
         return Created($"/api/admin/users/{user.UserId}", user);
     }
 
-    // DTO
-    public class CreateUserRequest
-    {
-        public required string firstName { get; set; }
-        public required string lastName { get; set; }
-        public required string username { get; set; }
-        public required string userRole { get; set; }
-        public required int batchNumber { get; set; }
-        public string? telegramUsername { get; set; }
-        public string? password { get; set; }
-    }
-
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedUser)
     {
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        user.FirstName = request.firstName;
-        user.LastName = request.lastName;
-        user.UserRole = request.userRole;
-        user.BatchNumber = request.batchNumber;
-        user.TelegramUsername = request.telegramUsername;
+        user.FirstName = updatedUser.FirstName;
+        user.LastName = updatedUser.LastName;
+        user.UserRole = updatedUser.UserRole;
+        user.BatchNumber = updatedUser.BatchNumber;
+        user.TelegramUsername = updatedUser.TelegramUsername;
         
-        if (!string.IsNullOrEmpty(request.password))
+        if (!string.IsNullOrEmpty(updatedUser.Password))
         {
-            user.Password = request.password;
+            user.Password = updatedUser.Password;
         }
 
         await _db.SaveChangesAsync();
         return Ok(user);
-    }
-
-    // DTO
-    public class UpdateUserRequest
-    {
-        public required string firstName { get; set; }
-        public required string lastName { get; set; }
-        public required string userRole { get; set; }
-        public required int batchNumber { get; set; }
-        public string? telegramUsername { get; set; }
-        public string? password { get; set; }
     }
 
     [HttpDelete("{id}")]

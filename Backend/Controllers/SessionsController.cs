@@ -122,7 +122,7 @@ public class SessionsController : ControllerBase
 
         var workflow = await _db.Workflows
             .Include(w => w.Permissions)
-            .FirstOrDefaultAsync(w => w.SystemCode == req.workflowSystemCode);
+            .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
 
         if (workflow == null || workflow.IsActive == 0)
             return BadRequest(new { message = "Invalid or inactive workflow." });
@@ -130,15 +130,13 @@ public class SessionsController : ControllerBase
         if (role != "Admin" && !workflow.Permissions.Any(p => p.RoleName == role))
             return Forbid();
 
-int? materialId = null;
-        if (!string.IsNullOrWhiteSpace(req.materialName))
+        int? materialId = null;
+        if (!string.IsNullOrWhiteSpace(req.MaterialName))
         {
             var material = await _db.Materials
-                .FirstOrDefaultAsync(m => m.MaterialName == req.materialName);
+                .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
             if (material != null)
-            {
                 materialId = material.MaterialId;
-            }
         }
 
         var session = new Session
@@ -146,13 +144,13 @@ int? materialId = null;
             UserId = userId,
             MaterialId = materialId,
             WorkflowId = workflow.WorkflowId,
-            LectureNumber = req.lectureNumber,
-            LectureType = req.lectureType,
-            QuizData = req.quizData
+            LectureNumber = req.LectureNumber,
+            LectureType = req.LectureType,
+            QuizData = req.QuizData
         };
 
-        if (!string.IsNullOrEmpty(req.generalNotes))
-            session.Notes.Add(new Note { NoteText = req.generalNotes, NoteType = "GeneralNote" });
+        if (!string.IsNullOrEmpty(req.GeneralNotes))
+            session.Notes.Add(new Note { NoteText = req.GeneralNotes, NoteType = "GeneralNote" });
 
         _db.Sessions.Add(session);
         await _db.SaveChangesAsync();
@@ -236,10 +234,10 @@ int? materialId = null;
 // DTO for creating a session
 public class CreateSessionRequest
 {
-    public required string workflowSystemCode { get; set; }
-    public required int lectureNumber { get; set; }
-    public required string lectureType { get; set; }
-    public string? materialName { get; set; }
-    public string? quizData { get; set; }
-    public string? generalNotes { get; set; }
+    public required string WorkflowSystemCode { get; set; }
+    public required string MaterialName { get; set; }
+    public required int LectureNumber { get; set; }
+    public required string LectureType { get; set; }
+    public string? QuizData { get; set; }
+    public string? GeneralNotes { get; set; }
 }

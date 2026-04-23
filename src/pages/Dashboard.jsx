@@ -14,10 +14,40 @@ import {
 import { fetchSessions, fetchStats } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
+/**
+ * Centralized route mapping from backend SystemCode to frontend route.
+ * Fixes broken routing where backend returns SystemCodes like 'LEC_EXT'
+ * but frontend was checking for friendly names like 'lecture'.
+ */
+const getSessionRoute = (session) => {
+    const { workflowType, id } = session;
+    switch (workflowType) {
+        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
+        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
+        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
+        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
+        case 'BANK_QS': return `/quiz?id=${id}`;
+        case 'PANDOC': return `/pandoc?id=${id}`;
+        case 'DRAW': return `/draw?id=${id}`;
+        default: return '/'; // Fallback to dashboard instead of broken route
+    }
+};
+
+/** Labels for display by SystemCode */
+const SYSTEM_CODE_LABELS = {
+    LEC_EXT: 'استخراج محاضرة',
+    BANK_EXT: 'استخراج بنك',
+    LEC_COORD: 'تنسيق محاضرة',
+    BANK_COORD: 'تنسيق بنك',
+    BANK_QS: 'اختبار',
+    PANDOC: 'تحويل Pandoc',
+    DRAW: 'رسم',
+};
+
 const STAT_CARDS = [
-    { label: 'محاضرات', value: 'lecture', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    { label: 'بنوك أسئلة', value: 'bank', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
-    { label: 'رسم', value: 'draw', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
+    { label: 'محاضرات', value: 'LEC_EXT', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
+    { label: 'بنوك أسئلة', value: 'BANK_EXT', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    { label: 'رسم', value: 'DRAW', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
     { label: 'إجمالي الجلسات', value: 'total', icon: Sparkles, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 ];
 
@@ -48,17 +78,8 @@ const QUICK_ACTIONS = [
     },
 ];
 
-const TYPE_LABELS = {
-    lecture: 'استخراج محاضرة',
-    bank: 'استخراج بنك',
-    quiz: 'اختبار',
-    draw: 'رسم',
-    pandoc: 'تحويل Pandoc',
-    coordination: 'تنسيق',
-};
-
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, lecture: 0, bank: 0, quiz: 0, draw: 0, pandoc: 0, coordination: 0 });
+    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0 });
     const [recent, setRecent] = useState([]);
     const { hasWorkflowAccess } = useAuth();
 
@@ -176,21 +197,8 @@ export default function Dashboard() {
                 ) : (
                     <div className="space-y-2">
                         {recent.map((s) => {
-                            // Route logic: same as History.jsx
-                            let linkTo;
-                            if (s.workflowType === 'quiz') {
-                                linkTo = `/quiz?id=${s.id}`;
-                            } else if (s.workflowType === 'bank') {
-                                if (s.quizData) {
-                                    linkTo = `/quiz?id=${s.id}`;
-                                } else {
-                                    linkTo = `/extraction?type=bank&id=${s.id}`;
-                                }
-                            } else if (s.workflowType === 'lecture') {
-                                linkTo = `/extraction?type=lecture&id=${s.id}`;
-                            } else {
-                                linkTo = `/${s.workflowType}?id=${s.id}`;
-                            }
+                            const linkTo = getSessionRoute(s);
+                            const workflowLabel = SYSTEM_CODE_LABELS[s.workflowType] || s.workflowType;
                             return (
                                 <Link
                                     key={s.id}
@@ -199,7 +207,9 @@ export default function Dashboard() {
                                 >
                                     <div>
                                         <p className="text-sm font-medium text-text group-hover:text-primary transition-default">
-                                            {s.materialName || 'بدون اسم'} — {TYPE_LABELS[s.workflowType] || s.workflowType}
+                                            {s.materialName || 'بدون اسم'}
+                                            {s.lectureNumber && <> — محاضرة {s.lectureNumber}</>}
+                                            <> ({workflowLabel})</>
                                         </p>
                                         <p className="text-xs text-text-muted mt-0.5">
                                             {new Intl.DateTimeFormat('ar-SY', {

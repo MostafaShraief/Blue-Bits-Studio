@@ -3,23 +3,45 @@ import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye } from 
 import { fetchSessions, removeSession } from '../utils/api';
 import { Link } from 'react-router';
 
+/**
+ * Centralized route mapping from backend SystemCode to frontend route.
+ * Fixes broken routing where backend returns SystemCodes like 'LEC_EXT'
+ * but frontend was checking for friendly names like 'lecture'.
+ */
+const getSessionRoute = (session) => {
+    const { workflowType, id } = session;
+    switch (workflowType) {
+        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
+        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
+        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
+        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
+        case 'BANK_QS': return `/quiz?id=${id}`;
+        case 'PANDOC': return `/pandoc?id=${id}`;
+        case 'DRAW': return `/draw?id=${id}`;
+        default: return '/'; // Fallback to dashboard instead of broken route
+    }
+};
+
 const FILTERS = [
     { value: 'all', label: 'الكل' },
-    { value: 'lecture', label: 'محاضرات' },
-    { value: 'bank', label: 'بنوك' },
-    { value: 'quiz', label: 'اختبارات' },
-    { value: 'coordination', label: 'تنسيق' },
-    { value: 'draw', label: 'رسم' },
-    { value: 'pandoc', label: 'Pandoc' },
+    { value: 'LEC_EXT', label: 'محاضرات' },
+    { value: 'BANK_EXT', label: 'بنوك' },
+    { value: 'BANK_QS', label: 'اختبارات' },
+    { value: 'LEC_COORD', label: 'تنسيق محاضرات' },
+    { value: 'BANK_COORD', label: 'تنسيق بنوك' },
+    { value: 'DRAW', label: 'رسم' },
+    { value: 'PANDOC', label: 'Pandoc' },
 ];
 
+/** TYPE_META now uses SystemCodes to match backend workflowType values */
 const TYPE_META = {
-    lecture: { label: 'استخراج محاضرة', icon: FileSearch, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    bank: { label: 'بنك أسئلة', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
-    quiz: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
-    coordination: { label: 'تنسيق', icon: AlignRight, bgClass: 'bg-success/10', textClass: 'text-success' },
-    draw: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    pandoc: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    LEC_EXT: { label: 'استخراج محاضرة', icon: FileSearch, bgClass: 'bg-primary/10', textClass: 'text-primary' },
+    BANK_EXT: { label: 'استخراج بنك', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    LEC_COORD: { label: 'تنسيق محاضرة', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
+    BANK_COORD: { label: 'تنسيق بنك', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
+    BANK_QS: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
+    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 };
 
 export default function History() {
@@ -77,30 +99,9 @@ export default function History() {
             ) : (
                 <div className="space-y-3">
                     {filtered.map((s) => {
-                        const meta = TYPE_META[s.workflowType] || TYPE_META.lecture;
+                        const meta = TYPE_META[s.workflowType] || TYPE_META.LEC_EXT;
                         const Icon = meta.icon;
-                        
-                        // Route logic:
-                        // - quiz type → /quiz
-                        // - bank type WITH quizData → /quiz (legacy fix for old sessions saved as bank)
-                        // - bank type WITHOUT quizData → /extraction (question bank extraction)
-                        // - lecture → /extraction
-                        // - other types → their respective pages
-                        let linkTo;
-                        if (s.workflowType === 'quiz') {
-                            linkTo = `/quiz?id=${s.id}`;
-                        } else if (s.workflowType === 'bank') {
-                            // Check if it's a legacy session with quiz data
-                            if (s.quizData) {
-                                linkTo = `/quiz?id=${s.id}`;
-                            } else {
-                                linkTo = `/extraction?type=bank&id=${s.id}`;
-                            }
-                        } else if (s.workflowType === 'lecture') {
-                            linkTo = `/extraction?type=lecture&id=${s.id}`;
-                        } else {
-                            linkTo = `/${s.workflowType}?id=${s.id}`;
-                        }
+                        const linkTo = getSessionRoute(s);
 
                         return (
                             <div
@@ -115,7 +116,9 @@ export default function History() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-text truncate">
-                                            {s.materialName || 'بدون اسم'} — {meta.label}
+                                            {s.materialName || 'بدون اسم'}
+                                            {s.lectureNumber && <> — محاضرة {s.lectureNumber}</>}
+                                            <> ({meta.label})</>
                                         </p>
                                         <p className="text-xs text-text-muted mt-0.5">
                                             {new Intl.DateTimeFormat('ar-SY', {

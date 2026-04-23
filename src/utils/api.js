@@ -277,17 +277,22 @@ export const mergeDocxFiles = async (files, metadata) => {
     }
 };
 
-/** Get stats */
+/** Get stats — counts by SystemCode (backend workflowType values) */
 export async function fetchStats() {
     const sessions = await fetchSessions();
     return {
         total: sessions.length,
-        lecture: sessions.filter((s) => s.workflowType === 'lecture').length,
-        bank: sessions.filter((s) => s.workflowType === 'bank').length,
-        quiz: sessions.filter((s) => s.workflowType === 'quiz').length,
-        draw: sessions.filter((s) => s.workflowType === 'draw').length,
-        pandoc: sessions.filter((s) => s.workflowType === 'pandoc').length,
-        coordination: sessions.filter((s) => s.workflowType === 'coordination').length,
+        // Extraction workflows
+        LEC_EXT: sessions.filter((s) => s.workflowType === 'LEC_EXT').length,
+        BANK_EXT: sessions.filter((s) => s.workflowType === 'BANK_EXT').length,
+        // Quiz/Question bank
+        BANK_QS: sessions.filter((s) => s.workflowType === 'BANK_QS').length,
+        // Drawing
+        DRAW: sessions.filter((s) => s.workflowType === 'DRAW').length,
+        // Pandoc
+        PANDOC: sessions.filter((s) => s.workflowType === 'PANDOC').length,
+        // Coordination
+        LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD' || s.workflowType === 'BANK_COORD').length,
     };
 }
 

@@ -62,7 +62,7 @@ export default function App() {
                                 <Route element={<ProtectedRoute requiredCode="MERGE" />}>
                                     <Route path="merge" element={<MergeWizard />} />
                                 </Route>
-                                <Route element={<ProtectedRoute requiredCode="QUIZ" />}>
+                                <Route element={<ProtectedRoute requiredCode="BANK_QS" />}>
                                     <Route path="quiz" element={<QuizHub />} />
                                 </Route>
                                 {/* No SystemCode — universal for all authenticated non-Admins */}

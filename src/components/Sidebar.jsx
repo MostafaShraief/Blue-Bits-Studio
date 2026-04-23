@@ -24,7 +24,7 @@ const NAV_ITEMS = [
     { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC' },
     { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE' },
     { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW' },
-    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'QUIZ' },
+    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS' },
     { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST' },
 ];
 export default function Sidebar() {

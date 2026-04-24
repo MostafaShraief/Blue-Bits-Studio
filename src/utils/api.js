@@ -2,6 +2,11 @@ const API_BASE = '/api/sessions';
 
 const AUTH_API_BASE = '/api/auth';
 
+// In-memory cache for static API calls
+const apiCache = new Map();
+
+const STATS_CACHE_TTL = 60_000; // 60 seconds for stats cache
+
 /**
  * Helper to automatically attach JWT token to all API requests.
  * Preserves existing headers (like Content-Type) and correctly
@@ -59,10 +64,16 @@ export async function fetchUserProfile() {
 
 /** Get all materials */
 export async function fetchMaterials() {
+    // Return cached if available
+    if (apiCache.has('materials')) {
+        return apiCache.get('materials');
+    }
     try {
         const res = await authFetch('/api/materials');
         if (!res.ok) throw new Error('Failed to fetch materials');
-        return await res.json();
+        const data = await res.json();
+        apiCache.set('materials', data);
+        return data;
     } catch (e) {
         console.error('Failed to fetch materials:', e);
         return [];
@@ -279,9 +290,14 @@ export const mergeDocxFiles = async (files, metadata) => {
 
 /** Get stats — counts by SystemCode (backend workflowType values) */
 export async function fetchStats() {
+    // Check if cached and not expired (60s TTL)
+    const cached = apiCache.get('stats');
+    if (cached && Date.now() - cached.timestamp < STATS_CACHE_TTL) {
+        return cached.data;
+    }
     const data = await fetchSessions(1, 1000); // Fetch all sessions for stats (high limit)
     const sessions = data.sessions || [];
-    return {
+    const stats = {
         total: sessions.length,
         // Extraction workflows
         LEC_EXT: sessions.filter((s) => s.workflowType === 'LEC_EXT').length,
@@ -295,6 +311,8 @@ export async function fetchStats() {
         // Coordination
         LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD' || s.workflowType === 'BANK_COORD').length,
     };
+    apiCache.set('stats', { data: stats, timestamp: Date.now() });
+    return stats;
 }
 
 /**

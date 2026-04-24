@@ -213,7 +213,7 @@ export default function ExtractionWizard() {
         }
     }, [step, autoSave, saved, prompt, handleSave]);
 
-    const canProceedStep1 = materialName.trim() && lectureNumber.trim();
+    const canProceedStep1 = materialName.trim() && String(lectureNumber).trim();
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

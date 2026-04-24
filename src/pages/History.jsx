@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2 } from 'lucide-react';
 import { fetchSessions, removeSession } from '../utils/api';
 import { Link } from 'react-router';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Centralized route mapping from backend SystemCode to frontend route.
@@ -23,14 +24,14 @@ const getSessionRoute = (session) => {
 };
 
 const FILTERS = [
-    { value: 'all', label: 'الكل' },
-    { value: 'LEC_EXT', label: 'محاضرات' },
-    { value: 'BANK_EXT', label: 'بنوك' },
-    { value: 'BANK_QS', label: 'اختبارات' },
-    { value: 'LEC_COORD', label: 'تنسيق محاضرات' },
-    { value: 'BANK_COORD', label: 'تنسيق بنوك' },
-    { value: 'DRAW', label: 'رسم' },
-    { value: 'PANDOC', label: 'Pandoc' },
+    { value: 'all', label: 'الكل', systemCode: null },
+    { value: 'LEC_EXT', label: 'محاضرات', systemCode: 'LEC_EXT' },
+    { value: 'BANK_EXT', label: 'بنوك', systemCode: 'BANK_EXT' },
+    { value: 'BANK_QS', label: 'اختبارات', systemCode: 'BANK_QS' },
+    { value: 'LEC_COORD', label: 'تنسيق', systemCode: 'LEC_COORD' },
+    { value: 'BANK_COORD', label: 'تنسيق بنوك', systemCode: 'BANK_COORD' },
+    { value: 'DRAW', label: 'رسم', systemCode: 'DRAW' },
+    { value: 'PANDOC', label: 'Pandoc', systemCode: 'PANDOC' },
 ];
 
 /** TYPE_META now uses SystemCodes to match backend workflowType values */
@@ -51,6 +52,14 @@ export default function History() {
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
+
+    // Get hasWorkflowAccess from AuthContext
+    const { hasWorkflowAccess } = useAuth();
+
+    // Filter FILTERS based on user's permissions
+    const visibleFilters = useMemo(() => {
+        return FILTERS.filter(f => f.systemCode === null || hasWorkflowAccess(f.systemCode));
+    }, [hasWorkflowAccess]);
 
     const limit = 20;
 
@@ -85,9 +94,15 @@ export default function History() {
     };
 
     const filtered = useMemo(() => {
-        if (filter === 'all') return sessions;
-        return sessions.filter((s) => s.workflowType === filter);
-    }, [sessions, filter]);
+        // First filter by category
+        let result = filter === 'all' ? sessions : sessions.filter((s) => s.workflowType === filter);
+        
+        // Second layer of security: filter out sessions for unauthorized workflows
+        // This handles cases where backend might send unauthorized data (cache, lag, etc.)
+        result = result.filter(s => s.workflowType === 'all' || hasWorkflowAccess(s.workflowType));
+        
+        return result;
+    }, [sessions, filter, hasWorkflowAccess]);
 
     const handleDelete = async (id) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.')) {
@@ -107,7 +122,7 @@ export default function History() {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-2 mb-6">
-                {FILTERS.map(({ value, label }) => (
+                {visibleFilters.map(({ value, label }) => (
                     <button
                         key={value}
                         onClick={() => setFilter(value)}

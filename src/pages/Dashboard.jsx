@@ -106,10 +106,15 @@ export default function Dashboard() {
             const s = await fetchStats();
             setStats(s);
             const data = await fetchSessions(1, 5); // Fetch first 5 for recent sessions
-            setRecent(data.sessions ? data.sessions.slice(0, 5) : []);
+            const allSessions = data.sessions ? data.sessions.slice(0, 5) : [];
+            // Filter recent sessions by user's workflow permissions
+            const authorizedSessions = allSessions.filter(s => 
+                hasWorkflowAccess(s.workflowType)
+            );
+            setRecent(authorizedSessions);
         };
         load();
-    }, []);
+    }, [hasWorkflowAccess]);
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in">

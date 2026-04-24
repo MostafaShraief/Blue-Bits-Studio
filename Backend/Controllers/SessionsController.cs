@@ -34,7 +34,12 @@ public class SessionsController : ControllerBase
         // Block Admins from accessing session list
         if (User.IsInRole("Admin")) return Forbid();
 
-        var query = _db.Sessions.AsQueryable();
+        // Filter sessions by user's role and workflow permissions
+        var query = _db.Sessions
+            .Where(s => s.UserId == userId)
+            .Where(s => _db.WorkflowPermissions
+                .Any(p => p.RoleName == role && p.WorkflowId == s.WorkflowId))
+            .AsQueryable();
 
         // Get total count for pagination info
         var totalCount = await query.CountAsync();
@@ -76,7 +81,14 @@ public class SessionsController : ControllerBase
             .FirstOrDefaultAsync(s => s.SessionId == id);
 
         if (session == null) return NotFound();
-        if (role != "Admin" && session.UserId != userId) return Forbid();
+        
+        // Verify ownership AND workflow permission
+        if (session.UserId != userId) return Forbid();
+        
+        // Check if user's role has permission for this session's workflow
+        var hasPermission = await _db.WorkflowPermissions
+            .AnyAsync(p => p.RoleName == role && p.WorkflowId == session.WorkflowId);
+        if (!hasPermission) return StatusCode(403, new { message = "ليس لديك إذن للوصول إلى هذا النوع من الجلسات" });
 
         var generalNotes = session.Notes.FirstOrDefault(n => n.NoteType == "GeneralNote")?.NoteText;
         var fileNotes = session.Notes.Where(n => n.NoteType == "FileNote").OrderBy(n => n.FileId).Select(n => n.NoteText).ToList();

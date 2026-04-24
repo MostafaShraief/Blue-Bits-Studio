@@ -13,6 +13,11 @@ export function SettingsProvider({ children }) {
         return saved ? JSON.parse(saved) : true;
     });
 
+    const [defaultMaterial, setDefaultMaterial] = useState(() => {
+        const saved = localStorage.getItem('bluebits_default_material');
+        return saved || '';
+    });
+
     useEffect(() => {
         localStorage.setItem('darkMode', JSON.stringify(darkMode));
         if (darkMode) {
@@ -26,8 +31,12 @@ export function SettingsProvider({ children }) {
         localStorage.setItem('autoSave', JSON.stringify(autoSave));
     }, [autoSave]);
 
+    useEffect(() => {
+        localStorage.setItem('bluebits_default_material', defaultMaterial);
+    }, [defaultMaterial]);
+
     return (
-        <SettingsContext.Provider value={{ darkMode, setDarkMode, autoSave, setAutoSave }}>
+        <SettingsContext.Provider value={{ darkMode, setDarkMode, autoSave, setAutoSave, defaultMaterial, setDefaultMaterial }}>
             {children}
         </SettingsContext.Provider>
     );

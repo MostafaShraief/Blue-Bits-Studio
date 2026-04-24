@@ -9,13 +9,13 @@ import { useSettings } from '../contexts/SettingsContext';
 const STEPS = ['إعداد الجلسة', 'إدراج النص', 'المعاينة والنسخ'];
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
-    const { autoSave } = useSettings();
+    const { autoSave, defaultMaterial } = useSettings();
     const id = searchParams.get('id');
     const [step, setStep] = useState(0);
     const [workflowSystemCode, setWorkflowSystemCode] = useState('LEC_COORD');
     
     // Metadata state
-    const [materialName, setMaterialName] = useState('');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);

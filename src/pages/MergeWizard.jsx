@@ -3,14 +3,16 @@ import { Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCi
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { mergeDocxFiles } from '../utils/api';
+import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['التسمية', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
 
 export default function MergeWizard() {
     const [step, setStep] = useState(0);
     const fileInputRef = useRef(null);
+    const { defaultMaterial } = useSettings();
 
-    const [materialName, setMaterialName] = useState('');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [lectureType, setLectureType] = useState('Theoretical');
     const [lectureNumber, setLectureNumber] = useState(1);
 

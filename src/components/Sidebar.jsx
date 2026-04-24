@@ -29,18 +29,9 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-    const { darkMode, setDarkMode, autoSave, setAutoSave } = useSettings();
+    const { darkMode, setDarkMode, autoSave, setAutoSave, defaultMaterial, setDefaultMaterial } = useSettings();
     const { user, loading, logout } = useContext(AuthContext);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [defaultMaterial, setDefaultMaterial] = useState(() => {
-        return localStorage.getItem('defaultMaterial') || '';
-    });
-
-    // Save default material to localStorage when changed
-    const handleDefaultMaterialChange = (value) => {
-        setDefaultMaterial(value);
-        localStorage.setItem('defaultMaterial', value);
-    };
 
     const handleLogout = () => {
         logout();
@@ -149,7 +140,7 @@ export default function Sidebar() {
                 autoSave={autoSave}
                 setAutoSave={setAutoSave}
                 defaultMaterial={defaultMaterial}
-                setDefaultMaterial={handleDefaultMaterialChange}
+                setDefaultMaterial={setDefaultMaterial}
                 onLogout={handleLogout}
             />
         </>

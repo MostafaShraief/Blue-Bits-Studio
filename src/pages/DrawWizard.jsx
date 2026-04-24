@@ -14,7 +14,7 @@ const STEPS = ['الإدراج', 'المعاينة والنسخ'];
 
 export default function DrawWizard() {
     const [searchParams] = useSearchParams();
-    const { autoSave } = useSettings();
+    const { autoSave, defaultMaterial } = useSettings();
     const id = searchParams.get('id');
 
     useEffect(() => {
@@ -45,7 +45,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     }, [id]);
 
     const [step, setStep] = useState(0);
-    const [materialName, setMaterialName] = useState('');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);

@@ -12,7 +12,7 @@ const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والن
 export default function PandocWizard() {
     const [searchParams] = useSearchParams();
     const id = searchParams.get('id');
-    const { autoSave } = useSettings();
+    const { autoSave, defaultMaterial } = useSettings();
 
     
 
@@ -35,7 +35,7 @@ export default function PandocWizard() {
     const fileInputRef = useRef(null);
 
     // Step 1
-    const [materialName, setMaterialName] = useState('');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('Theoretical');
 

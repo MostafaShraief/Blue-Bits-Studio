@@ -17,7 +17,7 @@ export default function ExtractionWizard() {
     const [searchParams] = useSearchParams();
     const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
     const id = searchParams.get('id');
-    const { autoSave } = useSettings();
+    const { autoSave, defaultMaterial } = useSettings();
     const { user, loading } = useContext(AuthContext);
     const navigate = useNavigate();
 
@@ -60,7 +60,7 @@ export default function ExtractionWizard() {
         if (loading) return 'LEC_EXT'; // Default while loading
         return getInitialWorkflowCode();
     });
-    const [materialName, setMaterialName] = useState('');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('Theoretical');
 

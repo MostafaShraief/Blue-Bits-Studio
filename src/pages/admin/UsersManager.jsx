@@ -368,6 +368,7 @@ export default function UsersManager() {
                                         onChange={(e) => setFormData({...formData, username: e.target.value})}
                                         className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         placeholder="أدخل اسم المستخدم"
+                                        dir="ltr"
                                         disabled={editingId}
                                         required={!editingId}
                                     />
@@ -389,6 +390,7 @@ export default function UsersManager() {
                                         onChange={(e) => setFormData({...formData, password: e.target.value})}
                                         className="w-full ps-10 pe-10 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         placeholder="أدخل كلمة المرور"
+                                        dir="ltr"
                                         required={!editingId}
                                     />
                                     <button
@@ -450,6 +452,7 @@ export default function UsersManager() {
                                         onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
                                         className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         placeholder="أدخل يوزر التيليجرام"
+                                        dir="ltr"
                                     />
                                 </div>
                             </div>

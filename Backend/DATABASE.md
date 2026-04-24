@@ -19,11 +19,12 @@ CREATE TABLE "Users" (
     "LastName" TEXT NOT NULL,
     "UserRole" TEXT NOT NULL CHECK("UserRole" IN ('Admin', 'TechMember', 'ScientificMember')),
     "BatchNumber" INTEGER NOT NULL CHECK("BatchNumber" > 0),
-    "TelegramUsername" TEXT UNIQUE, 
+    "TelegramUsername" TEXT NULL, 
     "Username" TEXT NOT NULL UNIQUE, 
     "PasswordHash" TEXT NOT NULL, -- Stored as Hash (BCrypt/Argon2)
     "CreatedAt" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-    "TeamJoinDate" TEXT NULL
+    "TeamJoinDate" TEXT NULL,
+    CONSTRAINT "UQ_Telegram_Role" UNIQUE ("TelegramUsername", "UserRole")
 );
 
 -- Materials Table (University Subjects)

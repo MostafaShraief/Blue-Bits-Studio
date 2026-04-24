@@ -23,7 +23,8 @@ public class BlueBitsDbContext : DbContext
 
         // --- 1. Constraints & Validations ---
         modelBuilder.Entity<User>(e => {
-            e.HasIndex(u => u.TelegramUsername).IsUnique();
+            // Composite unique index: TelegramUsername is unique per UserRole
+            e.HasIndex(u => new { u.TelegramUsername, u.UserRole }).IsUnique();
             e.HasIndex(u => u.Username).IsUnique();
             e.ToTable(t => {
                 t.HasCheckConstraint("CHK_UserRole", "\"UserRole\" IN ('Admin', 'TechMember', 'ScientificMember')");

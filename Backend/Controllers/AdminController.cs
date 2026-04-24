@@ -42,6 +42,21 @@ public class AdminController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateUser([FromBody] User user)
     {
+        // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername)
+        if (!string.IsNullOrWhiteSpace(user.TelegramUsername))
+        {
+            var exists = await _db.Users.AnyAsync(u =>
+                u.TelegramUsername == user.TelegramUsername &&
+                u.UserRole == user.UserRole);
+            if (exists)
+            {
+                _logger.LogWarning("CreateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
+                    user.TelegramUsername, user.UserRole);
+                return Conflict(new { message = "DUPLICATE_TELEGRAM_ROLE",
+                    detail = $"Telegram username '{user.TelegramUsername}' is already registered with role '{user.UserRole}'" });
+            }
+        }
+
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
         return Created($"/api/admin/users/{user.UserId}", user);
@@ -56,6 +71,22 @@ public class AdminController : ControllerBase
         // Log incoming payload for debugging
         _logger.LogInformation("UpdateUser {Id}: BatchNumber={BatchNumber}, Password={HasPassword}", 
             id, dto.BatchNumber, !string.IsNullOrEmpty(dto.Password));
+
+        // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername, exclude current user)
+        if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
+        {
+            var exists = await _db.Users.AnyAsync(u =>
+                u.TelegramUsername == dto.TelegramUsername &&
+                u.UserRole == dto.UserRole &&
+                u.UserId != id);
+            if (exists)
+            {
+                _logger.LogWarning("UpdateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
+                    dto.TelegramUsername, dto.UserRole);
+                return Conflict(new { message = "DUPLICATE_TELEGRAM_ROLE",
+                    detail = $"Telegram username '{dto.TelegramUsername}' is already registered with role '{dto.UserRole}'" });
+            }
+        }
 
         user.FirstName = dto.FirstName;
         user.LastName = dto.LastName;

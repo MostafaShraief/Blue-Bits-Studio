@@ -95,7 +95,16 @@ export default function UsersManager() {
             resetForm();
             loadUsers();
         } catch (err) {
-            setError(err.message);
+            // Handle duplicate Telegram + Role conflict (409 or 400 with DUPLICATE_TELEGRAM_ROLE)
+            const isDuplicateTelegramRole = 
+                err.status === 409 || 
+                (err.status === 400 && err.message?.includes('DUPLICATE_TELEGRAM_ROLE'));
+
+            if (isDuplicateTelegramRole) {
+                setError('هذا المعرف الخاص بتيليجرام مسجل مسبقاً بهذا الدور');
+            } else {
+                setError(err.message);
+            }
         }
     };
 

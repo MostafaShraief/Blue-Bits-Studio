@@ -375,7 +375,15 @@ export async function createAdminUser(userData) {
         method: 'POST',
         body: JSON.stringify(userData)
     });
-    if (!res.ok) throw new Error('Failed to create user');
+    if (!res.ok) {
+        const error = new Error('Failed to create user');
+        error.status = res.status;
+        try {
+            const data = await res.json();
+            error.message = data.message || data.detail || error.message;
+        } catch {}
+        throw error;
+    }
     return await res.json();
 }
 
@@ -385,7 +393,15 @@ export async function updateAdminUser(id, userData) {
         method: 'PUT',
         body: JSON.stringify(userData)
     });
-    if (!res.ok) throw new Error('Failed to update user');
+    if (!res.ok) {
+        const error = new Error('Failed to update user');
+        error.status = res.status;
+        try {
+            const data = await res.json();
+            error.message = data.message || data.detail || error.message;
+        } catch {}
+        throw error;
+    }
     return await res.json();
 }
 

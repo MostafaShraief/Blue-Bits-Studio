@@ -26,7 +26,9 @@ import {
     Sparkles,
     FlaskConical,
     Crown,
-    Scroll
+    Scroll,
+    Server,
+    UserCog
 } from 'lucide-react';
 
 export default function SystemConfig() {
@@ -419,27 +421,37 @@ export default function SystemConfig() {
                         <div className="space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-text mb-2">السيرفر</label>
-                                <select
-                                    value={selectedWorkflowId}
-                                    disabled
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text opacity-70"
-                                >
-                                    <option value={selectedWorkflowId}>
-                                        {getWorkflowName(selectedWorkflowId)}
-                                    </option>
-                                </select>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <Server className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <select
+                                        value={selectedWorkflowId}
+                                        disabled
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text opacity-70"
+                                    >
+                                        <option value={selectedWorkflowId}>
+                                            {getWorkflowName(selectedWorkflowId)}
+                                        </option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-text mb-2">الدور</label>
-                                <select
-                                    value={newPermissionRole}
-                                    onChange={(e) => setNewPermissionRole(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                >
-                                    <option value="TechMember">عضو تقني</option>
-                                    <option value="ScientificMember">عضو علمي</option>
-                                </select>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <UserCog className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <select
+                                        value={newPermissionRole}
+                                        onChange={(e) => setNewPermissionRole(e.target.value)}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                    >
+                                        <option value="TechMember">عضو تقني</option>
+                                        <option value="ScientificMember">عضو علمي</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="flex gap-3 pt-2">

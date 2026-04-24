@@ -14,7 +14,8 @@ import {
     AlertCircle,
     X,
     GraduationCap,
-    Sparkles
+    Sparkles,
+    Calendar
 } from 'lucide-react';
 
 export default function MaterialsManager() {
@@ -236,29 +237,39 @@ export default function MaterialsManager() {
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-text mb-2">اسم المادة</label>
-                                <input
-                                    type="text"
-                                    value={formData.materialName}
-                                    onChange={(e) => setFormData({...formData, materialName: e.target.value})}
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                    placeholder="مثال: هندسة البرمجيات"
-                                    required
-                                />
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <BookOpen className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.materialName}
+                                        onChange={(e) => setFormData({...formData, materialName: e.target.value})}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        placeholder="مثال: هندسة البرمجيات"
+                                        required
+                                    />
+                                </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-text mb-2">السنة الدراسية</label>
-                                <select
-                                    value={formData.materialYear}
-                                    onChange={(e) => setFormData({...formData, materialYear: parseInt(e.target.value)})}
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                >
-                                    <option value={1}>السنة الأولى</option>
-                                    <option value={2}>السنة الثانية</option>
-                                    <option value={3}>السنة الثالثة</option>
-                                    <option value={4}>السنة الرابعة</option>
-                                    <option value={5}>السنة الخامسة</option>
-                                </select>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <Calendar className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <select
+                                        value={formData.materialYear}
+                                        onChange={(e) => setFormData({...formData, materialYear: parseInt(e.target.value)})}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                    >
+                                        <option value={1}>السنة الأولى</option>
+                                        <option value={2}>السنة الثانية</option>
+                                        <option value={3}>السنة الثالثة</option>
+                                        <option value={4}>السنة الرابعة</option>
+                                        <option value={5}>السنة الخامسة</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="flex gap-3 pt-2">

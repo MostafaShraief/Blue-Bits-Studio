@@ -19,13 +19,13 @@ import {
     FlaskConical,
     Sparkles,
     Eye,
-    EyeOff
+    EyeOff,
+    User,
+    Lock,
+    Hash,
+    MessageCircle,
+    Laptop2
 } from 'lucide-react';
-import { ComputerIcon } from 'lucide-react';
-import { Computer } from 'lucide-react';
-import { LaptopIcon } from 'lucide-react';
-import { Laptop2 } from 'lucide-react';
-import { LaptopMinimal } from 'lucide-react';
 
 export default function UsersManager() {
     const [users, setUsers] = useState([]);
@@ -316,36 +316,54 @@ export default function UsersManager() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">الاسم الأول</label>
-                                    <input
-                                        type="text"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                        required
-                                    />
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                            <User className="h-[18px] w-[18px] text-text-muted" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={formData.firstName}
+                                            onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            placeholder="أدخل الاسم الأول"
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">اسم العائلة</label>
-                                    <input
-                                        type="text"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                        required
-                                    />
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                            <User className="h-[18px] w-[18px] text-text-muted" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={formData.lastName}
+                                            onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            placeholder="أدخل اسم العائلة"
+                                            required
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-text mb-2">اسم المستخدم</label>
-                                <input
-                                    type="text"
-                                    value={formData.username}
-                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                    disabled={editingId}
-                                    required={!editingId}
-                                />
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <User className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.username}
+                                        onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        placeholder="أدخل اسم المستخدم"
+                                        disabled={editingId}
+                                        required={!editingId}
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -354,11 +372,15 @@ export default function UsersManager() {
                                     {editingId && <span className="text-text-muted font-normal"> (اتركها فارغة لإبقاء الحالية)</span>}
                                 </label>
                                 <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <Lock className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         value={formData.password}
                                         onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                        className="w-full px-4 py-3 pe-10 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        className="w-full ps-10 pe-10 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        placeholder="أدخل كلمة المرور"
                                         required={!editingId}
                                     />
                                     <button
@@ -374,37 +396,54 @@ export default function UsersManager() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">الدور</label>
-                                    <select
-                                        value={formData.userRole}
-                                        onChange={(e) => setFormData({...formData, userRole: e.target.value})}
-                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                    >
-                                        <option value="TechMember">عضو تقني</option>
-                                        <option value="ScientificMember">عضو علمي</option>
-                                        <option value="Admin">مسؤول</option>
-                                    </select>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                            <Crown className="h-[18px] w-[18px] text-text-muted" />
+                                        </div>
+                                        <select
+                                            value={formData.userRole}
+                                            onChange={(e) => setFormData({...formData, userRole: e.target.value})}
+                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        >
+                                            <option value="TechMember">عضو تقني</option>
+                                            <option value="ScientificMember">عضو علمي</option>
+                                            <option value="Admin">مسؤول</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">الدفعة</label>
-                                    <input
-                                        type="number"
-                                        value={formData.batchNumber}
-                                        onChange={(e) => setFormData({...formData, batchNumber: e.target.value})}
-                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                        required
-                                        min="1"
-                                    />
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                            <Hash className="h-[18px] w-[18px] text-text-muted" />
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={formData.batchNumber}
+                                            onChange={(e) => setFormData({...formData, batchNumber: e.target.value})}
+                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            placeholder="رقم الدفعة"
+                                            required
+                                            min="1"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-2"> Telegram (اختياري)</label>
-                                <input
-                                    type="text"
-                                    value={formData.telegramUsername}
-                                    onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
-                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                                />
+                                <label className="block text-sm font-medium text-text mb-2">Telegram (اختياري)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <MessageCircle className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.telegramUsername}
+                                        onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        placeholder="أدخل يوزر التيليجرام"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex gap-3 pt-2">

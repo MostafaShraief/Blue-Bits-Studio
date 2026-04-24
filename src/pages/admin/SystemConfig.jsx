@@ -46,6 +46,7 @@ export default function SystemConfig() {
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
     const [newPermissionRole, setNewPermissionRole] = useState('TechMember');
+    const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -119,6 +120,14 @@ export default function SystemConfig() {
         } catch (err) {
             alert(err.message);
         }
+    };
+
+    const closePermissionModal = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setShowPermissionModal(false);
+            setIsClosing(false);
+        }, 200);
     };
 
     // Build a map of workflowId -> permissions
@@ -404,14 +413,14 @@ export default function SystemConfig() {
             {showPermissionModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div 
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
-                        onClick={() => setShowPermissionModal(false)}
+                        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isClosing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+                        onClick={closePermissionModal}
                     />
-                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-5 animate-scaleIn">
+                    <div className={`relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-5 ${isClosing ? 'animate-scaleOut' : 'animate-scaleIn'}`}>
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">إضافة صلاحية</h2>
                             <button
-                                onClick={() => setShowPermissionModal(false)}
+                                onClick={closePermissionModal}
                                 className="p-2 rounded-lg text-text-muted hover:bg-surface transition-all hover:text-text"
                             >
                                 <X size={20} />
@@ -456,7 +465,7 @@ export default function SystemConfig() {
 
                             <div className="flex gap-3 pt-2">
                                 <button
-                                    onClick={() => setShowPermissionModal(false)}
+                                    onClick={closePermissionModal}
                                     className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                 >
                                     إلغاء

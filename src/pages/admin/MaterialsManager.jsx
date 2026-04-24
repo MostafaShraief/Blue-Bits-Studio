@@ -24,6 +24,7 @@ export default function MaterialsManager() {
     const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const [isClosing, setIsClosing] = useState(false);
     const [formData, setFormData] = useState({
         materialName: '',
         materialYear: 1
@@ -99,7 +100,17 @@ export default function MaterialsManager() {
 
     const openCreateModal = () => {
         resetForm();
+        setIsClosing(false);
         setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setShowModal(false);
+            resetForm();
+            setIsClosing(false);
+        }, 200);
     };
 
     const getYearLabel = (year) => {
@@ -215,19 +226,16 @@ export default function MaterialsManager() {
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div 
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
-                        onClick={() => { setShowModal(false); resetForm(); }}
+                        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isClosing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+                        onClick={closeModal}
                     />
-                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-5 animate-scaleIn">
+                    <div className={`relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-5 ${isClosing ? 'animate-scaleOut' : 'animate-scaleIn'}`}>
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">
                                 {editingId ? 'تعديل مادة' : 'إضافة مادة جديدة'}
                             </h2>
                             <button
-                                onClick={() => {
-                                    setShowModal(false);
-                                    resetForm();
-                                }}
+                                onClick={closeModal}
                                 className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default hover:text-text"
                             >
                                 <X size={20} />
@@ -275,10 +283,7 @@ export default function MaterialsManager() {
                             <div className="flex gap-3 pt-2">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setShowModal(false);
-                                        resetForm();
-                                    }}
+                                    onClick={closeModal}
                                     className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                 >
                                     إلغاء

@@ -12,8 +12,18 @@ import {
     Trash2,
     Loader2,
     AlertCircle,
-    X
+    X,
+    UserPlus,
+    Crown,
+    Shield,
+    FlaskConical,
+    Sparkles
 } from 'lucide-react';
+import { ComputerIcon } from 'lucide-react';
+import { Computer } from 'lucide-react';
+import { LaptopIcon } from 'lucide-react';
+import { Laptop2 } from 'lucide-react';
+import { LaptopMinimal } from 'lucide-react';
 
 export default function UsersManager() {
     const [users, setUsers] = useState([]);
@@ -129,21 +139,39 @@ export default function UsersManager() {
     };
 
     const getRoleBadge = (role) => {
-        const styles = {
-            'Admin': 'bg-amber/20 text-amber',
-            'TechMember': 'bg-primary/20 text-primary',
-            'ScientificMember': 'bg-green-500/20 text-green-600'
+        const config = {
+            'Admin': { 
+                bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', 
+                icon: Crown,
+                label: 'مسؤول'
+            },
+            'TechMember': { 
+                bg: 'bg-primary/15 text-primary', 
+                icon: Laptop2,
+                label: 'تقني'
+            },
+            'ScientificMember': { 
+                bg: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400', 
+                icon: FlaskConical,
+                label: 'علمي'
+            }
         };
-        const labels = {
-            'Admin': 'مسؤول',
-            'TechMember': 'تقني',
-            'ScientificMember': 'علمي'
-        };
+        const { bg, icon: Icon, label } = config[role] || config.TechMember;
         return (
-            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${styles[role] || styles.TechMember}`}>
-                {labels[role] || role}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${bg}`}>
+                <Icon size={12} strokeWidth={2} />
+                {label}
             </span>
         );
+    };
+
+    const formatDate = (date) => {
+        if (!date) return '-';
+        return new Intl.DateTimeFormat('ar-SY', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }).format(new Date(date));
     };
 
     if (loading) {
@@ -164,9 +192,9 @@ export default function UsersManager() {
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
                 >
-                    <Plus size={18} />
+                    <UserPlus size={18} />
                     إضافة مستخدم
                 </button>
             </div>
@@ -185,19 +213,23 @@ export default function UsersManager() {
                     <table className="w-full">
                         <thead className="bg-surface border-b border-border">
                             <tr>
-                                <th className="text-start px-4 py-3 text-sm font-bold text-text">المستخدم</th>
-                                <th className="text-start px-4 py-3 text-sm font-bold text-text">الدور</th>
-                                <th className="text-start px-4 py-3 text-sm font-bold text-text">الدفعة</th>
-                                <th className="text-start px-4 py-3 text-sm font-bold text-text">تاريخ الانضمام</th>
-                                <th className="text-start px-4 py-3 text-sm font-bold text-text">الإجراءات</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">المستخدم</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الدور</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الدفعة</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">تاريخ الانضمام</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map((user) => (
-                                <tr key={user.userId} className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors">
-                                    <td className="px-4 py-3">
+                            {users.map((user, index) => (
+                                <tr 
+                                    key={user.userId} 
+                                    className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors"
+                                    style={{ animationDelay: `${index * 30}ms` }}
+                                >
+                                    <td className="px-5 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
                                                 <span className="text-primary font-bold text-sm">
                                                     {user.firstName?.[0]}{user.lastName?.[0]}
                                                 </span>
@@ -208,20 +240,20 @@ export default function UsersManager() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-5 py-4">
                                         {getRoleBadge(user.userRole)}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-text">
+                                    <td className="px-5 py-4 text-sm text-text">
                                         {user.batchNumber || '-'}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-text-muted">
-                                        {user.teamJoinDate ? new Date(user.teamJoinDate).toLocaleDateString('ar-EG') : '-'}
+                                    <td className="px-5 py-4 text-sm text-text-muted">
+                                        {formatDate(user.teamJoinDate)}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-1">
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-1.5">
                                             <button
                                                 onClick={() => handleEdit(user)}
-                                                className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-default"
+                                                className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
                                                 title="تعديل"
                                             >
                                                 <Pencil size={16} />
@@ -229,7 +261,7 @@ export default function UsersManager() {
                                             {user.userId !== 1 && (
                                                 <button
                                                     onClick={() => handleDelete(user.userId)}
-                                                    className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-default"
+                                                    className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-all"
                                                     title="حذف"
                                                 >
                                                     <Trash2 size={16} />
@@ -241,8 +273,11 @@ export default function UsersManager() {
                             ))}
                             {users.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
-                                        لا توجد مستخدمين
+                                    <td colSpan={5} className="px-5 py-10 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <Users size={36} className="text-text-muted mb-2" strokeWidth={1.3} />
+                                            <p className="text-sm text-text-muted">لا توجد مستخدمين</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -258,7 +293,7 @@ export default function UsersManager() {
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
                         onClick={() => { setShowModal(false); resetForm(); }}
                     />
-                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 animate-scaleIn">
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-5 animate-scaleIn">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">
                                 {editingId ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}
@@ -268,49 +303,50 @@ export default function UsersManager() {
                                     setShowModal(false);
                                     resetForm();
                                 }}
-                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default"
+                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-all hover:text-text"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-text mb-1.5">الاسم الأول</label>
+                                    <label className="block text-sm font-medium text-text mb-2">الاسم الأول</label>
                                     <input
                                         type="text"
                                         value={formData.firstName}
                                         onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-text mb-1.5">اسم العائلة</label>
+                                    <label className="block text-sm font-medium text-text mb-2">اسم العائلة</label>
                                     <input
                                         type="text"
                                         value={formData.lastName}
                                         onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         required
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">اسم المستخدم</label>
+                                <label className="block text-sm font-medium text-text mb-2">اسم المستخدم</label>
                                 <input
                                     type="text"
                                     value={formData.username}
                                     onChange={(e) => setFormData({...formData, username: e.target.value})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                                    required
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                    disabled={editingId}
+                                    required={!editingId}
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">
+                                <label className="block text-sm font-medium text-text mb-2">
                                     كلمة المرور
                                     {editingId && <span className="text-text-muted font-normal"> (اتركها فارغة لإبقاء الحالية)</span>}
                                 </label>
@@ -318,18 +354,18 @@ export default function UsersManager() {
                                     type="password"
                                     value={formData.password}
                                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                     required={!editingId}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-text mb-1.5">الدور</label>
+                                    <label className="block text-sm font-medium text-text mb-2">الدور</label>
                                     <select
                                         value={formData.userRole}
                                         onChange={(e) => setFormData({...formData, userRole: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                     >
                                         <option value="TechMember">عضو تقني</option>
                                         <option value="ScientificMember">عضو علمي</option>
@@ -337,12 +373,12 @@ export default function UsersManager() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-text mb-1.5">الدفعة</label>
+                                    <label className="block text-sm font-medium text-text mb-2">الدفعة</label>
                                     <input
                                         type="number"
                                         value={formData.batchNumber}
                                         onChange={(e) => setFormData({...formData, batchNumber: e.target.value})}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         required
                                         min="1"
                                     />
@@ -350,12 +386,12 @@ export default function UsersManager() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">用户名 Telegram (اختياري)</label>
+                                <label className="block text-sm font-medium text-text mb-2"> Telegram (اختياري)</label>
                                 <input
                                     type="text"
                                     value={formData.telegramUsername}
                                     onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                 />
                             </div>
 
@@ -366,13 +402,13 @@ export default function UsersManager() {
                                         setShowModal(false);
                                         resetForm();
                                     }}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-default"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                 >
                                     إلغاء
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
                                 >
                                     {editingId ? 'تحديث' : 'إضافة'}
                                 </button>

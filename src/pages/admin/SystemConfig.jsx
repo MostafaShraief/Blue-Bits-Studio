@@ -21,7 +21,12 @@ import {
     ChevronDown,
     ChevronUp,
     Save,
-    RefreshCw
+    RefreshCw,
+    Shield,
+    Sparkles,
+    FlaskConical,
+    Crown,
+    Scroll
 } from 'lucide-react';
 
 export default function SystemConfig() {
@@ -129,6 +134,24 @@ export default function SystemConfig() {
         return wf?.adminNote || `Workflow ${id}`;
     };
 
+    const getRoleInfo = (roleName) => {
+        const config = {
+            'Admin': { bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', icon: Crown, label: 'مسؤول' },
+            'TechMember': { bg: 'bg-primary/15 text-primary', icon: Shield, label: 'تقني' },
+            'ScientificMember': { bg: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400', icon: FlaskConical, label: 'علمي' }
+        };
+        return config[roleName] || config.TechMember;
+    };
+
+    const formatDate = (date) => {
+        if (!date) return '-';
+        return new Intl.DateTimeFormat('ar-SY', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }).format(new Date(date));
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -156,78 +179,85 @@ export default function SystemConfig() {
             )}
 
             {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-surface rounded-xl w-fit">
+            <div className="flex gap-2 p-1.5 bg-surface rounded-xl w-fit border border-border">
                 <button
                     onClick={() => setActiveTab('workflows')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-default ${
+                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
                         activeTab === 'workflows'
-                            ? 'bg-primary text-white'
-                            : 'text-text-muted hover:text-text'
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                            : 'text-text-muted hover:text-text hover:bg-surface-card'
                     }`}
                 >
-                    الـسيرفرات والصلاحيات
+                    <div className="flex items-center gap-2">
+                        <Settings2 size={16} />
+                        الـسيرفرات والصلاحيات
+                    </div>
                 </button>
                 <button
                     onClick={() => setActiveTab('prompts')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-default ${
+                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
                         activeTab === 'prompts'
-                            ? 'bg-primary text-white'
-                            : 'text-text-muted hover:text-text'
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-text-muted hover:text-text hover:bg-surface-card'
                     }`}
                 >
-                    التعليمات (Prompts)
+                    <div className="flex items-center gap-2">
+                        <Scroll size={16} />
+                        التعليمات (Prompts)
+                    </div>
                 </button>
             </div>
 
             {/* Workflows & Permissions Tab */}
             {activeTab === 'workflows' && (
-                <div className="space-y-4">
-                    <div className="text-sm text-text-muted">
-                       قم بتفعيل أو تعطيل السيرفرات وإدارة صلاحيات الأدوار
+                <div className="space-y-5">
+                    <div className="text-sm text-text-muted ps-1">
+                       قم بتفعيل أو تعطيل السيرفرات لإدارة صلاحيات الأدوار
                     </div>
 
-                    {workflows.map((wf) => {
+                    {workflows.map((wf, index) => {
                         const workflowPerms = permissionsByWorkflow[wf.workflowId] || [];
                         
                         return (
                             <div
                                 key={wf.workflowId}
-                                className="bg-surface-card border border-border rounded-2xl p-5"
+                                className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all"
+                                style={{ animationDelay: `${index * 40}ms` }}
                             >
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
                                             wf.isActive === 1 
-                                                ? 'bg-green-500/10' 
-                                                : 'bg-gray-200 dark:bg-gray-700'
+                                                ? 'bg-success/15' 
+                                                : 'bg-surface'
                                         }`}>
                                             {wf.isActive === 1 ? (
-                                                <Power size={20} className="text-green-600" />
+                                                <Power size={22} className="text-success" strokeWidth={1.8} />
                                             ) : (
-                                                <PowerOff size={20} className="text-gray-400" />
+                                                <PowerOff size={22} className="text-text-muted" strokeWidth={1.8} />
                                             )}
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-text">{wf.adminNote}</h3>
-                                            <p className="text-xs text-text-muted">{wf.systemCode}</p>
+                                            <p className="text-xs text-text-muted font-mono bg-surface px-2 py-0.5 rounded mt-1 inline-block">{wf.systemCode}</p>
                                         </div>
                                     </div>
                                     
                                     <div className="flex items-center gap-3">
-                                        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                                        <span className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
                                             wf.isActive === 1 
-                                                ? 'bg-green-500/20 text-green-600' 
-                                                : 'bg-gray-200 text-gray-500 dark:bg-gray-700'
+                                                ? 'bg-success/15 text-success' 
+                                                : 'bg-surface text-text-muted'
                                         }`}>
                                             {wf.isActive === 1 ? 'مفعّل' : 'معطّل'}
                                         </span>
                                         
                                         <button
                                             onClick={() => handleToggleWorkflow(wf.workflowId, wf.isActive === 1)}
-                                            className={`p-2 rounded-lg transition-default ${
+                                            className={`p-2.5 rounded-xl transition-all ${
                                                 wf.isActive === 1 
-                                                    ? 'text-gray-400 hover:text-danger hover:bg-danger/10' 
-                                                    : 'text-green-600 hover:bg-green-500/10'
+                                                    ? 'text-text-muted hover:text-danger hover:bg-danger/10' 
+                                                    : 'text-success hover:bg-success/10'
                                             }`}
                                             title={wf.isActive === 1 ? 'تعطيل' : 'تفعيل'}
                                         >
@@ -237,15 +267,15 @@ export default function SystemConfig() {
                                 </div>
 
                                 {/* Permissions for this workflow */}
-                                <div className="mt-4 pt-4 border-t border-border">
-                                    <div className="flex items-center justify-between mb-3">
+                                <div className="mt-5 pt-5 border-t border-border">
+                                    <div className="flex items-center justify-between mb-4">
                                         <span className="text-sm font-medium text-text">الصلاحيات:</span>
                                         <button
                                             onClick={() => {
                                                 setSelectedWorkflowId(wf.workflowId);
                                                 setShowPermissionModal(true);
                                             }}
-                                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-primary hover:bg-primary/10 transition-default"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-all"
                                         >
                                             <Plus size={14} />
                                             إضافة دور
@@ -254,28 +284,27 @@ export default function SystemConfig() {
                                     
                                     <div className="flex flex-wrap gap-2">
                                         {workflowPerms.length === 0 ? (
-                                            <span className="text-xs text-text-muted">لا توجد صلاحيات</span>
+                                            <span className="text-xs text-text-muted px-3 py-1.5">لا توجد صلاحيات</span>
                                         ) : (
-                                            workflowPerms.map(perm => (
-                                                <div
-                                                    key={perm.permissionId}
-                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${
-                                                        perm.roleName === 'TechMember'
-                                                            ? 'bg-primary/20 text-primary'
-                                                            : 'bg-green-500/20 text-green-600'
-                                                    }`}
-                                                >
-                                                    <span>
-                                                        {perm.roleName === 'TechMember' ? 'تقني' : 'علمي'}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => handleDeletePermission(perm.permissionId)}
-                                                        className="hover:text-danger transition-colors"
+                                            workflowPerms.map(perm => {
+                                                const roleInfo = getRoleInfo(perm.roleName);
+                                                const { bg, icon: Icon, label } = roleInfo;
+                                                return (
+                                                    <div
+                                                        key={perm.permissionId}
+                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${bg}`}
                                                     >
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
-                                            ))
+                                                        <Icon size={12} strokeWidth={2} />
+                                                        <span>{label}</span>
+                                                        <button
+                                                            onClick={() => handleDeletePermission(perm.permissionId)}
+                                                            className="hover:text-danger transition-colors ms-1"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>
@@ -287,19 +316,20 @@ export default function SystemConfig() {
 
             {/* Prompts Tab */}
             {activeTab === 'prompts' && (
-                <div className="space-y-4">
-                    <div className="text-sm text-text-muted">
+                <div className="space-y-5">
+                    <div className="text-sm text-text-muted ps-1">
                         قم بتعديل التعليمات (Prompts) المستخدمة من قبل كل سيرفر
                     </div>
 
-                    {prompts.map((prompt) => {
+                    {prompts.map((prompt, index) => {
                         const isEditing = editingPromptId === prompt.promptId;
                         const isSaving = saving[prompt.promptId];
 
                         return (
                             <div
                                 key={prompt.promptId}
-                                className="bg-surface-card border border-border rounded-2xl overflow-hidden"
+                                className="bg-surface-card border border-border rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:shadow-purple-500/5"
+                                style={{ animationDelay: `${index * 40}ms` }}
                             >
                                 {/* Header */}
                                 <button
@@ -313,13 +343,13 @@ export default function SystemConfig() {
                                     }}
                                     className="w-full flex items-center justify-between p-5 text-start hover:bg-surface/50 transition-colors"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                                            <FileText size={20} className="text-purple-600" />
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                                            <FileText size={22} className="text-purple-600" strokeWidth={1.5} />
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-text">{prompt.promptName}</h3>
-                                            <p className="text-xs text-text-muted">{prompt.systemCode}</p>
+                                            <p className="text-xs text-text-muted font-mono bg-surface px-2 py-0.5 rounded mt-1 inline-block">{prompt.systemCode}</p>
                                         </div>
                                     </div>
                                     {isEditing ? (
@@ -331,11 +361,11 @@ export default function SystemConfig() {
 
                                 {/* Expanded content */}
                                 {isEditing && (
-                                    <div className="px-5 pb-5 space-y-4 animate-fade-slide-in">
+                                    <div className="px-5 pb-5 space-y-5 animate-fade-slide-in">
                                         <textarea
                                             value={promptText}
                                             onChange={(e) => setPromptText(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 resize-none"
+                                            className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 resize-none transition-all"
                                             rows={8}
                                             placeholder="قم بإدخال التعليمات..."
                                         />
@@ -343,14 +373,14 @@ export default function SystemConfig() {
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => setEditingPromptId(null)}
-                                                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-default"
+                                                className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                             >
                                                 إلغاء
                                             </button>
                                             <button
                                                 onClick={() => handleSavePrompt(prompt.promptId)}
                                                 disabled={isSaving}
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition-default shadow-lg shadow-purple-500/25 disabled:opacity-50"
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
                                             >
                                                 {isSaving ? (
                                                     <Loader2 className="animate-spin" size={18} />
@@ -375,24 +405,24 @@ export default function SystemConfig() {
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
                         onClick={() => setShowPermissionModal(false)}
                     />
-                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-scaleIn">
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-5 animate-scaleIn">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">إضافة صلاحية</h2>
                             <button
                                 onClick={() => setShowPermissionModal(false)}
-                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default"
+                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-all hover:text-text"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">السيرفر</label>
+                                <label className="block text-sm font-medium text-text mb-2">السيرفر</label>
                                 <select
                                     value={selectedWorkflowId}
                                     disabled
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text opacity-70"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text opacity-70"
                                 >
                                     <option value={selectedWorkflowId}>
                                         {getWorkflowName(selectedWorkflowId)}
@@ -401,11 +431,11 @@ export default function SystemConfig() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">الدور</label>
+                                <label className="block text-sm font-medium text-text mb-2">الدور</label>
                                 <select
                                     value={newPermissionRole}
                                     onChange={(e) => setNewPermissionRole(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                 >
                                     <option value="TechMember">عضو تقني</option>
                                     <option value="ScientificMember">عضو علمي</option>
@@ -415,13 +445,13 @@ export default function SystemConfig() {
                             <div className="flex gap-3 pt-2">
                                 <button
                                     onClick={() => setShowPermissionModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-default"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                 >
                                     إلغاء
                                 </button>
                                 <button
                                     onClick={handleAddPermission}
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
                                 >
                                     إضافة
                                 </button>

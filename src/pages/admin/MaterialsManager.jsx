@@ -13,7 +13,8 @@ import {
     Loader2,
     AlertCircle,
     X,
-    GraduationCap
+    GraduationCap,
+    Sparkles
 } from 'lucide-react';
 
 export default function MaterialsManager() {
@@ -129,7 +130,7 @@ export default function MaterialsManager() {
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-700 transition-default shadow-lg shadow-green-500/25"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
                 >
                     <Plus size={18} />
                     إضافة مادة
@@ -144,17 +145,18 @@ export default function MaterialsManager() {
                 </div>
             )}
 
-            {/* Materials Grid */}
+            {/* Materials Grid - Card Design */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {materials.map((material) => (
+                {materials.map((material, index) => (
                     <div
                         key={material.materialId}
-                        className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all group"
+                        className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 group"
+                        style={{ animationDelay: `${index * 50}ms` }}
                     >
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                                    <GraduationCap size={24} className="text-green-600" />
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                    <GraduationCap size={24} className="text-primary" />
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-text">{material.materialName}</h3>
@@ -163,17 +165,17 @@ export default function MaterialsManager() {
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                                 <button
                                     onClick={() => handleEdit(material)}
-                                    className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-default"
+                                    className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
                                     title="تعديل"
                                 >
                                     <Pencil size={16} />
                                 </button>
                                 <button
                                     onClick={() => handleDelete(material.materialId)}
-                                    className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-default"
+                                    className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-all"
                                     title="حذف"
                                 >
                                     <Trash2 size={16} />
@@ -181,7 +183,7 @@ export default function MaterialsManager() {
                             </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-border">
-                            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-green-500/20 text-green-600">
+                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/15 text-primary">
                                 {getYearLabel(material.materialYear)}
                             </span>
                         </div>
@@ -190,15 +192,15 @@ export default function MaterialsManager() {
 
                 {materials.length === 0 && (
                     <div className="col-span-full">
-                        <div className="bg-surface-card border border-border rounded-2xl p-8 text-center">
-                            <div className="w-16 h-16 rounded-full bg-surface mx-auto mb-4 flex items-center justify-center">
-                                <BookOpen size={32} className="text-text-muted" />
+                        <div className="bg-surface-card border border-border rounded-2xl p-10 text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-surface mx-auto mb-4 flex items-center justify-center">
+                                <Sparkles size={32} className="text-text-muted" strokeWidth={1.3} />
                             </div>
                             <h3 className="text-lg font-bold text-text mb-2">لا توجد مواد</h3>
-                            <p className="text-sm text-text-muted mb-4">أضف مادة للبدء</p>
+                            <p className="text-sm text-text-muted mb-6">أضف مادة للبدء</p>
                             <button
                                 onClick={openCreateModal}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/20"
                             >
                                 <Plus size={18} />
                                 إضافة مادة
@@ -215,7 +217,7 @@ export default function MaterialsManager() {
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
                         onClick={() => { setShowModal(false); resetForm(); }}
                     />
-                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-4 animate-scaleIn">
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-5 animate-scaleIn">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">
                                 {editingId ? 'تعديل مادة' : 'إضافة مادة جديدة'}
@@ -225,31 +227,31 @@ export default function MaterialsManager() {
                                     setShowModal(false);
                                     resetForm();
                                 }}
-                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default"
+                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default hover:text-text"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">اسم المادة</label>
+                                <label className="block text-sm font-medium text-text mb-2">اسم المادة</label>
                                 <input
                                     type="text"
                                     value={formData.materialName}
                                     onChange={(e) => setFormData({...formData, materialName: e.target.value})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                     placeholder="مثال: هندسة البرمجيات"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">السنة الدراسية</label>
+                                <label className="block text-sm font-medium text-text mb-2">السنة الدراسية</label>
                                 <select
                                     value={formData.materialYear}
                                     onChange={(e) => setFormData({...formData, materialYear: parseInt(e.target.value)})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                 >
                                     <option value={1}>السنة الأولى</option>
                                     <option value={2}>السنة الثانية</option>
@@ -266,13 +268,13 @@ export default function MaterialsManager() {
                                         setShowModal(false);
                                         resetForm();
                                     }}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-default"
+                                    className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
                                 >
                                     إلغاء
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-700 transition-default shadow-lg shadow-green-500/25"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
                                 >
                                     {editingId ? 'تحديث' : 'إضافة'}
                                 </button>

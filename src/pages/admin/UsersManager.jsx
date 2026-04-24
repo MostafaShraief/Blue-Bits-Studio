@@ -35,6 +35,8 @@ export default function UsersManager() {
     const [editingId, setEditingId] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
+    const [usernameError, setUsernameError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -64,6 +66,32 @@ export default function UsersManager() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        // Final validation before API call
+        const usernameRegex = /^[a-zA-Z0-9._]+$/;
+        const passwordRegex = /^[a-zA-Z0-9!@#$%^&*()_+=-]+$/;
+
+        if (formData.username && !usernameRegex.test(formData.username)) {
+            setError('يُسمح فقط للأحرف الإنجليزية والأرقام والنقاط بدون مسافات في اسم المستخدم');
+            return;
+        }
+
+        if (formData.password && !passwordRegex.test(formData.password)) {
+            setError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
+            return;
+        }
+
+        // Username length validation (3-20)
+        if (formData.username && (formData.username.length < 3 || formData.username.length > 20)) {
+            setError('اسم المستخدم يجب أن يكون بين 3 و 20 حرف');
+            return;
+        }
+
+        // Password length validation (min 6)
+        if (formData.password && formData.password.length < 6) {
+            setError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
+            return;
+        }
 
         // Create base payload with common fields
         const payload = {
@@ -159,6 +187,56 @@ export default function UsersManager() {
             resetForm();
             setIsClosing(false);
         }, 200);
+    };
+
+    // Input guard for Username: allow English letters, numbers, dots, underscores only
+    // Using onBeforeInput for proper UX - doesn't block Ctrl combinations
+    const handleUsernameInput = (e) => {
+        // onBeforeInput fires for actual character input, not modifier combinations
+        // e.data is null for non-character keys (arrows, etc.)
+        if (e.data === null || e.data === undefined) return;
+        
+        const char = e.data;
+        
+        // Block space
+        if (char === ' ') {
+            e.preventDefault();
+            setUsernameError('يُسمح فقط بالأحرف الإنجليزية والأرقام والنقاط بدون مسافات');
+            setTimeout(() => setUsernameError(''), 2500);
+            return;
+        }
+        
+        // Allow only English letters, numbers, dots, underscores
+        if (!/^[a-zA-Z0-9._]$/.test(char)) {
+            e.preventDefault();
+            setUsernameError('يُسمح فقط بالأحرف الإنجليزية والأرقام والنقاط بدون مسافات');
+            setTimeout(() => setUsernameError(''), 2500);
+        }
+    };
+
+    // Input guard for Password: allow English letters, numbers, and standard symbols only
+    // Using onBeforeInput for proper UX - doesn't block Ctrl combinations
+    const handlePasswordInput = (e) => {
+        // onBeforeInput fires for actual character input, not modifier combinations
+        // e.data is null for non-character keys (arrows, etc.)
+        if (e.data === null || e.data === undefined) return;
+        
+        const char = e.data;
+        
+        // Block space
+        if (char === ' ') {
+            e.preventDefault();
+            setPasswordError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
+            setTimeout(() => setPasswordError(''), 2500);
+            return;
+        }
+        
+        // Allow only English letters, numbers, and standard password symbols
+        if (!/^[a-zA-Z0-9!@#$%^&*()_+=-]$/.test(char)) {
+            e.preventDefault();
+            setPasswordError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
+            setTimeout(() => setPasswordError(''), 2500);
+        }
     };
 
     const getRoleBadge = (role) => {
@@ -375,12 +453,16 @@ export default function UsersManager() {
                                         type="text"
                                         value={formData.username}
                                         onChange={(e) => setFormData({...formData, username: e.target.value})}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        onBeforeInput={handleUsernameInput}
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${usernameError ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                         placeholder="أدخل اسم المستخدم"
                                         dir="ltr"
                                         disabled={editingId}
                                         required={!editingId}
                                     />
+                                    {usernameError && (
+                                        <p className="text-xs text-danger mt-1">{usernameError}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -397,7 +479,8 @@ export default function UsersManager() {
                                         type={showPassword ? 'text' : 'password'}
                                         value={formData.password}
                                         onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                        className="w-full ps-10 pe-10 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        onBeforeInput={handlePasswordInput}
+                                        className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${passwordError ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                         placeholder="أدخل كلمة المرور"
                                         dir="ltr"
                                         required={!editingId}
@@ -410,6 +493,9 @@ export default function UsersManager() {
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
+                                {passwordError && (
+                                    <p className="text-xs text-danger mt-1">{passwordError}</p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

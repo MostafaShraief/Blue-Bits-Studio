@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
 using Microsoft.Extensions.Logging;
+using System.ComponentModel.DataAnnotations;
 
 namespace BlueBits.Api.Controllers;
 
@@ -15,6 +16,9 @@ public class UpdateUserRequest
     public string UserRole { get; set; } = string.Empty;
     public int BatchNumber { get; set; }
     public string? TelegramUsername { get; set; }
+    
+    [RegularExpression(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$", ErrorMessage = "Password must contain only English letters, numbers, and standard symbols without spaces.")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
     public string? Password { get; set; } // Optional: only updated if provided
 }
 
@@ -42,6 +46,11 @@ public class AdminController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateUser([FromBody] User user)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername)
         if (!string.IsNullOrWhiteSpace(user.TelegramUsername))
         {
@@ -65,6 +74,11 @@ public class AdminController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest dto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
 

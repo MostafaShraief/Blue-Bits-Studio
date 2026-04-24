@@ -1,31 +1,36 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { TourProvider } from './contexts/TourContext';
 import Layout from './components/Layout';
 import AdminRoute from './components/AdminRoute';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import Dashboard from './pages/Dashboard';
-import ExtractionWizard from './pages/ExtractionWizard';
-import CoordinationWizard from './pages/CoordinationWizard';
-import PandocWizard from './pages/PandocWizard';
-import DrawWizard from './pages/DrawWizard';
-import QuizHub from './pages/QuizHub';
-import History from './pages/History';
-import Tour from './pages/Tour';
-import MergeWizard from './pages/MergeWizard';
-import Login from './pages/Login';
-import Unauthorized from './pages/Unauthorized';
-import AdminUsers from './pages/admin/UsersManager';
-import AdminMaterials from './pages/admin/MaterialsManager';
-import AdminSystem from './pages/admin/SystemConfig';
+import PageLoader from './components/PageLoader';
+
+// Lazy load all page components
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ExtractionWizard = lazy(() => import('./pages/ExtractionWizard'));
+const CoordinationWizard = lazy(() => import('./pages/CoordinationWizard'));
+const PandocWizard = lazy(() => import('./pages/PandocWizard'));
+const DrawWizard = lazy(() => import('./pages/DrawWizard'));
+const QuizHub = lazy(() => import('./pages/QuizHub'));
+const History = lazy(() => import('./pages/History'));
+const Tour = lazy(() => import('./pages/Tour'));
+const MergeWizard = lazy(() => import('./pages/MergeWizard'));
+const Login = lazy(() => import('./pages/Login'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const AdminUsers = lazy(() => import('./pages/admin/UsersManager'));
+const AdminMaterials = lazy(() => import('./pages/admin/MaterialsManager'));
+const AdminSystem = lazy(() => import('./pages/admin/SystemConfig'));
 
 export default function App() {
     return (
         <AuthProvider>
             <BrowserRouter>
                 <TourProvider>
-                    <Routes>
+                    <Suspense fallback={<PageLoader />}>
+                        <Routes>
                         {/* Public route */}
                         <Route path="login" element={<Login />} />
                         <Route path="403" element={<Unauthorized />} />
@@ -70,6 +75,7 @@ export default function App() {
                             </Route>
                         </Route>
                     </Routes>
+                    </Suspense>
                 </TourProvider>
             </BrowserRouter>
         </AuthProvider>

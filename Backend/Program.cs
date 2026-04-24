@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
@@ -39,7 +40,17 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Policy for workflow endpoints - blocks Admin, allows all other roles dynamically
+    options.AddPolicy("WorkflowPolicy", policy =>
+        policy.RequireAssertion(context =>
+        {
+            var role = context.User.FindFirstValue(ClaimTypes.Role);
+            // Block Admin, allow any other role (dynamic - new roles will work automatically)
+            return role != null && role != "Admin";
+        }));
+});
 
 // Register the Background Cleanup Service
 builder.Services.AddHostedService<OrphanFileCleanupService>();
@@ -116,9 +127,9 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.MapControllers();
 
-// Map Minimal Endpoints and Secure Them
-app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi().RequireAuthorization();
+// Map Minimal Endpoints and Secure Them with WorkflowPolicy (excludes Admin)
+app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi().RequireAuthorization("WorkflowPolicy");
 
-app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi().RequireAuthorization();
+app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi().RequireAuthorization("WorkflowPolicy");
 
 app.Run();

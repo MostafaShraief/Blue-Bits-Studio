@@ -31,11 +31,10 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
+        // Block Admins from accessing session list
+        if (User.IsInRole("Admin")) return Forbid();
+
         var query = _db.Sessions.AsQueryable();
-        if (role != "Admin")
-        {
-            query = query.Where(s => s.UserId == userId);
-        }
 
         // Get total count for pagination info
         var totalCount = await query.CountAsync();
@@ -119,6 +118,9 @@ public class SessionsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
+        // Block Admins from creating sessions
+        if (User.IsInRole("Admin")) return Forbid();
+
         if (string.IsNullOrEmpty(userIdStr) || string.IsNullOrEmpty(role))
             return Unauthorized();
             
@@ -131,7 +133,7 @@ public class SessionsController : ControllerBase
         if (workflow == null || workflow.IsActive == 0)
             return BadRequest(new { message = "Invalid or inactive workflow." });
 
-        if (role != "Admin" && !workflow.Permissions.Any(p => p.RoleName == role))
+        if (!workflow.Permissions.Any(p => p.RoleName == role))
             return Forbid();
 
         int? materialId = null;
@@ -169,13 +171,16 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
         
+        // Block Admins from uploading files
+        if (User.IsInRole("Admin")) return Forbid();
+        
         var session = await _db.Sessions
             .Include(s => s.Files)
             .Include(s => s.Notes)
             .FirstOrDefaultAsync(s => s.SessionId == id);
 
         if (session == null) return NotFound();
-        if (session.UserId != userId && role != "Admin") return Forbid();
+        if (session.UserId != userId) return Forbid();
 
         var files = form.Files.GetFiles("files");
         var notes = form["notes"];

@@ -28,11 +28,14 @@ public class PromptsController : ControllerBase
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
         var role = User.FindFirstValue(ClaimTypes.Role);
 
+        // Block Admins from accessing prompts
+        if (User.IsInRole("Admin")) return Forbid();
+
         // Fetch session to check ownership and get its WorkflowId
         var session = await _db.Sessions.FindAsync(sessionId);
         if (session == null) return NotFound("Session not found");
         
-        if (role != "Admin" && session.UserId != userId) 
+        if (session.UserId != userId) 
             return Forbid();
 
         // Fetch the Prompt based on the Session's WorkflowId AND the requested SystemCode
@@ -48,6 +51,11 @@ public class PromptsController : ControllerBase
     [HttpPost("compile")]
     public async Task<IActionResult> CompilePrompt([FromBody] CompilePromptRequest req)
     {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        // Block Admins from compiling prompts
+        if (User.IsInRole("Admin")) return Forbid();
+
         if (string.IsNullOrWhiteSpace(req.systemCode))
         {
             return BadRequest("systemCode is required.");

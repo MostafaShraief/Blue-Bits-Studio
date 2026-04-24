@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../../utils/api';
-import { Users, Plus, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminUsers() {
     const [users, setUsers] = useState([]);
@@ -8,6 +8,7 @@ export default function AdminUsers() {
     const [error, setError] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -181,13 +182,22 @@ export default function AdminUsers() {
                                 <label className="block text-sm font-medium text-text mb-1.5">
                                     كلمة المرور {editingUser && '(اتركها فارغة لإبقاء الحالية)'}
                                 </label>
-                                <input
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text"
-                                    required={!editingUser}
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                        className="w-full px-4 py-2.5 pe-10 rounded-xl border border-border bg-surface text-sm text-text"
+                                        required={!editingUser}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 end-0 pe-3 flex items-center text-text-muted hover:text-text transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

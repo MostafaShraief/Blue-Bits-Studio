@@ -227,7 +227,7 @@ function useModalExit(isOpen) {
     return { shouldRender, isExiting };
 }
 
-function SettingsModal({ isOpen, onClose, darkMode, setDarkMode, autoSave, setAutoSave, defaultMaterial, setDefaultMaterial, onLogout }) {
+function SettingsModal({ isOpen, onClose, darkMode, setDarkMode, autoSave, setAutoSave, defaultMaterial, setDefaultMaterial, onLogout, isAdmin }) {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const { shouldRender, isExiting } = useModalExit(isOpen);
 
@@ -293,29 +293,33 @@ function SettingsModal({ isOpen, onClose, darkMode, setDarkMode, autoSave, setAu
                         </div>
                     </label>
 
-                    {/* Auto Save Toggle */}
-                    <label className="flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center gap-3 text-sm text-text">
-                            <Save size={18} />
-                            <span>الحفظ التلقائي</span>
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={autoSave}
-                                onChange={(e) => setAutoSave(e.target.checked)}
-                            />
-                            {/* Visible toggle: gray background in off state, primary in on state */}
-                            <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </div>
-                    </label>
+                    {/* Auto Save Toggle - Hidden for Admin */}
+                    {!isAdmin && (
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <div className="flex items-center gap-3 text-sm text-text">
+                                <Save size={18} />
+                                <span>الحفظ التلقائي</span>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={autoSave}
+                                    onChange={(e) => setAutoSave(e.target.checked)}
+                                />
+                                {/* Visible toggle: gray background in off state, primary in on state */}
+                                <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                            </div>
+                        </label>
+                    )}
 
-                    {/* Default Material */}
-                    <MaterialSelector
-                        value={defaultMaterial}
-                        onChange={setDefaultMaterial}
-                    />
+                    {/* Default Material - Hidden for Admin */}
+                    {!isAdmin && (
+                        <MaterialSelector
+                            value={defaultMaterial}
+                            onChange={setDefaultMaterial}
+                        />
+                    )}
                 </div>
 
                 {/* Footer with Logout - bg-surface-card matches parent to fix grey corners */}

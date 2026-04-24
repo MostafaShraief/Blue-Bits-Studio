@@ -167,6 +167,7 @@ export default function Sidebar() {
                 defaultMaterial={defaultMaterial}
                 setDefaultMaterial={setDefaultMaterial}
                 onLogout={handleLogout}
+                isAdmin={user?.role === 'Admin'}
             />
         </>
     );

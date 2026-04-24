@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
     FileSearch,
     AlignRight,
@@ -81,7 +81,15 @@ const QUICK_ACTIONS = [
 export default function Dashboard() {
     const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0 });
     const [recent, setRecent] = useState([]);
-    const { hasWorkflowAccess } = useAuth();
+    const { user, hasWorkflowAccess } = useAuth();
+    const navigate = useNavigate();
+
+    // Redirect Admin users to admin panel
+    useEffect(() => {
+        if (user?.role === 'Admin') {
+            navigate('/admin/users', { replace: true });
+        }
+    }, [user, navigate]);
 
     // Filter quick actions based on user's RBAC permissions
     const authorizedActions = QUICK_ACTIONS.filter(action => {

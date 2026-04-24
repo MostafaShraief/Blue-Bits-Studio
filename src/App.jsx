@@ -20,6 +20,7 @@ const Tour = lazy(() => import('./pages/Tour'));
 const MergeWizard = lazy(() => import('./pages/MergeWizard'));
 const Login = lazy(() => import('./pages/Login'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const AdminUnauthorized = lazy(() => import('./pages/Admin-Unauthorized'));
 const AdminUsers = lazy(() => import('./pages/admin/UsersManager'));
 const AdminMaterials = lazy(() => import('./pages/admin/MaterialsManager'));
 const AdminSystem = lazy(() => import('./pages/admin/SystemConfig'));
@@ -33,7 +34,7 @@ export default function App() {
                         <Routes>
                         {/* Public route */}
                         <Route path="login" element={<Login />} />
-                        <Route path="403" element={<Unauthorized />} />
+                        <Route path="403" element={<AdminUnauthorized />} />
 
                         {/* Admin routes — require Admin role */}
                         <Route element={<AdminRoute />}>

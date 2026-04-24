@@ -28,6 +28,11 @@ export default function ProtectedRoute({ requiredCode }) {
         return <Navigate to="/login" replace />;
     }
 
+    // Admin users cannot access workflow routes → redirect to /403
+    if (user.role === 'Admin') {
+        return <Navigate to="/403" replace />;
+    }
+
     // Authenticated but lacks workflow access → show 403
     if (requiredCode && !hasWorkflowAccess(requiredCode)) {
         return (

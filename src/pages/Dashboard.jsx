@@ -93,8 +93,8 @@ export default function Dashboard() {
         const load = async () => {
             const s = await fetchStats();
             setStats(s);
-            const data = await fetchSessions();
-            setRecent(data.slice(0, 5));
+            const data = await fetchSessions(1, 5); // Fetch first 5 for recent sessions
+            setRecent(data.sessions ? data.sessions.slice(0, 5) : []);
         };
         load();
     }, []);

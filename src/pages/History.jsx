@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye } from 'lucide-react';
+import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2 } from 'lucide-react';
 import { fetchSessions, removeSession } from '../utils/api';
 import { Link } from 'react-router';
 
@@ -47,14 +47,41 @@ const TYPE_META = {
 export default function History() {
     const [sessions, setSessions] = useState([]);
     const [filter, setFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [totalCount, setTotalCount] = useState(0);
+
+    const limit = 20;
 
     useEffect(() => {
-        loadSessions();
-    }, []);
+        // Reset sessions when filter changes
+        setSessions([]);
+        setPage(1);
+        setHasMore(false);
+        loadSessions(1);
+    }, [filter]);
 
-    const loadSessions = async () => {
-        const data = await fetchSessions();
-        setSessions(data);
+    const loadSessions = async (pageNum) => {
+        const data = await fetchSessions(pageNum, limit);
+        if (data.sessions) {
+            if (pageNum === 1) {
+                setSessions(data.sessions);
+            } else {
+                setSessions(prev => [...prev, ...data.sessions]);
+            }
+            setHasMore(data.hasMore);
+            setTotalCount(data.totalCount);
+        }
+    };
+
+    const handleLoadMore = async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        await loadSessions(nextPage);
+        setPage(nextPage);
+        setLoadingMore(false);
     };
 
     const filtered = useMemo(() => {
@@ -65,7 +92,11 @@ export default function History() {
     const handleDelete = async (id) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.')) {
             await removeSession(id);
-            await loadSessions();
+            // Reload from page 1 after deletion
+            setSessions([]);
+            setPage(1);
+            setHasMore(false);
+            await loadSessions(1);
         }
     };
 
@@ -153,6 +184,33 @@ export default function History() {
                             </div>
                         );
                     })}
+
+                    {/* Load More Button */}
+                    {hasMore && (
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={handleLoadMore}
+                                disabled={loadingMore}
+                                className="px-6 py-3 rounded-xl text-sm font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                            >
+                                {loadingMore ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        جارٍ التحميل...
+                                    </>
+                                ) : (
+                                    'تحميل المزيد'
+                                )}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Sessions Count */}
+                    {filtered.length > 0 && (
+                        <p className="text-xs text-text-muted text-center mt-4">
+                            عرض {filtered.length} من {totalCount} جلسة
+                        </p>
+                    )}
                 </div>
             )}
         </div>

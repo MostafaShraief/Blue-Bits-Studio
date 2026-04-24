@@ -25,7 +25,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetSessions()
+    public async Task<IActionResult> GetSessions([FromQuery] int page = 1, [FromQuery] int limit = 20)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
@@ -37,10 +37,15 @@ public class SessionsController : ControllerBase
             query = query.Where(s => s.UserId == userId);
         }
 
+        // Get total count for pagination info
+        var totalCount = await query.CountAsync();
+
         var sessions = await query
             .Include(s => s.Material)
             .Include(s => s.Workflow)
             .OrderByDescending(s => s.CreatedAt)
+            .Skip((page - 1) * limit)
+            .Take(limit)
             .Select(s => new SessionSummaryDto
             {
                 Id = s.SessionId,
@@ -51,7 +56,8 @@ public class SessionsController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(sessions);
+        // Return both sessions and pagination metadata
+        return Ok(new { sessions, totalCount, page, limit, hasMore = (page * limit) < totalCount });
     }
 
     [HttpGet("{id}")]

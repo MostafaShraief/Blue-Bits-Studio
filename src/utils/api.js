@@ -85,15 +85,15 @@ export async function compilePromptStateless(payload) {
     }
 }
 
-/** Get all sessions */
-export async function fetchSessions() {
+/** Get all sessions with pagination */
+export async function fetchSessions(page = 1, limit = 20) {
     try {
-        const res = await authFetch(API_BASE);
+        const res = await authFetch(`${API_BASE}?page=${page}&limit=${limit}`);
         if (!res.ok) throw new Error('Network response was not ok');
         return await res.json();
     } catch (e) {
         console.error('Failed to fetch sessions:', e);
-        return [];
+        return { sessions: [], totalCount: 0, page: 1, limit: 20, hasMore: false };
     }
 }
 
@@ -279,7 +279,8 @@ export const mergeDocxFiles = async (files, metadata) => {
 
 /** Get stats — counts by SystemCode (backend workflowType values) */
 export async function fetchStats() {
-    const sessions = await fetchSessions();
+    const data = await fetchSessions(1, 1000); // Fetch all sessions for stats (high limit)
+    const sessions = data.sessions || [];
     return {
         total: sessions.length,
         // Extraction workflows

@@ -91,6 +91,10 @@ export default function Dashboard() {
         }
     }, [user, navigate]);
 
+    // Check if there are any accessible tours for the user's permissions
+    const TOUR_SYSTEM_CODES = ['LEC_EXT', 'BANK_EXT', 'DRAW'];
+    const hasAnyTourAccess = TOUR_SYSTEM_CODES.some(code => hasWorkflowAccess(code));
+
     // Filter quick actions based on user's RBAC permissions
     const authorizedActions = QUICK_ACTIONS.filter(action => {
         if (!action.systemCode) return true;
@@ -117,7 +121,8 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Welcome Tour Banner */}
+            {/* Welcome Tour Banner - only show if user has access to at least one tour */}
+            {hasAnyTourAccess && (
             <div className="bg-gradient-to-r from-primary to-blue-600 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl shadow-primary/20">
                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div>
@@ -140,6 +145,7 @@ export default function Dashboard() {
                 {/* Decorative background elements */}
                 <div className="absolute -end-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

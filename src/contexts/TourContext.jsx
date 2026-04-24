@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { useAuth } from './AuthContext';
 
 const TourContext = createContext();
+
+// Mapping from workflowId to systemCode for security validation
+const WORKFLOW_SYSTEM_CODES = {
+    lecture: 'LEC_EXT',
+    bank: 'BANK_EXT',
+    draw: 'DRAW',
+};
 
 const TOUR_DATA = {
     lecture: [
@@ -239,8 +247,16 @@ export const TourProvider = ({ children }) => {
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const navigate = useNavigate();
     const location = useLocation();
+    const { hasWorkflowAccess } = useAuth();
 
     const startTour = (workflowId) => {
+        // Security check: verify user has permission for this workflow
+        const requiredSystemCode = WORKFLOW_SYSTEM_CODES[workflowId];
+        if (requiredSystemCode && !hasWorkflowAccess(requiredSystemCode)) {
+            console.warn(`TourContext: Unauthorized attempt to start tour '${workflowId}' - no permission for '${requiredSystemCode}'`);
+            return;
+        }
+
         if (TOUR_DATA[workflowId]) {
             setCurrentWorkflow(workflowId);
             setCurrentStepIndex(0);

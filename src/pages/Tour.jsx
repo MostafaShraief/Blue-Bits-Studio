@@ -12,10 +12,12 @@ import {
     Zap
 } from 'lucide-react';
 import { useTour } from '../contexts/TourContext';
+import { useAuth } from '../contexts/AuthContext';
 
-const WORKFLOWS = [
+const TOUR_WORKFLOWS = [
     {
         id: 'lecture',
+        systemCode: 'LEC_EXT',
         title: 'استخراج محاضرة',
         icon: BookOpen,
         color: 'text-primary',
@@ -42,6 +44,7 @@ const WORKFLOWS = [
     },
     {
         id: 'bank',
+        systemCode: 'BANK_EXT',
         title: 'استخراج بنك أسئلة',
         icon: FlaskConical,
         color: 'text-cyan',
@@ -68,6 +71,7 @@ const WORKFLOWS = [
     },
     {
         id: 'draw',
+        systemCode: 'DRAW',
         title: 'رسم',
         icon: Palette,
         color: 'text-success',
@@ -94,6 +98,28 @@ const WORKFLOWS = [
 
 export default function Tour() {
     const { startTour } = useTour();
+    const { hasWorkflowAccess } = useAuth();
+
+    // Filter tours based on user's RBAC permissions
+    const availableTours = TOUR_WORKFLOWS.filter(tour => hasWorkflowAccess(tour.systemCode));
+
+    // Show empty state message if no tours are available for the user's permissions
+    if (availableTours.length === 0) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-12 animate-fade-slide-in pb-12">
+                {/* Header */}
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mb-4">
+                        <Sparkles size={32} strokeWidth={1.5} />
+                    </div>
+                    <h1 className="text-3xl font-bold text-text">جولة تعريفية</h1>
+                    <p className="text-text-secondary max-w-2xl mx-auto leading-relaxed">
+                        لا توجد جولات تعليمية متاحة لصلاحيات حسابك حالياً.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-12 animate-fade-slide-in pb-12">
@@ -110,7 +136,7 @@ export default function Tour() {
 
             {/* Workflows */}
             <div className="space-y-8">
-                {WORKFLOWS.map((workflow, index) => {
+                {availableTours.map((workflow, index) => {
                     const Icon = workflow.icon;
                     return (
                         <div 

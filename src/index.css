@@ -141,11 +141,11 @@ body {
 }
 
 .animate-fadeOut {
-  animation: fadeOut 0.2s ease-out;
+  animation: fadeOut 0.2s ease-in forwards;
 }
 
 .animate-scaleOut {
-  animation: scaleOut 0.2s ease-out;
+  animation: scaleOut 0.2s ease-in forwards;
 }
 
 @layer base {

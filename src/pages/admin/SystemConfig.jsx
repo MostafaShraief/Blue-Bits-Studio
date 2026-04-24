@@ -138,15 +138,12 @@ export default function SystemConfig() {
     }
 
     return (
-        <div className="space-y-6" dir="rtl">
+        <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in" dir="rtl">
             {/* Header */}
-            <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber/10 flex items-center justify-center">
-                    <Settings2 size={24} className="text-amber" />
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text">إعدادات النظام</h1>
-                    <p className="text-sm text-text-muted">إدارة السيرفرات والتعليمات</p>
+                    <p className="text-sm text-text-secondary mt-1">إدارة السيرفرات والتعليمات</p>
                 </div>
             </div>
 
@@ -373,8 +370,12 @@ export default function SystemConfig() {
 
             {/* Permission Modal */}
             {showPermissionModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm animate-fade-slide-in space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div 
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+                        onClick={() => setShowPermissionModal(false)}
+                    />
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-scaleIn">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">إضافة صلاحية</h2>
                             <button

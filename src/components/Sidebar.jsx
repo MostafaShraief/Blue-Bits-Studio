@@ -9,7 +9,10 @@ import {
     Layers,
     FileJson,
     Clock,
-    Settings
+    Settings,
+    Users,
+    BookOpen,
+    Settings2
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
@@ -18,14 +21,19 @@ import SettingsModal from './SettingsModal';
 // Clean imports only - SettingsModal moved to separate file
 
 const NAV_ITEMS = [
-    { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null },
-    { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT' },
-    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'COORD' },
-    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC' },
-    { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE' },
-    { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW' },
-    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS' },
-    { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST' },
+    { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null, role: 'Member' },
+    { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT', role: 'Member' },
+    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'COORD', role: 'Member' },
+    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC', role: 'Member' },
+    { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE', role: 'Member' },
+    { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW', role: 'Member' },
+    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS', role: 'Member' },
+    { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST', role: 'Member' },
+    
+    // Admin routes
+    { to: '/admin/users', label: 'إدارة المستخدمين', icon: Users, systemCode: null, role: 'Admin' },
+    { to: '/admin/materials', label: 'إدارة المواد', icon: BookOpen, systemCode: null, role: 'Admin' },
+    { to: '/admin/system', label: 'إعدادات النظام', icon: Settings2, systemCode: null, role: 'Admin' },
 ];
 
 export default function Sidebar() {
@@ -71,22 +79,39 @@ export default function Sidebar() {
 
                 {/* Navigation */}
                 <nav className="flex-1 flex flex-col gap-1 p-3 mt-2">
-                    {NAV_ITEMS.map(({ to, label, icon: Icon, systemCode }) => {
+                    {NAV_ITEMS.map(({ to, label, icon: Icon, systemCode, role }) => {
+                        const isAdmin = user?.role === 'Admin';
+                        
+                        // Hide items not belonging to the user's role
+                        if (isAdmin && role !== 'Admin') return null;
+                        if (!isAdmin && role === 'Admin') return null;
+
                         // History is universal for authenticated non-Admins, not a workflow SystemCode
                         const isHistory = systemCode === 'HIST';
                         // Extraction is a special case: check for either LEC_EXT or BANK_EXT
                         const isExtraction = systemCode === 'LEC_EXT';
-                        const isAuthorized = isHistory
-                            ? (!!user && user.role !== 'Admin')
-                            : isExtraction
-                                ? (user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT'))
-                                : (!systemCode || user?.allowedWorkflows?.includes(systemCode));
+                        
+                        let isAuthorized = true;
+                        if (!isAdmin) {
+                            if (isHistory) {
+                                isAuthorized = !!user;
+                            } else if (isExtraction) {
+                                isAuthorized = user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT');
+                            } else if (systemCode) {
+                                isAuthorized = user?.allowedWorkflows?.includes(systemCode);
+                            }
+                        }
+
                         if (!isAuthorized) return null;
+
+                        // Admin paths should exactly match for active state
+                        const isExact = to === '/' || to.startsWith('/admin/');
+                        
                         return (
                             <NavLink
                                 key={to}
                                 to={to}
-                                end={to === '/'}
+                                end={isExact}
                                 className={({ isActive }) =>
                                     `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-default
                                     ${isActive

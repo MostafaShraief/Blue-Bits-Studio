@@ -155,17 +155,12 @@ export default function UsersManager() {
     }
 
     return (
-        <div className="space-y-6" dir="rtl">
+        <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in" dir="rtl">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                        <Users size={24} className="text-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
-                        <p className="text-sm text-text-muted">{users.length} مستخدم</p>
-                    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
+                    <p className="text-sm text-text-secondary mt-1">إجمالي {users.length} مستخدم</p>
                 </div>
                 <button
                     onClick={openCreateModal}
@@ -258,8 +253,12 @@ export default function UsersManager() {
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-surface-card border border-border rounded-2xl p-6 w-full max-w-lg space-y-4 animate-fade-slide-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div 
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+                        onClick={() => { setShowModal(false); resetForm(); }}
+                    />
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 animate-scaleIn">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold text-text">
                                 {editingId ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}

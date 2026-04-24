@@ -4,7 +4,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { TourProvider } from './contexts/TourContext';
 import Layout from './components/Layout';
 import AdminRoute from './components/AdminRoute';
-import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
 
@@ -38,7 +37,7 @@ export default function App() {
 
                         {/* Admin routes — require Admin role */}
                         <Route element={<AdminRoute />}>
-                            <Route element={<AdminLayout />}>
+                            <Route element={<Layout />}>
                                 <Route path="admin/users" element={<AdminUsers />} />
                                 <Route path="admin/materials" element={<AdminMaterials />} />
                                 <Route path="admin/system" element={<AdminSystem />} />

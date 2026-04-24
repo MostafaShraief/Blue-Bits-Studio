@@ -41,15 +41,13 @@ public class SessionsController : ControllerBase
             .Include(s => s.Material)
             .Include(s => s.Workflow)
             .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new
+            .Select(s => new SessionSummaryDto
             {
-                id = s.SessionId,
-                materialName = s.Material != null ? s.Material.MaterialName : "Unknown",
-                lectureNumber = s.LectureNumber,
-                type = s.LectureType,
-                workflowType = s.Workflow.SystemCode,
-                quizData = s.QuizData,
-                createdAt = s.CreatedAt
+                Id = s.SessionId,
+                MaterialName = s.Material != null ? s.Material.MaterialName : "Unknown",
+                WorkflowType = s.Workflow.SystemCode,
+                CreatedAt = s.CreatedAt,
+                LectureNumber = s.LectureNumber
             })
             .ToListAsync();
 
@@ -240,4 +238,14 @@ public class CreateSessionRequest
     public required string LectureType { get; set; }
     public string? QuizData { get; set; }
     public string? GeneralNotes { get; set; }
+}
+
+// DTO for session list summary (lightweight - avoids fetching heavy fields like QuizData, CompiledPrompt)
+public class SessionSummaryDto
+{
+    public int Id { get; set; }
+    public string MaterialName { get; set; } = string.Empty;
+    public string WorkflowType { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+    public int LectureNumber { get; set; }
 }

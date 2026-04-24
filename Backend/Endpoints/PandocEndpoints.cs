@@ -28,11 +28,11 @@ public static class PandocEndpoints
             await File.WriteAllTextAsync(tempMd, req.MarkdownText);
 
             var templateName = string.IsNullOrEmpty(req.TemplateName) ? "Pandoc-Theo.dotx" : req.TemplateName;
-            var templatePath = Path.Combine(env.ContentRootPath, "Resources", "PandocTemplates", templateName);
+            var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", templateName);
             templatePath = Path.GetFullPath(templatePath);
 
             var finalTemplateName = templateName.Replace(".dotx", "-Final-Step.dotx");
-            var finalTemplatePath = Path.Combine(env.ContentRootPath, "Resources", "PandocTemplates", finalTemplateName);
+            var finalTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", finalTemplateName);
             finalTemplatePath = Path.GetFullPath(finalTemplatePath);
 
             var uploadDir = Path.Combine(env.ContentRootPath, "uploads", "pandoc");

@@ -1,22 +1,43 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 
 /**
  * Image upload card with per-image note textarea.
+ * Compresses images before adding to state.
  *
  * @param {{ images: Array, onAdd: (file:File)=>void, onRemove: (index:number)=>void, onNoteChange: (index:number, text:string)=>void }} props
  */
 export default function ImageUploader({ images, onAdd, onRemove, onNoteChange, maxImages = Infinity }) {
     const inputRef = useRef(null);
+    const [isCompressing, setIsCompressing] = useState(false);
 
-    const handleFiles = (fileList) => {
-        let count = images.length;
-        Array.from(fileList).forEach((file) => {
-            if (file.type.startsWith('image/') && count < maxImages) {
-                onAdd(file);
-                count++;
+    const handleFiles = async (fileList) => {
+        const newImages = [];
+        
+        for (const file of Array.from(fileList)) {
+            if (file.type.startsWith('image/') && images.length + newImages.length < maxImages) {
+                try {
+                    // Compress the image before adding to state
+                    const options = {
+                        maxSizeMB: 1,
+                        maxWidthOrHeight: 1920,
+                        useWebWorker: true,
+                    };
+                    const compressedFile = await imageCompression(file, options);
+                    newImages.push(compressedFile);
+                } catch (error) {
+                    console.error('Failed to compress image:', file.name, error);
+                    // If compression fails, use original file
+                    newImages.push(file);
+                }
             }
-        });
+        }
+        
+        // Add all compressed files to state
+        for (const file of newImages) {
+            onAdd(file);
+        }
     };
 
     const handleDrop = (e) => {

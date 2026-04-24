@@ -383,7 +383,8 @@ Manages user sessions - CRUD operations, file uploads, and prompt compilation.
 - Saves files to uploads/sessions/{id}/
 
 ### 8. Additional Info
-Key endpoints: GET/POST /api/sessions, POST /api/sessions/{id}/files
+- Key endpoints: GET/POST /api/sessions, POST /api/sessions/{id}/files
+- **File Path Storage:** `LocalFilePath` stores relative paths (e.g., `sessions/{id}/file-0`) for proper URL resolution via `/uploads` static file serving. Do NOT store absolute paths.
 
 ---
 

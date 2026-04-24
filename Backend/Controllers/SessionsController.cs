@@ -208,7 +208,8 @@ public class SessionsController : ControllerBase
             var fileEntity = new Models.File
             {
                 SessionId = id,
-                LocalFilePath = Path.GetFullPath(localFilePath),
+                // Store relative path (relative to uploads directory) for correct URL resolution
+                LocalFilePath = $"sessions/{id}/{fileName}",
                 FileType = fileType,
                 OrderIndex = index
             };

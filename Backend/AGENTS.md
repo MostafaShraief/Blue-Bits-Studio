@@ -94,7 +94,8 @@ Main entry point for the .NET Web API application. Configures and bootstraps the
 - BlueBits.Api.Data, Endpoints, Services
 
 ### 8. Additional Info
-Commented out HTTPS redirection for local development.
+- Commented out HTTPS redirection for local development.
+- **Pure RESTful API:** The backend serves only API endpoints and static files (uploads). It does NOT serve frontend assets or provide SPA fallback. Frontend routing is handled entirely by Vite (development) or Nginx (production).
 
 ---
 

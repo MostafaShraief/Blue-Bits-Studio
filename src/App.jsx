@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { Suspense, lazy } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { TourProvider } from './contexts/TourContext';
 import Layout from './components/Layout';
 import AdminRoute from './components/AdminRoute';
+import AuthOnlyRoute from './components/AuthOnlyRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
 
@@ -19,6 +20,7 @@ const Tour = lazy(() => import('./pages/Tour'));
 const MergeWizard = lazy(() => import('./pages/MergeWizard'));
 const Login = lazy(() => import('./pages/Login'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 const AdminUnauthorized = lazy(() => import('./pages/Admin-Unauthorized'));
 const AdminUsers = lazy(() => import('./pages/admin/UsersManager'));
 const AdminMaterials = lazy(() => import('./pages/admin/MaterialsManager'));
@@ -74,6 +76,16 @@ export default function App() {
                                 <Route path="history" element={<History />} />
                             </Route>
                         </Route>
+
+                        {/* Catch-all for any unmatched route - shows 404 with Layout sidebar for authenticated users */}
+                        <Route element={<AuthOnlyRoute />}>
+                            <Route element={<Layout />}>
+                                <Route path="*" element={<NotFound />} />
+                            </Route>
+                        </Route>
+
+                        {/* Catch-all for unauthenticated users - redirect to login */}
+                        <Route path="*" element={<Navigate to="/login" replace />} />
                     </Routes>
                     </Suspense>
                 </TourProvider>

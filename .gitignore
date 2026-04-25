@@ -1,5 +1,9 @@
-# Dependencies
-node_modules/
+# Frontend Dependencies
+Frontend/node_modules/
+
+# Frontend Build output
+Frontend/dist/
+Frontend/.vite/
 
 # Build output
 dist/

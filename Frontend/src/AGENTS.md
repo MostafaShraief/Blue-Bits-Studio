@@ -1,5 +1,14 @@
 # Frontend AI Agent Instructions
 
+## Working Directory
+All frontend commands should be run from the `Frontend/` folder:
+```bash
+cd Frontend
+pnpm dev      # Start development server
+pnpm build   # Production build
+pnpm preview # Preview production build
+```
+
 ## Project Vision & UI Paradigm
 It is a unified hub containing multiple sub-systems (Workflows). 
 - **Categorization:** Tools must be grouped logically (e.g., "Extraction Tools", "Processing Tools", "Question Bank Tools").

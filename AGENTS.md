@@ -20,7 +20,7 @@ If you are working on Backend, read `BACKEND_AGENTS.md`.
 ### Reference
 To understand both frontend and backend, **always** read:
 - **AGENTS.md for Backend:** Read `Backend/AGENTS.md` and `DATABASE.md` for C#, DB structure, SystemCodes, physical file management, and files documentation.
-- **AGENTS.md for Frontend:** Read `src/AGENTS.md` for UI categorization, Arabic RTL styling, dynamic feature rendering, Tailwind v4 rules, and files documentation.
+- **AGENTS.md for Frontend:** Read `Frontend/src/AGENTS.md` for UI categorization, Arabic RTL styling, dynamic feature rendering, Tailwind v4 rules, and files documentation.
 
 ### Master Code Rules
 

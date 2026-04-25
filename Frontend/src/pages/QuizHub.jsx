@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { saveQuizSession, fetchSession, createSession, compilePromptStateless } from '../utils/api';
+import { saveQuizSession, saveSessionContent, fetchSession, createSession, compilePromptStateless } from '../utils/api';
 
 const STEPS = ['القائمة', 'إعداد الجلسة', 'برومبت الأسئلة', 'محرر JSON'];
 
@@ -55,10 +55,12 @@ export default function QuizHub() {
   const loadSession = async (id) => {
     try {
       const session = await fetchSession(id);
-      if (session && session.quizData) {
-        const quizArray = typeof session.quizData === 'string' 
-          ? JSON.parse(session.quizData) 
-          : session.quizData;
+      // Read from sessionContents instead of quizData
+      const sessionContent = session.sessionContents?.[0];
+      if (sessionContent?.contentBody) {
+        const quizArray = typeof sessionContent.contentBody === 'string' 
+          ? JSON.parse(sessionContent.contentBody) 
+          : sessionContent.contentBody;
         setFormQuizData(quizArray.map(q => ({ ...q })));
         
         setMaterialName(session.material?.materialName || '');

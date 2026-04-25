@@ -14,6 +14,7 @@ public class BlueBitsDbContext : DbContext
     public DbSet<WorkflowPermission> WorkflowPermissions => Set<WorkflowPermission>();
     public DbSet<Prompt> Prompts => Set<Prompt>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<SessionContent> SessionContents => Set<SessionContent>();
     public DbSet<File> Files => Set<File>();
     public DbSet<Note> Notes => Set<Note>();
 
@@ -105,6 +106,12 @@ public class BlueBitsDbContext : DbContext
             .WithMany(f => f.Notes)
             .HasForeignKey(n => n.FileId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SessionContent>()
+            .HasOne(sc => sc.Session)
+            .WithMany(s => s.SessionContents)
+            .HasForeignKey(sc => sc.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // --- 3. Initial Seed Data ---
         

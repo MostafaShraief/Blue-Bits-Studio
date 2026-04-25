@@ -78,6 +78,7 @@ public class SessionsController : ControllerBase
             .Include(s => s.Workflow.Prompts)
             .Include(s => s.Notes)
             .Include(s => s.Files.OrderBy(f => f.OrderIndex))
+            .Include(s => s.SessionContents)
             .FirstOrDefaultAsync(s => s.SessionId == id);
 
         if (session == null) return NotFound();
@@ -111,13 +112,13 @@ public class SessionsController : ControllerBase
             session.WorkflowId,
             lectureNumber = session.LectureNumber,
             lectureType = session.LectureType,
-            quizData = session.QuizData,
             createdAt = session.CreatedAt,
             session.User,
             session.Material,
             session.Workflow,
             session.Files,
             session.Notes,
+            session.SessionContents,
             compiledPrompt = compiledPrompt
         };
 
@@ -163,8 +164,7 @@ public class SessionsController : ControllerBase
             MaterialId = materialId,
             WorkflowId = workflow.WorkflowId,
             LectureNumber = req.LectureNumber,
-            LectureType = req.LectureType,
-            QuizData = req.QuizData
+            LectureType = req.LectureType
         };
 
         if (!string.IsNullOrEmpty(req.GeneralNotes))
@@ -174,6 +174,46 @@ public class SessionsController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Created($"/api/sessions/{session.SessionId}", new { session.SessionId, session.WorkflowId });
+    }
+
+    [HttpPost("save")]
+    public async Task<IActionResult> SaveSessionContent([FromBody] SaveSessionContentRequest req, [FromQuery] int? sessionId)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
+        
+        if (sessionId == null || sessionId == 0)
+            return BadRequest(new { message = "Session ID is required" });
+        
+        // Find existing session
+        var session = await _db.Sessions
+            .Include(s => s.SessionContents)
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId);
+
+        if (session == null)
+            return NotFound(new { message = "Session not found" });
+            
+        if (session.UserId != userId)
+            return Forbid();
+
+        // Check if SessionContent exists - update or insert
+        var existingContent = session.SessionContents.FirstOrDefault();
+        if (existingContent != null)
+        {
+            existingContent.ContentBody = req.ContentBody;
+        }
+        else
+        {
+            _db.SessionContents.Add(new SessionContent
+            {
+                SessionId = sessionId.Value,
+                ContentBody = req.ContentBody
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        
+        return Ok(new { sessionId = sessionId.Value, message = "Content saved successfully" });
     }
 
     [HttpPost("{id}/files")]
@@ -260,8 +300,13 @@ public class CreateSessionRequest
     public required string MaterialName { get; set; }
     public required int LectureNumber { get; set; }
     public required string LectureType { get; set; }
-    public string? QuizData { get; set; }
     public string? GeneralNotes { get; set; }
+}
+
+// DTO for saving session content (quiz/pandoc)
+public class SaveSessionContentRequest
+{
+    public required string ContentBody { get; set; }
 }
 
 // DTO for session list summary (lightweight - avoids fetching heavy fields like QuizData, CompiledPrompt)

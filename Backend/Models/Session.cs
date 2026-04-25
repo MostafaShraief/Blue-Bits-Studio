@@ -18,8 +18,6 @@ public class Session
     [Required]
     public required string LectureType { get; set; }
     
-    public string? QuizData { get; set; }
-    
     [Required]
     public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("O");
 
@@ -29,4 +27,5 @@ public class Session
 
     public ICollection<File> Files { get; set; } = new List<File>();
     public ICollection<Note> Notes { get; set; } = new List<Note>();
+    public ICollection<SessionContent> SessionContents { get; set; } = new List<SessionContent>();
 }

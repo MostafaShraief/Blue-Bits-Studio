@@ -27,6 +27,12 @@ export interface Note {
     fileId: number | null;
 }
 
+export interface SessionContent {
+    contentId: number;
+    sessionId: number;
+    contentBody: string;
+}
+
 export interface Session {
     sessionId: number;
     userId: number;
@@ -34,7 +40,6 @@ export interface Session {
     workflowId: number;
     lectureNumber: number;
     lectureType: 'Theoretical' | 'Practical';
-    quizData: string | null;
     createdAt: string;
     
     // Navigational properties returned by GetSession
@@ -42,6 +47,7 @@ export interface Session {
     workflow?: Workflow;
     notes?: Note[];
     files?: File[];
+    sessionContents?: SessionContent[];
     compiledPrompt?: string;
 }
 
@@ -51,6 +57,5 @@ export interface SessionSummary {
     lectureNumber: number;
     type: string;
     workflowType: string;
-    quizData: string | null;
     createdAt: string;
 }

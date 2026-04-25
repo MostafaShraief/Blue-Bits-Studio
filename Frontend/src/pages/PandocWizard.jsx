@@ -4,7 +4,7 @@ import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { createSession, fetchSession, generatePandoc } from '../utils/api';
+import { createSession, fetchSession, generatePandoc, saveSessionContent } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
@@ -23,7 +23,13 @@ export default function PandocWizard() {
                     if (data.material?.materialName) setMaterialName(data.material.materialName);
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
-                    if (data.compiledPrompt) setMdText(data.compiledPrompt);
+                    // Read markdown from sessionContents instead of compiledPrompt
+                    const sessionContent = data.sessionContents?.[0];
+                    if (sessionContent?.contentBody) {
+                        setMdText(sessionContent.contentBody);
+                    } else if (data.compiledPrompt) {
+                        setMdText(data.compiledPrompt);
+                    }
                     setSaved(true);
                     setStep(STEPS.length - 1);
                 }
@@ -77,13 +83,18 @@ export default function PandocWizard() {
     const handleGenerate = async () => {
         setStatus('loading');
         try {
-            await createSession({
+            const session = await createSession({
                 materialName,
                 lectureNumber: Number(lectureNumber),
                 lectureType,
                 workflowSystemCode: 'PANDOC',
-                generalNotes: `Template: ${lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}`,
+                generalNotes: '',
             });
+            
+            const sessionId = session.sessionId || session.id;
+            
+            // Save markdown to SessionContents table
+            await saveSessionContent(sessionId, mdText);
             
             const result = await generatePandoc({
                 markdownText: mdText,

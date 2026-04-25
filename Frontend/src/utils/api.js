@@ -326,7 +326,6 @@ export async function saveQuizSession(session) {
             workflowSystemCode: session.workflowSystemCode || 'BANK_QS',
             lectureNumber: session.lectureNumber,
             lectureType: session.lectureType,
-            quizData: typeof session.quizData === 'string' ? session.quizData : JSON.stringify(session.quizData),
             generalNotes: session.generalNotes || ''
         };
 
@@ -345,13 +344,42 @@ export async function saveQuizSession(session) {
             const location = res.headers.get('Location');
             if (location) {
                 const parts = location.split('/');
-                result = { id: parts[parts.length - 1] };
+                result = { id: parseInt(parts[parts.length - 1]) };
             }
         }
 
-        return result || {};
+        const sessionId = result?.id || result?.sessionId;
+        
+        // Now save the content using the separate save endpoint
+        if (sessionId && session.quizData) {
+            await saveSessionContent(sessionId, typeof session.quizData === 'string' ? session.quizData : JSON.stringify(session.quizData));
+        }
+
+        return { id: sessionId };
     } catch (e) {
         console.error('Failed to save quiz session:', e);
+        throw e;
+    }
+}
+
+/**
+ * Save session content (JSON/Markdown) to SessionContents table.
+ * @param {number} sessionId - The session ID
+ * @param {string} contentBody - The content body (JSON string for quiz, Markdown string for pandoc)
+ */
+export async function saveSessionContent(sessionId, contentBody) {
+    try {
+        const res = await authFetch(`${API_BASE}/save?sessionId=${sessionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentBody })
+        });
+
+        if (!res.ok) throw new Error('Failed to save session content');
+        
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to save session content:', e);
         throw e;
     }
 }

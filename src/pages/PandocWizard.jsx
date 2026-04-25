@@ -47,7 +47,7 @@ export default function PandocWizard() {
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialName.trim() && lectureNumber.trim();
+    const canProceedStep1 = materialName.trim() && String(lectureNumber).trim();
 
     const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));

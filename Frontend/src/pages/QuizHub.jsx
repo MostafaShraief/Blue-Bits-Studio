@@ -40,7 +40,6 @@ export default function QuizHub() {
   const [materialValid, setMaterialValid] = useState(false);
   const [lectureNumber, setLectureNumber] = useState(1);
   const [lectureType, setLectureType] = useState('Theoretical');
-  const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
 
   const [promptText, setPromptText] = useState('');
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
@@ -168,7 +167,7 @@ export default function QuizHub() {
     
     setIsLoadingPrompt(true);
     try {
-      if (saveSessionEnabled) {
+      if (autoSave) {
           const createdSession = await createSession({
               materialName,
               lectureNumber: Number(lectureNumber),
@@ -402,16 +401,7 @@ export default function QuizHub() {
                 </div>
             </div>
             
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-                <input
-                    type="checkbox"
-                    id="saveSession"
-                    checked={saveSessionEnabled}
-                    onChange={(e) => setSaveSessionEnabled(e.target.checked)}
-                    className="w-4 h-4 text-primary bg-surface border-border rounded focus:ring-primary focus:ring-2"
-                />
-                <label htmlFor="saveSession" className="text-sm text-text">حفظ الجلسة في قاعدة البيانات</label>
-            </div>
+
         </div>
 
         <div className="flex gap-3 mt-6">

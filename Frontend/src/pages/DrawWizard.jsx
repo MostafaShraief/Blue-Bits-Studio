@@ -49,7 +49,6 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
-    const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
     const [sessionId, setSessionId] = useState(null);
     const [description, setDescription] = useState('');
     const [images, setImages] = useState([]); // { file, url, note }
@@ -128,26 +127,29 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                 return img;
             }));
 
+            // Always create session to get an ID (handleSave will need it)
+            const createdSession = await createSession({
+                materialId: null,
+                materialName,
+                lectureNumber: Number(lectureNumber),
+                lectureType,
+                workflowSystemCode: 'DRAW',
+                generalNotes: description,
+                files: processedImages.map(img => ({ file: img.file, note: img.note }))
+            });
+
+            const idToFetch = createdSession.sessionId || createdSession.id;
+            setSessionId(idToFetch);
+
             let finalPrompt = '';
 
-            if (saveSessionEnabled) {
-                const createdSession = await createSession({
-                    materialId: null,
-                    materialName,
-                    lectureNumber: Number(lectureNumber),
-                    lectureType,
-                    workflowSystemCode: 'DRAW',
-                    generalNotes: description,
-                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
-                });
-
-                const idToFetch = createdSession.sessionId || createdSession.id;
-                setSessionId(idToFetch);
-                
+            if (autoSave) {
+                // Fetch compiled prompt from saved session
                 const sessionData = await fetchSession(idToFetch);
                 finalPrompt = sessionData?.compiledPrompt || '';
                 setSaved(true);
             } else {
+                // Compile prompt stateless (no DB fetch needed)
                 const res = await compilePromptStateless({
                     systemCode: 'DRAW',
                     generalNotes: description,
@@ -169,15 +171,19 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     const goBack = () => setStep(0);
 
     const handleSave = useCallback(async () => {
-        // Automatically saved on step transition
-    }, []);
+        if (saved || !sessionId) return;
+        try {
+            await fetchSession(sessionId);
+            setSaved(true);
+        } catch (err) {
+            console.error("Failed to save session", err);
+        }
+    }, [sessionId, saved]);
 
     /* ── Auto Save ──────────────────────── */
     useEffect(() => {
-        if (step === 1 && autoSave && !saved && prompt) {
-            handleSave();
-        }
-    }, [step, autoSave, saved, prompt, handleSave]);
+        // No-op: session is always created in goNext
+    }, [step, autoSave, saved, prompt, sessionId, handleSave]);
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -220,16 +226,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                 </select>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-                            <input
-                                type="checkbox"
-                                id="saveSession"
-                                checked={saveSessionEnabled}
-                                onChange={(e) => setSaveSessionEnabled(e.target.checked)}
-                                className="w-4 h-4 text-primary bg-surface border-border rounded focus:ring-primary focus:ring-2"
-                            />
-                            <label htmlFor="saveSession" className="text-sm text-text">حفظ الجلسة في قاعدة البيانات</label>
-                        </div>
+                        
                     </div>
                     {/* Image upload (optional) */}
                     <div data-tour="draw-images">

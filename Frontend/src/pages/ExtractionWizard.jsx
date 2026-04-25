@@ -7,7 +7,7 @@ import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { createSession, fetchSession } from '../utils/api';
+import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
 
@@ -60,6 +60,7 @@ export default function ExtractionWizard() {
         if (loading) return 'LEC_EXT'; // Default while loading
         return getInitialWorkflowCode();
     });
+    const [sessionId, setSessionId] = useState(null);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
@@ -172,7 +173,9 @@ export default function ExtractionWizard() {
                     return img;
                 }));
 
-                // 2) Create session in DB to get SessionId
+                let finalPrompt = '';
+
+                // Always create session to get an ID (handleSave will need it)
                 const createdSession = await createSession({
                     materialName,
                     lectureNumber: parseInt(lectureNumber, 10),
@@ -182,13 +185,25 @@ export default function ExtractionWizard() {
                     files: processedImages.map(img => ({ file: img.file, note: img.note }))
                 });
 
-                // 3) Fetch session to get compiled prompt
                 const idToFetch = createdSession.sessionId || createdSession.id;
-                const sessionData = await fetchSession(idToFetch);
-                const finalPrompt = sessionData?.compiledPrompt || '';
+                setSessionId(idToFetch);
+
+                if (autoSave) {
+                    // Fetch compiled prompt from saved session
+                    const sessionData = await fetchSession(idToFetch);
+                    finalPrompt = sessionData?.compiledPrompt || '';
+                    setSaved(true);
+                } else {
+                    // Compile prompt stateless (no DB fetch needed)
+                    const res = await compilePromptStateless({
+                        systemCode: workflowSystemCode,
+                        generalNotes,
+                        fileNotes: processedImages.map(img => img.note || '')
+                    });
+                    finalPrompt = res?.compiledPrompt || '';
+                }
                 
                 setPrompt(finalPrompt);
-                setSaved(true);
             } catch (err) {
                 console.error("Failed to generate prompt or save session", err);
                 alert(err.message || "Failed to generate prompt. Please try again.");
@@ -204,15 +219,19 @@ export default function ExtractionWizard() {
 
     /* ── Save session ───────────────────── */
     const handleSave = useCallback(async () => {
-        // Session is now saved automatically during goNext.
-    }, []);
+        if (saved || !sessionId) return;
+        try {
+            await fetchSession(sessionId);
+            setSaved(true);
+        } catch (err) {
+            console.error("Failed to save session", err);
+        }
+    }, [sessionId, saved]);
 
     /* ── Auto Save ──────────────────────── */
     useEffect(() => {
-        if (step === 2 && autoSave && !saved && prompt) {
-            handleSave();
-        }
-    }, [step, autoSave, saved, prompt, handleSave]);
+        // No-op: session is always created in goNext
+    }, [step, autoSave, saved, prompt, sessionId, handleSave]);
 
     const canProceedStep1 = materialValid && String(lectureNumber).trim();
 

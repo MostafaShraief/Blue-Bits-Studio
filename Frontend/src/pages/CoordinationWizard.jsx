@@ -60,11 +60,11 @@ export default function CoordinationWizard() {
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
-    const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
     const [markdownText, setMarkdownText] = useState('');
     const [prompt, setPrompt] = useState('');
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [sessionId, setSessionId] = useState(null);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
     useEffect(() => {
         if (id) {
@@ -75,6 +75,7 @@ export default function CoordinationWizard() {
                     if (notes) setMarkdownText(notes);
                     
                     setMaterialName(data.material?.materialName || '');
+                    setSessionId(id);
                     setLectureNumber(data.lectureNumber || 1);
                     setLectureType(data.lectureType || 'Theoretical');
                     
@@ -94,30 +95,36 @@ export default function CoordinationWizard() {
     const goNext = async () => {
         setIsLoadingPrompt(true);
         try {
-            if (saveSessionEnabled) {
-                // 1. Create session to get ID
-                const createdSession = await createSession({
-                    materialName,
-                    lectureNumber: Number(lectureNumber),
-                    lectureType,
-                    workflowSystemCode,
-                    generalNotes: markdownText,
-                });
-                // 2. Fetch full session from API to get compiledPrompt
-                const sessionData = await fetchSession(createdSession.sessionId || createdSession.id);
-                setPrompt(sessionData?.compiledPrompt || '');
+            // Always create session to get an ID (handleSave will need it)
+            const createdSession = await createSession({
+                materialName,
+                lectureNumber: Number(lectureNumber),
+                lectureType,
+                workflowSystemCode,
+                generalNotes: markdownText,
+            });
+
+            const idToFetch = createdSession.sessionId || createdSession.id;
+            setSessionId(idToFetch);
+
+            let finalPrompt = '';
+
+            if (autoSave) {
+                // Fetch compiled prompt from saved session
+                const sessionData = await fetchSession(idToFetch);
+                finalPrompt = sessionData?.compiledPrompt || '';
                 setSaved(true);
             } else {
-                // Compile statelessly
+                // Compile prompt stateless (no DB fetch needed)
                 const res = await compilePromptStateless({
                     systemCode: workflowSystemCode,
                     generalNotes: markdownText,
                     fileNotes: []
                 });
-                setPrompt(res?.compiledPrompt || '');
-                setSaved(false);
+                finalPrompt = res?.compiledPrompt || '';
             }
             
+            setPrompt(finalPrompt);
             setStep(2);
         } catch (err) {
             console.error("Failed to generate prompt or save session", err);
@@ -140,6 +147,22 @@ export default function CoordinationWizard() {
         setCopied(true);
         setTimeout(() => setCopied(false), 1200);
     }, [prompt]);
+
+const handleSave = useCallback(async () => {
+        if (saved || !sessionId) return;
+        try {
+            await fetchSession(sessionId);
+            setSaved(true);
+        } catch (err) {
+            console.error("Failed to save session", err);
+        }
+    }, [sessionId, saved]);
+
+    /* ── Auto Save ──────────────────────── */
+    useEffect(() => {
+        // No-op: session is always created in goNext
+    }, [step, autoSave, saved, prompt, sessionId, handleSave]);
+
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
             <h1 className="text-2xl font-bold text-text mb-2">تنسيق</h1>
@@ -203,15 +226,7 @@ export default function CoordinationWizard() {
                             </button>
                         ))}
                     </div>
-                    <label className="flex items-center gap-2 mt-4 cursor-pointer">
-                        <input 
-                            type="checkbox" 
-                            checked={saveSessionEnabled}
-                            onChange={(e) => setSaveSessionEnabled(e.target.checked)}
-                            className="rounded border-border text-primary focus:ring-primary/30 h-4 w-4"
-                        />
-                        <span className="text-sm font-medium text-text">حفظ هذه الجلسة في النظام</span>
-                    </label>
+                    
                     <button
                         onClick={handleNextStep0}
                         disabled={!materialValid || !lectureNumber || !lectureType}
@@ -279,9 +294,26 @@ export default function CoordinationWizard() {
                         <Copy size={16} />
                         {copied ? 'تم النسخ ✓' : 'نسخ البرومبت'}
                     </button>
-                    <div className="flex justify-center mt-4">
-                        {saved && <span className="text-success text-sm font-bold">تم حفظ الجلسة في النظام بنجاح ✓</span>}
-                        {!saved && !saveSessionEnabled && <span className="text-text-muted text-sm font-medium">الجلسة غير محفوظة</span>}
+                    <div className="flex gap-3">
+                        <button
+                            onClick={goBack}
+                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
+                        >
+                            رجوع
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saved}
+                            className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
+                                ? 'bg-success text-white cursor-default'
+                                : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
+                                }`}
+                        >
+                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                        </button>
+                    </div>
+                    <div className="flex justify-center">
+                        {!saved && !autoSave && <span className="text-text-muted text-sm font-medium">الجلسة غير محفوظة</span>}
                     </div>
                 </div>
             )}

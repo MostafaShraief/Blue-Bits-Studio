@@ -36,7 +36,7 @@ export interface SessionContent {
 export interface Session {
     sessionId: number;
     userId: number;
-    materialId: number | null;
+    materialId: number;
     workflowId: number;
     lectureNumber: number;
     lectureType: 'Theoretical' | 'Practical';

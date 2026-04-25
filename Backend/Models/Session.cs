@@ -9,7 +9,7 @@ public class Session
     
     public int UserId { get; set; }
     
-    public int? MaterialId { get; set; }
+    public int MaterialId { get; set; }
     
     public int WorkflowId { get; set; }
     
@@ -22,7 +22,7 @@ public class Session
     public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("O");
 
     public User User { get; set; } = null!;
-    public Material? Material { get; set; }
+    public Material Material { get; set; } = null!;
     public Workflow Workflow { get; set; } = null!;
 
     public ICollection<File> Files { get; set; } = new List<File>();

@@ -46,6 +46,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
 
     const [step, setStep] = useState(0);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
@@ -106,8 +107,8 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     const goNext = async () => {
         setIsLoadingPrompt(true);
         
-        if (!materialName.trim() || !lectureNumber || !lectureType) {
-            alert('الرجاء إدخال جميع البيانات المطلوبة (اسم المادة، رقم المحاضرة، نوع المحاضرة)');
+        if (!materialValid || !lectureNumber || !lectureType) {
+            alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
             setIsLoadingPrompt(false);
             return;
         }
@@ -160,7 +161,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
             setStep(1);
         } catch (err) {
             console.error("Failed to generate prompt or save session", err);
-            alert("Failed to generate prompt. Please try again.");
+            alert(err.message || "Failed to generate prompt. Please try again.");
         }
         setIsLoadingPrompt(false);
     };
@@ -194,7 +195,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                 <div className="space-y-5 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 mb-6">
                         <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
-                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>

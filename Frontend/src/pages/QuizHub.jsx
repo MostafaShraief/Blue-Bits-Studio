@@ -37,6 +37,7 @@ export default function QuizHub() {
   
   // Metadata state for prompts
   const [materialName, setMaterialName] = useState('');
+  const [materialValid, setMaterialValid] = useState(false);
   const [lectureNumber, setLectureNumber] = useState(1);
   const [lectureType, setLectureType] = useState('Theoretical');
   const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
@@ -140,7 +141,7 @@ export default function QuizHub() {
       alert(sessionId ? 'تم تحديث البنك بنجاح!' : 'تم حفظ البنك بنجاح!');
     } catch (err) {
       console.error('Failed to save session:', err);
-      alert('فشل في حفظ البنك. يرجى المحاولة مرة أخرى.');
+      alert(err.message || 'فشل في حفظ البنك. يجب اختيار مادة صالحة.');
     } finally {
       setIsSaving(false);
     }
@@ -160,8 +161,8 @@ export default function QuizHub() {
   };
 
   const handleNextStep1 = async () => {
-    if (!materialName.trim() || !lectureNumber || !lectureType) {
-        alert('الرجاء إدخال جميع البيانات المطلوبة (اسم المادة، رقم المحاضرة، نوع المحاضرة)');
+    if (!materialValid || !lectureNumber || !lectureType) {
+        alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
         return;
     }
     
@@ -375,7 +376,7 @@ export default function QuizHub() {
         <WizardStepper steps={STEPS} current={step} />
 
         <div className="bg-surface-card border border-border rounded-2xl p-6 space-y-4 mt-8">
-            <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+            <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
@@ -417,7 +418,7 @@ export default function QuizHub() {
             <button onClick={() => setStep(0)} className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default">رجوع</button>
             <button 
                 onClick={handleNextStep1}
-                disabled={isLoadingPrompt || !materialName.trim() || !lectureNumber || !lectureType} 
+                disabled={isLoadingPrompt || !materialValid || !lectureNumber || !lectureType} 
                 className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
             >
                 {isLoadingPrompt ? 'جاري التحضير...' : 'توليد البرومبت'}

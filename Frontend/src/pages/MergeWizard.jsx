@@ -12,7 +12,8 @@ export default function MergeWizard() {
     const fileInputRef = useRef(null);
     const { defaultMaterial } = useSettings();
 
-    const [materialName, setMaterialName] = useState(defaultMaterial || '');
+const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [lectureNumber, setLectureNumber] = useState(1);
 
@@ -21,7 +22,7 @@ export default function MergeWizard() {
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialName.trim() && lectureNumber;
+    const canProceedStep1 = materialValid && lectureNumber;
     const canProceedStep2 = files.length > 1;
 
     const goNext = () => setStep((s) => Math.min(s + 1, 2));
@@ -87,7 +88,7 @@ export default function MergeWizard() {
             {/* STEP 0: Naming */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input

@@ -42,6 +42,7 @@ export default function PandocWizard() {
 
     // Step 1
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('Theoretical');
 
@@ -53,7 +54,7 @@ export default function PandocWizard() {
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialName.trim() && String(lectureNumber).trim();
+    const canProceedStep1 = materialValid && String(lectureNumber).trim();
 
     const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));
@@ -108,6 +109,7 @@ export default function PandocWizard() {
             setStatus('success');
         } catch (e) {
             console.error("Failed to save session", e);
+            alert(e.message || "فشل في إنشاء الجلسة. يجب اختيار مادة صالحة.");
             setStatus('error');
         }
     };
@@ -124,7 +126,7 @@ export default function PandocWizard() {
             {/* Step 1: Naming */}
             {step === 0 && (
                 <div data-tour="pandoc-metadata" className="space-y-5 animate-fade-slide-in">
-                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
 
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>

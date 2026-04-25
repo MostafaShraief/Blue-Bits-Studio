@@ -61,6 +61,7 @@ export default function ExtractionWizard() {
         return getInitialWorkflowCode();
     });
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('Theoretical');
 
@@ -190,7 +191,7 @@ export default function ExtractionWizard() {
                 setSaved(true);
             } catch (err) {
                 console.error("Failed to generate prompt or save session", err);
-                alert("Failed to generate prompt. Please try again.");
+                alert(err.message || "Failed to generate prompt. Please try again.");
                 setIsLoadingPrompt(false);
                 return; // Stop step transition
             }
@@ -213,7 +214,7 @@ export default function ExtractionWizard() {
         }
     }, [step, autoSave, saved, prompt, handleSave]);
 
-    const canProceedStep1 = materialName.trim() && String(lectureNumber).trim();
+    const canProceedStep1 = materialValid && String(lectureNumber).trim();
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -251,7 +252,7 @@ export default function ExtractionWizard() {
 
                     <div data-tour="extraction-metadata" className="space-y-5">
                         {/* Material Name */}
-                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} />
+                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
 
                         {/* Lecture Number */}
                         <div>

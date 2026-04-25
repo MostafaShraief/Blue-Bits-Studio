@@ -57,6 +57,7 @@ export default function CoordinationWizard() {
     
     // Metadata state
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState(1);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [saveSessionEnabled, setSaveSessionEnabled] = useState(true);
@@ -84,8 +85,8 @@ export default function CoordinationWizard() {
         }
     }, [id]);
     const handleNextStep0 = () => {
-        if (!materialName.trim() || !lectureNumber || !lectureType) {
-            alert('الرجاء إدخال جميع البيانات المطلوبة (اسم المادة، رقم المحاضرة، نوع المحاضرة)');
+        if (!materialValid || !lectureNumber || !lectureType) {
+            alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
             return;
         }
         setStep(1);
@@ -120,7 +121,7 @@ export default function CoordinationWizard() {
             setStep(2);
         } catch (err) {
             console.error("Failed to generate prompt or save session", err);
-            alert("Failed to generate prompt. Please try again.");
+            alert(err.message || "Failed to generate prompt. Please try again.");
         }
         setIsLoadingPrompt(false);
     };
@@ -151,7 +152,8 @@ export default function CoordinationWizard() {
                 <div className="space-y-5 animate-fade-slide-in">
                     <MaterialAutocomplete 
                         value={materialName} 
-                        onChange={setMaterialName} 
+                        onChange={setMaterialName}
+                        onValidChange={setMaterialValid}
                         required 
                     />
                     
@@ -212,7 +214,7 @@ export default function CoordinationWizard() {
                     </label>
                     <button
                         onClick={handleNextStep0}
-                        disabled={!materialName.trim() || !lectureNumber || !lectureType}
+                        disabled={!materialValid || !lectureNumber || !lectureType}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي

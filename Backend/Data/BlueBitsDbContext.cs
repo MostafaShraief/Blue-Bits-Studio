@@ -81,7 +81,8 @@ public class BlueBitsDbContext : DbContext
             .HasOne(s => s.Material)
             .WithMany(m => m.Sessions)
             .HasForeignKey(s => s.MaterialId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
             
         modelBuilder.Entity<Session>()
             .HasOne(s => s.Workflow)

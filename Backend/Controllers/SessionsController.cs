@@ -139,6 +139,15 @@ public class SessionsController : ControllerBase
             
         int userId = int.Parse(userIdStr);
 
+        // Validate MaterialId is provided and exists
+        if (string.IsNullOrWhiteSpace(req.MaterialName))
+            return BadRequest(new { message = "يجب اختيار مادة صالحة لمتابعة العمل." });
+
+        var material = await _db.Materials
+            .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
+        if (material == null)
+            return BadRequest(new { message = "يجب اختيار مادة صالحة لمتابعة العمل." });
+
         var workflow = await _db.Workflows
             .Include(w => w.Permissions)
             .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
@@ -149,19 +158,10 @@ public class SessionsController : ControllerBase
         if (!workflow.Permissions.Any(p => p.RoleName == role))
             return Forbid();
 
-        int? materialId = null;
-        if (!string.IsNullOrWhiteSpace(req.MaterialName))
-        {
-            var material = await _db.Materials
-                .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
-            if (material != null)
-                materialId = material.MaterialId;
-        }
-
         var session = new Session
         {
             UserId = userId,
-            MaterialId = materialId,
+            MaterialId = material.MaterialId,
             WorkflowId = workflow.WorkflowId,
             LectureNumber = req.LectureNumber,
             LectureType = req.LectureType

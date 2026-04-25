@@ -140,6 +140,17 @@ export async function createSession(session) {
             body: JSON.stringify(payload)
         });
 
+        // Handle 400 errors with clear messages
+        if (res.status === 400) {
+            try {
+                const errData = await res.json();
+                throw new Error(errData.message || errData.error || 'يجب اختيار مادة صالحة لمتابعة العمل.');
+            } catch (e) {
+                if (e instanceof Error) throw e;
+                throw new Error('يجب اختيار مادة صالحة لمتابعة العمل.');
+            }
+        }
+
         if (!res.ok) throw new Error('Failed to create session');
         
         let createdSession;
@@ -334,6 +345,17 @@ export async function saveQuizSession(session) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
+        // Handle 400 errors with clear messages
+        if (res.status === 400) {
+            try {
+                const errData = await res.json();
+                throw new Error(errData.message || errData.error || 'يجب اختيار مادة صالحة لمتابعة العمل.');
+            } catch (e) {
+                if (e instanceof Error) throw e;
+                throw new Error('يجب اختيار مادة صالحة لمتابعة العمل.');
+            }
+        }
 
         if (!res.ok) throw new Error('Failed to save quiz session');
         

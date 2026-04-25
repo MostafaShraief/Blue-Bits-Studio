@@ -11,7 +11,7 @@ import { createSession, fetchSession, compilePromptStateless } from '../utils/ap
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
 
-const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
+const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
 export default function ExtractionWizard() {
     const [searchParams] = useSearchParams();
@@ -49,8 +49,12 @@ export default function ExtractionWizard() {
     // Update workflow state after auth loads
     useEffect(() => {
         if (loading) return;
-        setWorkflowSystemCode(getInitialWorkflowCode());
-    }, [loading, canDoLecture, canDoBank]);
+        // Only set from URL if we're loading a session (id param)
+        if (id) {
+            setWorkflowSystemCode(getInitialWorkflowCode());
+        }
+        // Otherwise, leave workflowSystemCode empty - user must choose manually
+    }, [loading, canDoLecture, canDoBank, id]);
 
     // Initial state - default to LEC_EXT while loading, will be updated after auth loads
     const [step, setStep] = useState(0);
@@ -233,7 +237,7 @@ export default function ExtractionWizard() {
         // No-op: session is always created in goNext
     }, [step, autoSave, saved, prompt, sessionId, handleSave]);
 
-    const canProceedStep1 = materialValid && String(lectureNumber).trim();
+    const canProceedStep1 = materialValid && String(lectureNumber).trim() && workflowSystemCode && lectureType;
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

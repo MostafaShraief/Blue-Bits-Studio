@@ -44,22 +44,23 @@ export default function CoordinationWizard() {
     // Update workflow state after auth loads
     useEffect(() => {
         if (loading) return;
-        setWorkflowSystemCode(getInitialWorkflowCode());
-    }, [loading, canDoLectureCoord, canDoBankCoord]);
+        // Only set from URL if we're loading a session (id param)
+        if (id) {
+            setWorkflowSystemCode(getInitialWorkflowCode());
+        }
+        // Otherwise, leave workflowSystemCode empty - user must choose manually
+    }, [loading, canDoLectureCoord, canDoBankCoord, id]);
 
     const [step, setStep] = useState(0);
 
-    // Initial state - default to LEC_COORD while loading, will be updated after auth loads
-    const [workflowSystemCode, setWorkflowSystemCode] = useState(() => {
-        if (loading) return 'LEC_COORD'; // Default while loading
-        return getInitialWorkflowCode();
-    });
+    // Initial state - start with empty selection, user must choose
+    const [workflowSystemCode, setWorkflowSystemCode] = useState('');
     
     // Metadata state
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
-    const [lectureNumber, setLectureNumber] = useState(1);
-    const [lectureType, setLectureType] = useState('Theoretical');
+    const [lectureNumber, setLectureNumber] = useState('');
+    const [lectureType, setLectureType] = useState('');
     const [markdownText, setMarkdownText] = useState('');
     const [prompt, setPrompt] = useState('');
     const [copied, setCopied] = useState(false);
@@ -77,7 +78,8 @@ export default function CoordinationWizard() {
                     setMaterialName(data.material?.materialName || '');
                     setSessionId(id);
                     setLectureNumber(data.lectureNumber || 1);
-                    setLectureType(data.lectureType || 'Theoretical');
+                    setLectureType(data.lectureType || '');
+                    if (data.workflowType) setWorkflowSystemCode(data.workflowType);
                     
                     setSaved(true);
                     setStep(STEPS.length - 1);
@@ -86,7 +88,7 @@ export default function CoordinationWizard() {
         }
     }, [id]);
     const handleNextStep0 = () => {
-        if (!materialValid || !lectureNumber || !lectureType) {
+        if (!materialValid || !lectureNumber || !lectureType || !workflowSystemCode) {
             alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
             return;
         }
@@ -173,43 +175,8 @@ const handleSave = useCallback(async () => {
             {/* Step 0: Metadata */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    <MaterialAutocomplete 
-                        value={materialName} 
-                        onChange={setMaterialName}
-                        onValidChange={setMaterialValid}
-                        required 
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text mb-1.5">
-                                رقم المحاضرة <span className="text-error">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                value={lectureNumber}
-                                onChange={(e) => setLectureNumber(e.target.value)}
-                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text mb-1.5">
-                                نوع المحاضرة <span className="text-error">*</span>
-                            </label>
-                            <select
-                                value={lectureType}
-                                onChange={(e) => setLectureType(e.target.value)}
-                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
-                            >
-                                <option value="Theoretical">نظري</option>
-                                <option value="Practical">عملي</option>
-                            </select>
-                        </div>
-                    </div>
-                    {/* Workflow type */}
-                    <div className="flex gap-3 pt-2">
+                    {/* Workflow type toggle - at TOP like ExtractionWizard */}
+                    <div data-tour="coordination-type" className="flex gap-3">
                         {[
                             { value: 'LEC_COORD', label: 'محاضرة', enabled: canDoLectureCoord || isAdmin },
                             { value: 'BANK_COORD', label: 'بنك أسئلة', enabled: canDoBankCoord || isAdmin },
@@ -226,10 +193,69 @@ const handleSave = useCallback(async () => {
                             </button>
                         ))}
                     </div>
-                    
+
+                    {/* Metadata section */}
+                    <div className="space-y-5">
+                        <MaterialAutocomplete 
+                            value={materialName} 
+                            onChange={setMaterialName}
+                            onValidChange={setMaterialValid}
+                            required 
+                        />
+
+                        {/* Lecture Number */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+                            <input
+                                type="number"
+                                value={lectureNumber}
+                                onChange={(e) => {
+                                    let val = e.target.value;
+                                    if (val === '') {
+                                        setLectureNumber('');
+                                        return;
+                                    }
+                                    const num = parseInt(val, 10);
+                                    if (!isNaN(num)) {
+                                        if (num > 99) val = '99';
+                                        else if (num < 1) val = '1';
+                                        else val = num.toString();
+                                    }
+                                    setLectureNumber(val);
+                                }}
+                                placeholder="مثال: 5"
+                                min="1"
+                                max="99"
+                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            />
+                        </div>
+
+                        {/* Lecture Type - BUTTON style like ExtractionWizard */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
+                            <div className="flex gap-3">
+                                {[
+                                    { value: 'Theoretical', label: 'نظري' },
+                                    { value: 'Practical', label: 'عملي' },
+                                ].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setLectureType(value)}
+                                        className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                                ? 'border-primary bg-primary-light text-primary'
+                                                : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
                     <button
                         onClick={handleNextStep0}
-                        disabled={!materialValid || !lectureNumber || !lectureType}
+                        disabled={!materialValid || !lectureNumber || !lectureType || !workflowSystemCode}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي

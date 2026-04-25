@@ -7,7 +7,7 @@ import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession, generatePandoc, saveSessionContent } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
-const STEPS = ['التسمية', 'إدراج Markdown', 'التنفيذ والنتيجة'];
+const STEPS = ['إعداد الجلسة', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
 export default function PandocWizard() {
     const [searchParams] = useSearchParams();
@@ -44,7 +44,7 @@ export default function PandocWizard() {
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('Theoretical');
+    const [lectureType, setLectureType] = useState('');
 
     // Step 2
     const [mdText, setMdText] = useState('');
@@ -54,7 +54,7 @@ export default function PandocWizard() {
     const [status, setStatus] = useState('idle'); // idle | loading | success | error
     const [downloadUrl, setDownloadUrl] = useState(null);
 
-    const canProceedStep1 = materialValid && String(lectureNumber).trim();
+    const canProceedStep1 = materialValid && String(lectureNumber).trim() && lectureType;
 
     const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
     const goBack = () => setStep((s) => Math.max(s - 1, 0));

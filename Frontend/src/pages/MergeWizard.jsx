@@ -5,7 +5,7 @@ import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { mergeDocxFiles } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
-const STEPS = ['التسمية', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
+const STEPS = ['إعداد الجلسة', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
 
 export default function MergeWizard() {
     const [step, setStep] = useState(0);

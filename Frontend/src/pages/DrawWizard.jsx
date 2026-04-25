@@ -10,7 +10,7 @@ import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
-const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
+const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
 export default function DrawWizard() {
     const [searchParams] = useSearchParams();
@@ -47,8 +47,8 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     const [step, setStep] = useState(0);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
-    const [lectureNumber, setLectureNumber] = useState(1);
-    const [lectureType, setLectureType] = useState('Theoretical');
+    const [lectureNumber, setLectureNumber] = useState('');
+    const [lectureType, setLectureType] = useState('');
     const [sessionId, setSessionId] = useState(null);
     const [description, setDescription] = useState('');
     const [images, setImages] = useState([]); // { file, url, note }
@@ -104,20 +104,17 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     }, [step, addImage]);
 
     const goNext = async () => {
-        setIsLoadingPrompt(true);
-        
         if (step === 0) {
             if (!materialValid || !lectureNumber || !lectureType) {
                 alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
-                setIsLoadingPrompt(false);
                 return;
             }
             setStep(1);
-            setIsLoadingPrompt(false);
             return;
         }
 
         if (step === 1) {
+            setIsLoadingPrompt(true);
             try {
                 const processedImages = await Promise.all(images.map(async (img, i) => {
                     if (!img.file && img.url) {
@@ -215,6 +212,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                 <input
                                     type="number"
                                     min="1"
+                                    placeholder="مثال: 5"
                                     value={lectureNumber}
                                     onChange={(e) => setLectureNumber(e.target.value)}
                                     className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
@@ -222,22 +220,30 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
-                                <select
-                                    value={lectureType}
-                                    onChange={(e) => setLectureType(e.target.value)}
-                                    className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                >
-                                    <option value="Theoretical">نظري</option>
-                                    <option value="Practical">عملي</option>
-                                    <option value="Summary">ملخص</option>
-                                </select>
+                                <div className="flex gap-3">
+                                    {[
+                                        { value: 'Theoretical', label: 'نظري' },
+                                        { value: 'Practical', label: 'عملي' },
+                                    ].map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => setLectureType(value)}
+                                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                                    ? 'border-primary bg-primary-light text-primary'
+                                                    : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <button
                         onClick={goNext}
-                        disabled={!materialValid || !lectureNumber}
+                        disabled={!materialValid || !lectureNumber || !lectureType}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي

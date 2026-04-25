@@ -42,7 +42,7 @@ export default function ExtractionWizard() {
     useEffect(() => {
         if (loading) return; // Wait for auth to load
         if (!isAdmin && !canDoLecture && !canDoBank) {
-            navigate('/403', { replace: true });
+            navigate('/unauthorized', { replace: true });
         }
     }, [loading, isAdmin, canDoLecture, canDoBank, navigate]);
 

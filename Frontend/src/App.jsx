@@ -35,22 +35,16 @@ export default function App() {
                         <Routes>
                         {/* Public route */}
                         <Route path="login" element={<Login />} />
+                        {/* For admins trying to access member workflows */}
                         <Route path="403" element={<AdminUnauthorized />} />
-
-                        {/* Admin routes — require Admin role */}
-                        <Route element={<AdminRoute />}>
-                            <Route element={<Layout />}>
-                                <Route path="admin/users" element={<AdminUsers />} />
-                                <Route path="admin/materials" element={<AdminMaterials />} />
-                                <Route path="admin/system" element={<AdminSystem />} />
-                            </Route>
-                        </Route>
 
                         {/* Protected routes — require authentication */}
                         <Route element={<ProtectedRoute />}>
                             <Route element={<Layout />}>
                                 <Route index element={<Dashboard />} />
                                 <Route path="tour" element={<Tour />} />
+                                {/* For normal users without workflow permission - with sidebar */}
+                                <Route path="unauthorized" element={<Unauthorized />} />
 
                                 {/* Workflow routes — require specific SystemCode access */}
                                 {/* Extraction is handled by ExtractionWizard double-gate logic */}
@@ -82,6 +76,15 @@ export default function App() {
                         <Route element={<AuthOnlyRoute />}>
                             <Route element={<Layout />}>
                                 <Route path="*" element={<NotFound />} />
+                            </Route>
+                        </Route>
+
+                        {/* Admin routes — require Admin role */}
+                        <Route element={<AdminRoute />}>
+                            <Route element={<Layout />}>
+                                <Route path="admin/users" element={<AdminUsers />} />
+                                <Route path="admin/materials" element={<AdminMaterials />} />
+                                <Route path="admin/system" element={<AdminSystem />} />
                             </Route>
                         </Route>
 

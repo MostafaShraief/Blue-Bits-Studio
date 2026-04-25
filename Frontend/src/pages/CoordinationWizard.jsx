@@ -37,7 +37,7 @@ export default function CoordinationWizard() {
     useEffect(() => {
         if (loading) return; // Wait for auth to load
         if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
-            navigate('/403', { replace: true });
+            navigate('/unauthorized', { replace: true });
         }
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 

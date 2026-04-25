@@ -1,18 +1,59 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
+import { useState, useCallback, useEffect, useContext } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
 import { Copy } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
+import { AuthContext } from '../contexts/AuthContext';
+
 const STEPS = ['إعداد الجلسة', 'إدراج النص', 'المعاينة والنسخ'];
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
-    const { autoSave, defaultMaterial } = useSettings();
+    const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
     const id = searchParams.get('id');
+    const { autoSave, defaultMaterial } = useSettings();
+    const { user, loading } = useContext(AuthContext);
+    const navigate = useNavigate();
+
+    // Permission checks - wait until auth is loaded
+    const isAdmin = user?.role === 'Admin';
+    const canDoLectureCoord = user?.allowedWorkflows?.includes('LEC_COORD') ?? false;
+    const canDoBankCoord = user?.allowedWorkflows?.includes('BANK_COORD') ?? false;
+
+    // Helper function to determine initial workflow code - must be defined before useState
+    const getInitialWorkflowCode = () => {
+        // Check if the requested type in URL is actually allowed
+        if (initialType === 'bank' && canDoBankCoord) return 'BANK_COORD';
+        if (initialType === 'lecture' && canDoLectureCoord) return 'LEC_COORD';
+        // Fallback: prioritize the enabled workflow
+        if (canDoLectureCoord) return 'LEC_COORD';
+        if (canDoBankCoord) return 'BANK_COORD';
+        return 'LEC_COORD'; // Default (will be blocked by useEffect above)
+    };
+
+    // Access control: redirect to 403 if both workflows are disabled and user is not admin
+    useEffect(() => {
+        if (loading) return; // Wait for auth to load
+        if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
+            navigate('/403', { replace: true });
+        }
+    }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
+
+    // Update workflow state after auth loads
+    useEffect(() => {
+        if (loading) return;
+        setWorkflowSystemCode(getInitialWorkflowCode());
+    }, [loading, canDoLectureCoord, canDoBankCoord]);
+
     const [step, setStep] = useState(0);
-    const [workflowSystemCode, setWorkflowSystemCode] = useState('LEC_COORD');
+
+    // Initial state - default to LEC_COORD while loading, will be updated after auth loads
+    const [workflowSystemCode, setWorkflowSystemCode] = useState(() => {
+        if (loading) return 'LEC_COORD'; // Default while loading
+        return getInitialWorkflowCode();
+    });
     
     // Metadata state
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
@@ -145,9 +186,9 @@ export default function CoordinationWizard() {
                     {/* Workflow type */}
                     <div className="flex gap-3 pt-2">
                         {[
-                            { value: 'LEC_COORD', label: 'محاضرة' },
-                            { value: 'BANK_COORD', label: 'بنك أسئلة' },
-                        ].map(({ value, label }) => (
+                            { value: 'LEC_COORD', label: 'محاضرة', enabled: canDoLectureCoord || isAdmin },
+                            { value: 'BANK_COORD', label: 'بنك أسئلة', enabled: canDoBankCoord || isAdmin },
+                        ].filter(opt => opt.enabled).map(({ value, label }) => (
                             <button
                                 key={value}
                                 onClick={() => setWorkflowSystemCode(value)}

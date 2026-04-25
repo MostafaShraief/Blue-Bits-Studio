@@ -57,7 +57,8 @@ export default function App() {
                                 <Route element={<ProtectedRoute />}>
                                     <Route path="extraction" element={<ExtractionWizard />} />
                                 </Route>
-                                <Route element={<ProtectedRoute requiredCode="COORD" />}>
+                                {/* Coordination is handled by CoordinationWizard double-gate logic */}
+                                <Route element={<ProtectedRoute />}>
                                     <Route path="coordination" element={<CoordinationWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="PANDOC" />}>

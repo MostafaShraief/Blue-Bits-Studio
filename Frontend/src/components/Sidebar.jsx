@@ -23,7 +23,7 @@ import SettingsModal from './SettingsModal';
 const NAV_ITEMS = [
     { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null, role: 'Member' },
     { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT', role: 'Member' },
-    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'COORD', role: 'Member' },
+    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'LEC_COORD', role: 'Member' },
     { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC', role: 'Member' },
     { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE', role: 'Member' },
     { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW', role: 'Member' },
@@ -90,6 +90,8 @@ export default function Sidebar() {
                         const isHistory = systemCode === 'HIST';
                         // Extraction is a special case: check for either LEC_EXT or BANK_EXT
                         const isExtraction = systemCode === 'LEC_EXT';
+                        // Coordination is a special case: check for either LEC_COORD or BANK_COORD
+                        const isCoordination = systemCode === 'LEC_COORD';
                         
                         let isAuthorized = true;
                         if (!isAdmin) {
@@ -97,6 +99,8 @@ export default function Sidebar() {
                                 isAuthorized = !!user;
                             } else if (isExtraction) {
                                 isAuthorized = user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT');
+                            } else if (isCoordination) {
+                                isAuthorized = user?.allowedWorkflows?.includes('LEC_COORD') || user?.allowedWorkflows?.includes('BANK_COORD');
                             } else if (systemCode) {
                                 isAuthorized = user?.allowedWorkflows?.includes(systemCode);
                             }

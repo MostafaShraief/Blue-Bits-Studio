@@ -175,27 +175,33 @@ const handleSave = useCallback(async () => {
             {/* Step 0: Metadata */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    {/* Workflow type toggle - at TOP like ExtractionWizard */}
-                    <div data-tour="coordination-type" className="flex gap-3">
-                        {[
-                            { value: 'LEC_COORD', label: 'محاضرة', enabled: canDoLectureCoord || isAdmin },
-                            { value: 'BANK_COORD', label: 'بنك أسئلة', enabled: canDoBankCoord || isAdmin },
-                        ].filter(opt => opt.enabled).map(({ value, label }) => (
-                            <button
-                                key={value}
-                                onClick={() => setWorkflowSystemCode(value)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-default ${workflowSystemCode === value
-                                        ? 'border-primary bg-primary text-white'
-                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                    }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Workflow type toggle + Metadata in a rounded box */}
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
+                        <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
 
-                    {/* Metadata section */}
-                    <div className="space-y-5">
+                        {/* Workflow type toggle - with label */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">نوع التنسيق</label>
+                            <div data-tour="coordination-type" className="flex gap-3">
+                                {[
+                                    { value: 'LEC_COORD', label: 'محاضرة', enabled: canDoLectureCoord || isAdmin },
+                                    { value: 'BANK_COORD', label: 'بنك أسئلة', enabled: canDoBankCoord || isAdmin },
+                                ].filter(opt => opt.enabled).map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setWorkflowSystemCode(value)}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${workflowSystemCode === value
+                                                ? 'border-primary bg-primary-light text-primary'
+                                                : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Material Name */}
                         <MaterialAutocomplete 
                             value={materialName} 
                             onChange={setMaterialName}
@@ -241,7 +247,7 @@ const handleSave = useCallback(async () => {
                                     <button
                                         key={value}
                                         onClick={() => setLectureType(value)}
-                                        className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                                 ? 'border-primary bg-primary-light text-primary'
                                                 : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                             }`}

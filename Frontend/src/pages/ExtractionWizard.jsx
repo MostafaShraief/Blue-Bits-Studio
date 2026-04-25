@@ -254,26 +254,32 @@ export default function ExtractionWizard() {
             {/* ─── Step 1: Naming ─────────────────── */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    {/* Workflow type toggle */}
-                    <div data-tour="extraction-type" className="flex gap-3">
-                        {[
-                            { value: 'LEC_EXT', label: 'محاضرة', enabled: canDoLecture || isAdmin },
-                            { value: 'BANK_EXT', label: 'بنك أسئلة', enabled: canDoBank || isAdmin },
-                        ].filter(opt => opt.enabled).map(({ value, label }) => (
-                            <button
-                                key={value}
-                                onClick={() => setWorkflowSystemCode(value)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-default ${workflowSystemCode === value
-                                    ? 'border-primary bg-primary text-white'
-                                    : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                    }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Workflow type toggle + Metadata in a rounded box */}
+                    <div data-tour="extraction-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
+                        <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
 
-                    <div data-tour="extraction-metadata" className="space-y-5">
+                        {/* Workflow type toggle - on the left side with label */}
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">نوع الاستخراج</label>
+                            <div data-tour="extraction-type" className="flex gap-3">
+                                {[
+                                    { value: 'LEC_EXT', label: 'محاضرة', enabled: canDoLecture || isAdmin },
+                                    { value: 'BANK_EXT', label: 'بنك أسئلة', enabled: canDoBank || isAdmin },
+                                ].filter(opt => opt.enabled).map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setWorkflowSystemCode(value)}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${workflowSystemCode === value
+                                            ? 'border-primary bg-primary-light text-primary'
+                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Material Name */}
                         <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
 
@@ -315,7 +321,7 @@ export default function ExtractionWizard() {
                                     <button
                                         key={value}
                                         onClick={() => setLectureType(value)}
-                                        className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                             ? 'border-primary bg-primary-light text-primary'
                                             : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                             }`}

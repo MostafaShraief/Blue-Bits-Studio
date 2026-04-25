@@ -203,40 +203,40 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
             {/* Step 1: Naming */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 mb-6">
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
                         <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
                         <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    placeholder="مثال: 5"
-                                    value={lectureNumber}
-                                    onChange={(e) => setLectureNumber(e.target.value)}
-                                    className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
-                                <div className="flex gap-3">
-                                    {[
-                                        { value: 'Theoretical', label: 'نظري' },
-                                        { value: 'Practical', label: 'عملي' },
-                                    ].map(({ value, label }) => (
-                                        <button
-                                            key={value}
-                                            onClick={() => setLectureType(value)}
-                                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                                    ? 'border-primary bg-primary-light text-primary'
-                                                    : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                                }`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+                            <input
+                                type="number"
+                                min="1"
+                                placeholder="مثال: 5"
+                                value={lectureNumber}
+                                onChange={(e) => setLectureNumber(e.target.value)}
+                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
+                            <div className="flex gap-3">
+                                {[
+                                    { value: 'Theoretical', label: 'نظري' },
+                                    { value: 'Practical', label: 'عملي' },
+                                ].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => setLectureType(value)}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                                ? 'border-primary bg-primary-light text-primary'
+                                                : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>

@@ -125,7 +125,8 @@ export default function PandocWizard() {
 
             {/* Step 1: Naming */}
             {step === 0 && (
-                <div data-tour="pandoc-metadata" className="space-y-5 animate-fade-slide-in">
+                <div data-tour="pandoc-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 animate-fade-slide-in">
+                    <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
                     <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
 
                     <div>
@@ -164,7 +165,7 @@ export default function PandocWizard() {
                                 <button
                                     key={value}
                                     onClick={() => setLectureType(value)}
-                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                             ? 'border-primary bg-primary-light text-primary'
                                             : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                         }`}
@@ -173,14 +174,14 @@ export default function PandocWizard() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-text-muted mt-2">
-                            سيتم استخدام القالب:{' '}
-                            <span className="font-mono text-primary">
-                                {lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
-                            </span>
-                        </p>
+                        
                     </div>
+                </div>
+            )}
 
+            {/* Step 1 continue: Next button */}
+            {step === 0 && (
+                <div className="mt-5">
                     <button
                         onClick={goNext}
                         disabled={!canProceedStep1}

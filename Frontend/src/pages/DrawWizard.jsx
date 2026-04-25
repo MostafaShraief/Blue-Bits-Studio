@@ -10,7 +10,7 @@ import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
 import { useSettings } from '../contexts/SettingsContext';
 
-const STEPS = ['الإدراج', 'المعاينة والنسخ'];
+const STEPS = ['التسمية', 'المدخلات', 'المعاينة والنسخ'];
 
 export default function DrawWizard() {
     const [searchParams] = useSearchParams();
@@ -38,7 +38,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                         setImages(loadedImages);
                     }
                     setSaved(true);
-                    setStep(1);
+                    setStep(2);
                 }
             });
         }
@@ -78,7 +78,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
 
     useEffect(() => {
         const handleGlobalPaste = (e) => {
-            if (step !== 0) return;
+            if (step !== 1) return;
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
             const items = e.clipboardData?.items;
             if (!items) return;
@@ -106,66 +106,73 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
     const goNext = async () => {
         setIsLoadingPrompt(true);
         
-        if (!materialValid || !lectureNumber || !lectureType) {
-            alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
+        if (step === 0) {
+            if (!materialValid || !lectureNumber || !lectureType) {
+                alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
+                setIsLoadingPrompt(false);
+                return;
+            }
+            setStep(1);
             setIsLoadingPrompt(false);
             return;
         }
 
-        try {
-            const processedImages = await Promise.all(images.map(async (img, i) => {
-                if (!img.file && img.url) {
-                    try {
-                        const res = await fetch(img.url);
-                        const blob = await res.blob();
-                        const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
-                        return { ...img, file };
-                    } catch (err) {
-                        return img;
+        if (step === 1) {
+            try {
+                const processedImages = await Promise.all(images.map(async (img, i) => {
+                    if (!img.file && img.url) {
+                        try {
+                            const res = await fetch(img.url);
+                            const blob = await res.blob();
+                            const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
+                            return { ...img, file };
+                        } catch (err) {
+                            return img;
+                        }
                     }
-                }
-                return img;
-            }));
+                    return img;
+                }));
 
-            // Always create session to get an ID (handleSave will need it)
-            const createdSession = await createSession({
-                materialId: null,
-                materialName,
-                lectureNumber: Number(lectureNumber),
-                lectureType,
-                workflowSystemCode: 'DRAW',
-                generalNotes: description,
-                files: processedImages.map(img => ({ file: img.file, note: img.note }))
-            });
-
-            const idToFetch = createdSession.sessionId || createdSession.id;
-            setSessionId(idToFetch);
-
-            let finalPrompt = '';
-
-            if (autoSave) {
-                // Fetch compiled prompt from saved session
-                const sessionData = await fetchSession(idToFetch);
-                finalPrompt = sessionData?.compiledPrompt || '';
-                setSaved(true);
-            } else {
-                // Compile prompt stateless (no DB fetch needed)
-                const res = await compilePromptStateless({
-                    systemCode: 'DRAW',
+                // Always create session to get an ID (handleSave will need it)
+                const createdSession = await createSession({
+                    materialId: null,
+                    materialName,
+                    lectureNumber: Number(lectureNumber),
+                    lectureType,
+                    workflowSystemCode: 'DRAW',
                     generalNotes: description,
-                    fileNotes: processedImages.map(img => img.note || ''),
+                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
                 });
-                finalPrompt = res?.compiledPrompt || '';
-                setSaved(false);
-            }
 
-            setPrompt(finalPrompt);
-            setStep(1);
-        } catch (err) {
-            console.error("Failed to generate prompt or save session", err);
-            alert(err.message || "Failed to generate prompt. Please try again.");
+                const idToFetch = createdSession.sessionId || createdSession.id;
+                setSessionId(idToFetch);
+
+                let finalPrompt = '';
+
+                if (autoSave) {
+                    // Fetch compiled prompt from saved session
+                    const sessionData = await fetchSession(idToFetch);
+                    finalPrompt = sessionData?.compiledPrompt || '';
+                    setSaved(true);
+                } else {
+                    // Compile prompt stateless (no DB fetch needed)
+                    const res = await compilePromptStateless({
+                        systemCode: 'DRAW',
+                        generalNotes: description,
+                        fileNotes: processedImages.map(img => img.note || ''),
+                    });
+                    finalPrompt = res?.compiledPrompt || '';
+                    setSaved(false);
+                }
+
+                setPrompt(finalPrompt);
+                setStep(2);
+            } catch (err) {
+                console.error("Failed to generate prompt or save session", err);
+                alert(err.message || "Failed to generate prompt. Please try again.");
+            }
+            setIsLoadingPrompt(false);
         }
-        setIsLoadingPrompt(false);
     };
 
     const goBack = () => setStep(0);
@@ -196,7 +203,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
 
             <WizardStepper steps={STEPS} current={step} />
 
-            {/* Step 1: Insertion */}
+            {/* Step 1: Naming */}
             {step === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 mb-6">
@@ -226,8 +233,21 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                 </select>
                             </div>
                         </div>
-                        
                     </div>
+
+                    <button
+                        onClick={goNext}
+                        disabled={!materialValid || !lectureNumber}
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                    >
+                        التالي
+                    </button>
+                </div>
+            )}
+
+            {/* Step 2: Inputs */}
+            {step === 1 && (
+                <div className="space-y-5 animate-fade-slide-in">
                     {/* Image upload (optional) */}
                     <div data-tour="draw-images">
                         <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3><PasteImageButton onPasteImage={addImage} /></div>
@@ -281,18 +301,27 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                         />
                     </div>
 
-                    <button
-                        onClick={goNext}
-                        disabled={!description.trim() || isLoadingPrompt}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
-                    >
-                        {isLoadingPrompt ? 'جاري التحضير...' : 'معاينة البرومبت'}
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={goBack}
+                            disabled={isLoadingPrompt}
+                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default disabled:opacity-40"
+                        >
+                            رجوع
+                        </button>
+                        <button
+                            onClick={goNext}
+                            disabled={!description.trim() || isLoadingPrompt}
+                            className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        >
+                            {isLoadingPrompt ? 'جاري التحضير...' : 'معاينة البرومبت'}
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {/* Step 2: Preview & Guided Copy */}
-            {step === 1 && (
+            {/* Step 3: Preview & Guided Copy */}
+            {step === 2 && (
                 <div data-tour="draw-preview" className="space-y-6 animate-fade-slide-in">
 
                     {/* Image gallery */}

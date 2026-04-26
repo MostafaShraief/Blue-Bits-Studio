@@ -406,12 +406,7 @@ export default function UsersManager() {
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in" dir="rtl">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
-                    <p className="text-sm text-text-secondary mt-1">
-                        عرض {filteredUsers.length} من {users.length} مستخدم
-                    </p>
-                </div>
+                <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
                 <button
                     onClick={openCreateModal}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
@@ -430,51 +425,58 @@ export default function UsersManager() {
             )}
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 p-4 bg-surface-card border border-border rounded-xl">
-                <div className="flex items-center gap-2 text-sm font-medium text-text">
-                    <Filter size={16} className="text-text-muted" />
-                    <span>تصفية:</span>
-                </div>
-                
-                {/* Role Filter */}
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-text-muted">الدور:</label>
-                    <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                    >
-                        <option value="">الكل</option>
-                        {availableRoles.map(role => (
-                            <option key={role} value={role}>{getRoleLabel(role)}</option>
-                        ))}
-                    </select>
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-card border border-border rounded-xl">
+                {/* Left side: Counter + Filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-lg">
+                        عرض {filteredUsers.length} من {users.length} مستخدم
+                    </span>
 
-                {/* Batch Filter */}
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-text-muted">الدفعة:</label>
-                    <select
-                        value={batchFilter}
-                        onChange={(e) => setBatchFilter(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                    >
-                        <option value="">الكل</option>
-                        {availableBatches.map(batch => (
-                            <option key={batch} value={batch}>دفعة {batch}</option>
-                        ))}
-                    </select>
-                </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <Filter size={16} className="text-text-muted" />
+                        <span>تصفية:</span>
+                    </div>
+                    
+                    {/* Role Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-text-muted">الدور:</label>
+                        <select
+                            value={roleFilter}
+                            onChange={(e) => setRoleFilter(e.target.value)}
+                            className="min-w-[100px] px-3 py-2 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all cursor-pointer"
+                        >
+                            <option value="">الكل</option>
+                            {availableRoles.map(role => (
+                                <option key={role} value={role}>{getRoleLabel(role)}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                {/* Reset Filters */}
-                {(roleFilter || batchFilter) && (
-                    <button
-                        onClick={resetFilters}
-                        className="px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-lg transition-all"
-                    >
-                        إعادة تعيين
-                    </button>
-                )}
+                    {/* Batch Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-text-muted">الدفعة:</label>
+                        <select
+                            value={batchFilter}
+                            onChange={(e) => setBatchFilter(e.target.value)}
+                            className="min-w-[100px] px-3 py-2 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all cursor-pointer"
+                        >
+                            <option value="">الكل</option>
+                            {availableBatches.map(batch => (
+                                <option key={batch} value={batch}>دفعة {batch}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Reset Filters */}
+                    {(roleFilter || batchFilter) && (
+                        <button
+                            onClick={resetFilters}
+                            className="px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-lg transition-all"
+                        >
+                            إعادة تعيين
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Table */}

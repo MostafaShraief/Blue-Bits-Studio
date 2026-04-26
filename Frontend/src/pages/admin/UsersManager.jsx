@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     fetchAdminUsers,
     createAdminUser,
@@ -27,13 +27,18 @@ import {
     Laptop2,
     Calendar,
     Copy,
-    Check
+    Check,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Filter
 } from 'lucide-react';
 
 export default function UsersManager() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [modalError, setModalError] = useState(''); // Error shown inside modal
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +46,65 @@ export default function UsersManager() {
     const [usernameError, setUsernameError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [copiedTelegram, setCopiedTelegram] = useState(null);
+    
+    // Filters
+    const [roleFilter, setRoleFilter] = useState('');
+    const [batchFilter, setBatchFilter] = useState('');
+    
+    // Sorting
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    
+    // Available roles and batches from data
+    const availableRoles = useMemo(() => {
+        const roles = new Set(users.map(u => u.userRole).filter(Boolean));
+        return Array.from(roles);
+    }, [users]);
+    
+    const availableBatches = useMemo(() => {
+        const batches = new Set(users.map(u => u.batchNumber).filter(Boolean));
+        return Array.from(batches).sort((a, b) => a - b);
+    }, [users]);
+    
+    // Filtered and sorted users
+    const filteredUsers = useMemo(() => {
+        let result = [...users];
+        
+        // Filter by role
+        if (roleFilter) {
+            result = result.filter(u => u.userRole === roleFilter);
+        }
+        
+        // Filter by batch
+        if (batchFilter) {
+            const batchNum = parseInt(batchFilter, 10);
+            result = result.filter(u => u.batchNumber === batchNum);
+        }
+        
+        // Sort
+        if (sortConfig.key) {
+            result.sort((a, b) => {
+                let aVal = a[sortConfig.key];
+                let bVal = b[sortConfig.key];
+                
+                // Handle null/undefined
+                if (aVal == null) aVal = '';
+                if (bVal == null) bVal = '';
+                
+                // String comparison for text fields
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        return result;
+    }, [users, roleFilter, batchFilter, sortConfig]);
+    
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -70,31 +134,31 @@ export default function UsersManager() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setModalError(''); // Clear modal error
 
         // Final validation before API call
         const usernameRegex = /^[a-zA-Z0-9._]+$/;
         const passwordRegex = /^[a-zA-Z0-9!@#$%^&*()_+=-]+$/;
 
         if (formData.username && !usernameRegex.test(formData.username)) {
-            setError('يُسمح فقط للأحرف الإنجليزية والأرقام والنقاط بدون مسافات في اسم المستخدم');
+            setModalError('يُسمح فقط للأحرف الإنجليزية والأرقام والنقاط بدون مسافات في اسم المستخدم');
             return;
         }
 
         if (formData.password && !passwordRegex.test(formData.password)) {
-            setError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
+            setModalError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
             return;
         }
 
         // Username length validation (3-20)
         if (formData.username && (formData.username.length < 3 || formData.username.length > 20)) {
-            setError('اسم المستخدم يجب أن يكون بين 3 و 20 حرف');
+            setModalError('اسم المستخدم يجب أن يكون بين 3 و 20 حرف');
             return;
         }
 
         // Password length validation (min 6)
         if (formData.password && formData.password.length < 6) {
-            setError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
+            setModalError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
             return;
         }
 
@@ -135,9 +199,9 @@ export default function UsersManager() {
                 (err.status === 400 && err.message?.includes('DUPLICATE_TELEGRAM_ROLE'));
 
             if (isDuplicateTelegramRole) {
-                setError('هذا المعرف الخاص بتيليجرام مسجل مسبقاً بهذا الدور');
+                setModalError('هذا المعرف الخاص بتيليجرام مسجل مسبقاً بهذا الدور');
             } else {
-                setError(err.message);
+                setModalError(err.message);
             }
         }
     };
@@ -180,6 +244,7 @@ export default function UsersManager() {
             teamJoinDate: ''
         });
         setEditingId(null);
+        setModalError('');
     };
 
     const openCreateModal = () => {
@@ -295,6 +360,40 @@ export default function UsersManager() {
         }
     };
 
+    const handleSort = (key) => {
+        setSortConfig(prev => {
+            if (prev.key === key) {
+                // Cycle: asc -> desc -> null (no sort)
+                if (prev.direction === 'asc') return { key, direction: 'desc' };
+                if (prev.direction === 'desc') return { key: null, direction: 'asc' };
+                return { key, direction: 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return <ArrowUpDown size={14} className="opacity-40" />;
+        return sortConfig.direction === 'asc' 
+            ? <ArrowUp size={14} className="text-primary" />
+            : <ArrowDown size={14} className="text-primary" />;
+    };
+
+    const getRoleLabel = (role) => {
+        const labels = {
+            'Admin': 'مسؤول',
+            'TechMember': 'تقني',
+            'ScientificMember': 'علمي'
+        };
+        return labels[role] || role;
+    };
+
+    const resetFilters = () => {
+        setRoleFilter('');
+        setBatchFilter('');
+        setSortConfig({ key: null, direction: 'asc' });
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -309,7 +408,9 @@ export default function UsersManager() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text">إدارة المستخدمين</h1>
-                    <p className="text-sm text-text-secondary mt-1">إجمالي {users.length} مستخدم</p>
+                    <p className="text-sm text-text-secondary mt-1">
+                        عرض {filteredUsers.length} من {users.length} مستخدم
+                    </p>
                 </div>
                 <button
                     onClick={openCreateModal}
@@ -328,23 +429,111 @@ export default function UsersManager() {
                 </div>
             )}
 
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3 p-4 bg-surface-card border border-border rounded-xl">
+                <div className="flex items-center gap-2 text-sm font-medium text-text">
+                    <Filter size={16} className="text-text-muted" />
+                    <span>تصفية:</span>
+                </div>
+                
+                {/* Role Filter */}
+                <div className="flex items-center gap-2">
+                    <label className="text-sm text-text-muted">الدور:</label>
+                    <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    >
+                        <option value="">الكل</option>
+                        {availableRoles.map(role => (
+                            <option key={role} value={role}>{getRoleLabel(role)}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Batch Filter */}
+                <div className="flex items-center gap-2">
+                    <label className="text-sm text-text-muted">الدفعة:</label>
+                    <select
+                        value={batchFilter}
+                        onChange={(e) => setBatchFilter(e.target.value)}
+                        className="px-3 py-2 rounded-lg border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    >
+                        <option value="">الكل</option>
+                        {availableBatches.map(batch => (
+                            <option key={batch} value={batch}>دفعة {batch}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Reset Filters */}
+                {(roleFilter || batchFilter) && (
+                    <button
+                        onClick={resetFilters}
+                        className="px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-lg transition-all"
+                    >
+                        إعادة تعيين
+                    </button>
+                )}
+            </div>
+
             {/* Table */}
             <div className="bg-surface-card border border-border rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-surface border-b border-border">
                             <tr>
-                                <th className="text-center px-5 py-4 text-sm font-bold text-text">المستخدم</th>
-                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الدور</th>
-                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الدفعة</th>
-                                <th className="text-center px-5 py-4 text-sm font-bold text-text">تاريخ الانضمام</th>
-                                <th className="text-center px-5 py-4 text-sm font-bold text-text">تاريخ الإنشاء</th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('firstName')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        المستخدم
+                                        {getSortIcon('firstName')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('userRole')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        الدور
+                                        {getSortIcon('userRole')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('batchNumber')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        الدفعة
+                                        {getSortIcon('batchNumber')}
+                                    </div>
+                                </th>
                                 <th className="text-center px-5 py-4 text-sm font-bold text-text">تيليجرام</th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('teamJoinDate')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        تاريخ الانضمام
+                                        {getSortIcon('teamJoinDate')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('createdAt')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        تاريخ الإنشاء
+                                        {getSortIcon('createdAt')}
+                                    </div>
+                                </th>
                                 <th className="text-center px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map((user, index) => (
+                            {filteredUsers.map((user, index) => (
                                 <tr 
                                     key={user.userId} 
                                     className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors"
@@ -368,12 +557,6 @@ export default function UsersManager() {
                                     </td>
                                     <td className="px-5 py-4 text-sm text-text text-center">
                                         {user.batchNumber || '-'}
-                                    </td>
-                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
-                                        {formatDate(user.teamJoinDate)}
-                                    </td>
-                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
-                                        {formatDate(user.createdAt)}
                                     </td>
                                     <td className="px-5 py-4 text-center" dir="ltr">
                                         {user.telegramUsername ? (
@@ -402,6 +585,12 @@ export default function UsersManager() {
                                             <span className="text-text-muted">-</span>
                                         )}
                                     </td>
+                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
+                                        {formatDate(user.teamJoinDate)}
+                                    </td>
+                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
+                                        {formatDate(user.createdAt)}
+                                    </td>
                                     <td className="px-5 py-4 text-center">
                                         <div className="flex items-center gap-1.5">
                                             <button
@@ -424,12 +613,14 @@ export default function UsersManager() {
                                     </td>
                                 </tr>
                             ))}
-                            {users.length === 0 && (
+                            {filteredUsers.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-5 py-10 text-center">
                                         <div className="flex flex-col items-center">
                                             <Users size={36} className="text-text-muted mb-2" strokeWidth={1.3} />
-                                            <p className="text-sm text-text-muted">لا توجد مستخدمين</p>
+                                            <p className="text-sm text-text-muted">
+                                                {roleFilter || batchFilter ? 'لا توجد نتائج المطابقة' : 'لا توجد مستخدمين'}
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>
@@ -458,6 +649,14 @@ export default function UsersManager() {
                                 <X size={20} />
                             </button>
                         </div>
+
+                        {/* Modal Error */}
+                        {modalError && (
+                            <div className="flex items-center gap-3 bg-danger-light border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm animate-fade-slide-in">
+                                <AlertCircle size={18} />
+                                <span>{modalError}</span>
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">

@@ -25,7 +25,9 @@ import {
     Hash,
     MessageCircle,
     Laptop2,
-    Calendar
+    Calendar,
+    Copy,
+    Check
 } from 'lucide-react';
 
 export default function UsersManager() {
@@ -38,6 +40,7 @@ export default function UsersManager() {
     const [isClosing, setIsClosing] = useState(false);
     const [usernameError, setUsernameError] = useState('');
     const [passwordError, setPasswordError] = useState('');
+    const [copiedTelegram, setCopiedTelegram] = useState(null);
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -280,6 +283,18 @@ export default function UsersManager() {
         }).format(new Date(date));
     };
 
+    const handleCopyTelegram = async (telegramUsername, userId) => {
+        if (!telegramUsername) return;
+        
+        try {
+            await navigator.clipboard.writeText(telegramUsername);
+            setCopiedTelegram(userId);
+            setTimeout(() => setCopiedTelegram(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -319,12 +334,13 @@ export default function UsersManager() {
                     <table className="w-full">
                         <thead className="bg-surface border-b border-border">
                             <tr>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">المستخدم</th>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الدور</th>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الدفعة</th>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">تاريخ الانضمام</th>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">تاريخ الإنشاء</th>
-                                <th className="text-start px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">المستخدم</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الدور</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الدفعة</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">تاريخ الانضمام</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">تاريخ الإنشاء</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">تيليجرام</th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -334,8 +350,8 @@ export default function UsersManager() {
                                     className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors"
                                     style={{ animationDelay: `${index * 30}ms` }}
                                 >
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-3">
+                                    <td className="px-5 py-4 text-center">
+                                        <div className="flex items-center gap-3 justify-center">
                                             <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
                                                 <span className="text-primary font-bold text-sm">
                                                     {user.firstName?.[0]}{user.lastName?.[0]}
@@ -343,23 +359,50 @@ export default function UsersManager() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-text">{user.firstName} {user.lastName}</p>
-                                                <p className="text-xs text-text-muted">@{user.username}</p>
+                                                <p className="text-xs text-text-muted">{user.username}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-5 py-4">
+                                    <td className="px-5 py-4 text-center">
                                         {getRoleBadge(user.userRole)}
                                     </td>
-                                    <td className="px-5 py-4 text-sm text-text">
+                                    <td className="px-5 py-4 text-sm text-text text-center">
                                         {user.batchNumber || '-'}
                                     </td>
-                                    <td className="px-5 py-4 text-sm text-text-muted">
+                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
                                         {formatDate(user.teamJoinDate)}
                                     </td>
-                                    <td className="px-5 py-4 text-sm text-text-muted">
+                                    <td className="px-5 py-4 text-sm text-text-muted text-center">
                                         {formatDate(user.createdAt)}
                                     </td>
-                                    <td className="px-5 py-4">
+                                    <td className="px-5 py-4 text-center">
+                                        {user.telegramUsername ? (
+                                            <button
+                                                onClick={() => handleCopyTelegram(user.telegramUsername, user.userId)}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                                    copiedTelegram === user.userId
+                                                        ? 'bg-success/15 text-success'
+                                                        : 'text-primary hover:bg-primary/10'
+                                                }`}
+                                                title="نسخ"
+                                            >
+                                                {copiedTelegram === user.userId ? (
+                                                    <>
+                                                        <Check size={14} />
+                                                        <span>{user.telegramUsername}</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy size={14} />
+                                                        <span>{user.telegramUsername}</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <span className="text-text-muted">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
                                         <div className="flex items-center gap-1.5">
                                             <button
                                                 onClick={() => handleEdit(user)}
@@ -383,7 +426,7 @@ export default function UsersManager() {
                             ))}
                             {users.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-5 py-10 text-center">
+                                    <td colSpan={7} className="px-5 py-10 text-center">
                                         <div className="flex flex-col items-center">
                                             <Users size={36} className="text-text-muted mb-2" strokeWidth={1.3} />
                                             <p className="text-sm text-text-muted">لا توجد مستخدمين</p>

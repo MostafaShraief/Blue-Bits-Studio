@@ -375,7 +375,7 @@ export default function UsersManager() {
                                     <td className="px-5 py-4 text-sm text-text-muted text-center">
                                         {formatDate(user.createdAt)}
                                     </td>
-                                    <td className="px-5 py-4 text-center">
+                                    <td className="px-5 py-4 text-center" dir="ltr">
                                         {user.telegramUsername ? (
                                             <button
                                                 onClick={() => handleCopyTelegram(user.telegramUsername, user.userId)}

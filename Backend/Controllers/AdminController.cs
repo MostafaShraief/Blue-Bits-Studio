@@ -76,6 +76,12 @@ public class AdminController : ControllerBase
         // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername)
         if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
         {
+            // Add @ prefix if not present
+            if (!dto.TelegramUsername.StartsWith("@"))
+            {
+                dto.TelegramUsername = "@" + dto.TelegramUsername;
+            }
+
             var exists = await _db.Users.AnyAsync(u =>
                 u.TelegramUsername == dto.TelegramUsername &&
                 u.UserRole == dto.UserRole);
@@ -124,6 +130,12 @@ public class AdminController : ControllerBase
         // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername, exclude current user)
         if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
         {
+            // Add @ prefix if not present
+            if (!dto.TelegramUsername.StartsWith("@"))
+            {
+                dto.TelegramUsername = "@" + dto.TelegramUsername;
+            }
+
             var exists = await _db.Users.AnyAsync(u =>
                 u.TelegramUsername == dto.TelegramUsername &&
                 u.UserRole == dto.UserRole &&

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     fetchAdminMaterials,
     createAdminMaterial,
@@ -13,9 +13,16 @@ import {
     Loader2,
     AlertCircle,
     X,
-    GraduationCap,
     Sparkles,
-    Calendar
+    Eye,
+    EyeOff,
+    Calendar,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Filter,
+    GraduationCap,
+    Hash
 } from 'lucide-react';
 
 export default function MaterialsManager() {
@@ -25,6 +32,54 @@ export default function MaterialsManager() {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [isClosing, setIsClosing] = useState(false);
+    
+    // Filters
+    const [yearFilter, setYearFilter] = useState('');
+    
+    // Sorting
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    
+    // Available years from data
+    const availableYears = useMemo(() => {
+        const years = new Set(materials.map(m => m.materialYear).filter(Boolean));
+        return Array.from(years).sort((a, b) => a - b);
+    }, [materials]);
+    
+    // Filtered and sorted materials
+    const filteredMaterials = useMemo(() => {
+        let result = [...materials];
+        
+        // Filter by year
+        if (yearFilter) {
+            const yearNum = parseInt(yearFilter, 10);
+            result = result.filter(m => m.materialYear === yearNum);
+        }
+        
+        // Sort
+        if (sortConfig.key) {
+            result.sort((a, b) => {
+                let aVal = a[sortConfig.key];
+                let bVal = b[sortConfig.key];
+                
+                // Handle null/undefined
+                if (aVal == null) aVal = '';
+                if (bVal == null) bVal = '';
+                
+                // String comparison for text fields
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                
+                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        return result;
+    }, [materials, yearFilter, sortConfig]);
+    
     const [formData, setFormData] = useState({
         materialName: '',
         materialYear: 1
@@ -124,6 +179,56 @@ export default function MaterialsManager() {
         return labels[year] || `السنة ${year}`;
     };
 
+    const getYearBadge = (year) => {
+        const colors = {
+            1: 'bg-primary/15 text-primary',
+            2: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
+            3: 'bg-success/15 text-success',
+            4: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+            5: 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+        };
+        const colorClass = colors[year] || colors[1];
+        return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${colorClass}`}>
+                <GraduationCap size={12} strokeWidth={2} />
+                {getYearLabel(year)}
+            </span>
+        );
+    };
+
+    const formatDate = (date) => {
+        if (!date) return '-';
+        return new Intl.DateTimeFormat('ar-SY', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }).format(new Date(date));
+    };
+
+    const handleSort = (key) => {
+        setSortConfig(prev => {
+            if (prev.key === key) {
+                // Cycle: asc -> desc -> null (no sort)
+                if (prev.direction === 'asc') return { key, direction: 'desc' };
+                if (prev.direction === 'desc') return { key: null, direction: 'asc' };
+                return { key, direction: 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return <ArrowUpDown size={14} className="opacity-40" />;
+        return sortConfig.direction === 'asc' 
+            ? <ArrowUp size={14} className="text-primary" />
+            : <ArrowDown size={14} className="text-primary" />;
+    };
+
+    const resetFilters = () => {
+        setYearFilter('');
+        setSortConfig({ key: null, direction: 'asc' });
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -142,7 +247,7 @@ export default function MaterialsManager() {
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
                 >
                     <Plus size={18} />
                     إضافة مادة
@@ -157,69 +262,121 @@ export default function MaterialsManager() {
                 </div>
             )}
 
-            {/* Materials Grid - Card Design */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {materials.map((material, index) => (
-                    <div
-                        key={material.materialId}
-                        className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 group"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                                    <GraduationCap size={24} className="text-primary" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-text">{material.materialName}</h3>
-                                    <p className="text-sm text-text-muted">
-                                        {getYearLabel(material.materialYear)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                <button
-                                    onClick={() => handleEdit(material)}
-                                    className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
-                                    title="تعديل"
-                                >
-                                    <Pencil size={16} />
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(material.materialId)}
-                                    className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-all"
-                                    title="حذف"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-border">
-                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/15 text-primary">
-                                {getYearLabel(material.materialYear)}
-                            </span>
-                        </div>
-                    </div>
-                ))}
+            {/* Filters */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-card border border-border rounded-xl">
+                {/* Left side: Counter + Filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-lg">
+                        عرض {filteredMaterials.length} من {materials.length} مادة
+                    </span>
 
-                {materials.length === 0 && (
-                    <div className="col-span-full">
-                        <div className="bg-surface-card border border-border rounded-2xl p-10 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-surface mx-auto mb-4 flex items-center justify-center">
-                                <Sparkles size={32} className="text-text-muted" strokeWidth={1.3} />
-                            </div>
-                            <h3 className="text-lg font-bold text-text mb-2">لا توجد مواد</h3>
-                            <p className="text-sm text-text-muted mb-6">أضف مادة للبدء</p>
-                            <button
-                                onClick={openCreateModal}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/20"
-                            >
-                                <Plus size={18} />
-                                إضافة مادة
-                            </button>
-                        </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <Filter size={16} className="text-text-muted" />
+                        <span>تصفية:</span>
                     </div>
-                )}
+                    
+                    {/* Year Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-text-muted">السنة:</label>
+                        <select
+                            value={yearFilter}
+                            onChange={(e) => setYearFilter(e.target.value)}
+                            className="min-w-[120px] px-3 py-2 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all cursor-pointer"
+                        >
+                            <option value="">الكل</option>
+                            {availableYears.map(year => (
+                                <option key={year} value={year}>{getYearLabel(year)}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Reset Filters */}
+                    {yearFilter && (
+                        <button
+                            onClick={resetFilters}
+                            className="px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-lg transition-all"
+                        >
+                            إعادة تعيين
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-surface-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-surface border-b border-border">
+                            <tr>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('materialName')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        المادة
+                                        {getSortIcon('materialName')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
+                                    onClick={() => handleSort('materialYear')}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        السنة الدراسية
+                                        {getSortIcon('materialYear')}
+                                    </div>
+                                </th>
+                                <th className="text-center px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredMaterials.map((material, index) => (
+                                <tr 
+                                    key={material.materialId} 
+                                    className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors"
+                                    style={{ animationDelay: `${index * 30}ms` }}
+                                >
+                                    <td className="px-5 py-4 text-center">
+                                        <p className="text-sm font-bold text-text">{material.materialName}</p>
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                        {getYearBadge(material.materialYear)}
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                        <div className="flex items-center justify-center gap-1.5">
+                                            <button
+                                                onClick={() => handleEdit(material)}
+                                                className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
+                                                title="تعديل"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(material.materialId)}
+                                                className="p-2 rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-all"
+                                                title="حذف"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredMaterials.length === 0 && (
+                                <tr>
+                                    <td colSpan={3} className="px-5 py-10 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <Sparkles size={36} className="text-text-muted mb-2" strokeWidth={1.3} />
+                                            <p className="text-sm text-text-muted">
+                                                {yearFilter ? 'لا توجد نتائج المطابقة' : 'لا توجد مواد'}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Modal */}
@@ -236,7 +393,7 @@ export default function MaterialsManager() {
                             </h2>
                             <button
                                 onClick={closeModal}
-                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-default hover:text-text"
+                                className="p-2 rounded-lg text-text-muted hover:bg-surface transition-all hover:text-text"
                             >
                                 <X size={20} />
                             </button>

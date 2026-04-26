@@ -60,15 +60,13 @@ export default function ExtractionWizard() {
     const [step, setStep] = useState(0);
 
     // Step 1 — Naming
-    const [workflowSystemCode, setWorkflowSystemCode] = useState(() => {
-        if (loading) return 'LEC_EXT'; // Default while loading
-        return getInitialWorkflowCode();
-    });
+    // Start with empty selection - user must choose manually (matching CoordinationWizard behavior)
+    const [workflowSystemCode, setWorkflowSystemCode] = useState('');
     const [sessionId, setSessionId] = useState(null);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('Theoretical');
+    const [lectureType, setLectureType] = useState('');
 
     // Step 2 — Images + Notes
     const [images, setImages] = useState([]); // { file, url, note }

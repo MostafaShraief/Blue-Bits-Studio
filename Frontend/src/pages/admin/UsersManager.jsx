@@ -24,7 +24,8 @@ import {
     Lock,
     Hash,
     MessageCircle,
-    Laptop2
+    Laptop2,
+    Calendar
 } from 'lucide-react';
 
 export default function UsersManager() {
@@ -44,7 +45,8 @@ export default function UsersManager() {
         password: '',
         userRole: 'TechMember',
         batchNumber: '',
-        telegramUsername: ''
+        telegramUsername: '',
+        teamJoinDate: ''
     });
 
     useEffect(() => {
@@ -99,7 +101,8 @@ export default function UsersManager() {
             lastName: formData.lastName,
             userRole: formData.userRole,
             batchNumber: parseInt(formData.batchNumber, 10) || 1,
-            telegramUsername: formData.telegramUsername || null
+            telegramUsername: formData.telegramUsername || null,
+            teamJoinDate: formData.teamJoinDate || null
         };
 
         // Only include password if provided (for create or update with new password)
@@ -144,7 +147,8 @@ export default function UsersManager() {
             password: '',
             userRole: user.userRole,
             batchNumber: user.batchNumber?.toString() || '',
-            telegramUsername: user.telegramUsername || ''
+            telegramUsername: user.telegramUsername || '',
+            teamJoinDate: user.teamJoinDate || ''
         });
         setEditingId(user.userId);
         setShowModal(true);
@@ -169,7 +173,8 @@ export default function UsersManager() {
             password: '',
             userRole: 'TechMember',
             batchNumber: '',
-            telegramUsername: ''
+            telegramUsername: '',
+            teamJoinDate: ''
         });
         setEditingId(null);
     };
@@ -318,6 +323,7 @@ export default function UsersManager() {
                                 <th className="text-start px-5 py-4 text-sm font-bold text-text">الدور</th>
                                 <th className="text-start px-5 py-4 text-sm font-bold text-text">الدفعة</th>
                                 <th className="text-start px-5 py-4 text-sm font-bold text-text">تاريخ الانضمام</th>
+                                <th className="text-start px-5 py-4 text-sm font-bold text-text">تاريخ الإنشاء</th>
                                 <th className="text-start px-5 py-4 text-sm font-bold text-text">الإجراءات</th>
                             </tr>
                         </thead>
@@ -350,6 +356,9 @@ export default function UsersManager() {
                                     <td className="px-5 py-4 text-sm text-text-muted">
                                         {formatDate(user.teamJoinDate)}
                                     </td>
+                                    <td className="px-5 py-4 text-sm text-text-muted">
+                                        {formatDate(user.createdAt)}
+                                    </td>
                                     <td className="px-5 py-4">
                                         <div className="flex items-center gap-1.5">
                                             <button
@@ -374,7 +383,7 @@ export default function UsersManager() {
                             ))}
                             {users.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-5 py-10 text-center">
+                                    <td colSpan={6} className="px-5 py-10 text-center">
                                         <div className="flex flex-col items-center">
                                             <Users size={36} className="text-text-muted mb-2" strokeWidth={1.3} />
                                             <p className="text-sm text-text-muted">لا توجد مستخدمين</p>
@@ -548,6 +557,21 @@ export default function UsersManager() {
                                         className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                         placeholder="أدخل يوزر التيليجرام"
                                         dir="ltr"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text mb-2">تاريخ الانضمام (اختياري)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 start-0 ps-3.5 flex items-center pointer-events-none">
+                                        <Calendar className="h-[18px] w-[18px] text-text-muted" />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        value={formData.teamJoinDate}
+                                        onChange={(e) => setFormData({...formData, teamJoinDate: e.target.value})}
+                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                     />
                                 </div>
                             </div>

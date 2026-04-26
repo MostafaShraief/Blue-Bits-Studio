@@ -16,10 +16,32 @@ public class UpdateUserRequest
     public string UserRole { get; set; } = string.Empty;
     public int BatchNumber { get; set; }
     public string? TelegramUsername { get; set; }
+    public string? TeamJoinDate { get; set; }
     
     [RegularExpression(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$", ErrorMessage = "Password must contain only English letters, numbers, and standard symbols without spaces.")]
     [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
     public string? Password { get; set; } // Optional: only updated if provided
+}
+
+// DTO for creating users (password required, username required)
+public class CreateUserRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string UserRole { get; set; } = string.Empty;
+    public int BatchNumber { get; set; }
+    public string? TelegramUsername { get; set; }
+    public string? TeamJoinDate { get; set; }
+    
+    [Required]
+    [RegularExpression(@"^[a-zA-Z0-9._]+$", ErrorMessage = "Username must contain only English letters, numbers, dots or underscores.")]
+    [StringLength(20, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 20 characters.")]
+    public required string Username { get; set; }
+    
+    [Required]
+    [RegularExpression(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$", ErrorMessage = "Password must contain only English letters, numbers, and standard symbols without spaces.")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
+    public required string Password { get; set; }
 }
 
 [Authorize(Roles = "Admin")]
@@ -44,7 +66,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateUser([FromBody] User user)
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest dto)
     {
         if (!ModelState.IsValid)
         {
@@ -52,19 +74,32 @@ public class AdminController : ControllerBase
         }
 
         // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername)
-        if (!string.IsNullOrWhiteSpace(user.TelegramUsername))
+        if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
         {
             var exists = await _db.Users.AnyAsync(u =>
-                u.TelegramUsername == user.TelegramUsername &&
-                u.UserRole == user.UserRole);
+                u.TelegramUsername == dto.TelegramUsername &&
+                u.UserRole == dto.UserRole);
             if (exists)
             {
                 _logger.LogWarning("CreateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
-                    user.TelegramUsername, user.UserRole);
+                    dto.TelegramUsername, dto.UserRole);
                 return Conflict(new { message = "DUPLICATE_TELEGRAM_ROLE",
-                    detail = $"Telegram username '{user.TelegramUsername}' is already registered with role '{user.UserRole}'" });
+                    detail = $"Telegram username '{dto.TelegramUsername}' is already registered with role '{dto.UserRole}'" });
             }
         }
+
+        var user = new User
+        {
+            FirstName = dto.FirstName,
+            LastName = dto.LastName,
+            Username = dto.Username,
+            Password = dto.Password,
+            UserRole = dto.UserRole,
+            BatchNumber = dto.BatchNumber,
+            TelegramUsername = dto.TelegramUsername,
+            TeamJoinDate = dto.TeamJoinDate,
+            CreatedAt = DateTime.UtcNow.ToString("O")
+        };
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
@@ -107,6 +142,12 @@ public class AdminController : ControllerBase
         user.UserRole = dto.UserRole;
         user.BatchNumber = dto.BatchNumber;
         user.TelegramUsername = dto.TelegramUsername;
+        
+        // Only update TeamJoinDate if provided
+        if (!string.IsNullOrWhiteSpace(dto.TeamJoinDate))
+        {
+            user.TeamJoinDate = dto.TeamJoinDate;
+        }
         
         // Only update password if provided
         if (!string.IsNullOrWhiteSpace(dto.Password))

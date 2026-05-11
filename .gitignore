@@ -1,5 +1,9 @@
 # Frontend Dependencies
 Frontend/node_modules/
+Frontend/.pnpm-store/
+Frontend/pnpm-lock.yaml
+Frontend/package-lock.json
+package-lock.json
 
 # Frontend Build output
 Frontend/dist/

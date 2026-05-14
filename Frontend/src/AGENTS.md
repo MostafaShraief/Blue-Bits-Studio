@@ -1090,18 +1090,21 @@ Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for pe
 Frontend (React component)
 
 ### 3. What the file does
-Renders a full-page RTL login form with username/password fields, show/hide password toggle, error banner, loading spinner, and post-login role-based redirect (Admin → `/admin/users`, others → `/`). Redirects already-authenticated users on mount.
+Renders a full-page RTL login form with username/password fields, show/hide password toggle, error banner, field-level validation errors, loading spinner, and post-login role-based redirect (Admin → `/admin/users`, others → `/`). Redirects already-authenticated users on mount. Consumes `ApiError` from HttpClient — 401 sets Arabic general error, 400 with `errors` map sets per-field errors, others fall back to `err.message`.
 
 ### 4. User Stories
 - As a user, I can log in with my credentials and be redirected based on my role.
+- As a user, I see per-field Arabic validation errors under the relevant input when the backend rejects empty fields.
+- As a user, I see a clear Arabic error "اسم المستخدم أو كلمة المرور غير صحيحة" when my credentials are wrong.
 - As an already logged-in user, I am automatically redirected away from the login page.
 
 ### 5. Functions Summary
 - `Login` (default export): Main component — manages form state, calls `AuthContext.login`, handles errors, renders UI.
-- `handleSubmit`: Prevents default form submission, calls `login(username, password)`, navigates on success or sets error on failure.
+- `handleSubmit`: Prevents default form submission, calls `login(username, password)`, navigates on success or sets error on failure. On 401 → Arabic invalid credentials message; on 400 with errors → binds per-field errors; otherwise → generic fallback.
+- `clearFieldError(field)`: On input change, removes the field-specific error from `fieldErrors` state (avoids stale validation markup).
 
 ### 6. Integration
-Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No direct API calls in this file.
+Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No direct API calls in this file. `ApiError.errors` (from HttpClient) is consumed to populate `fieldErrors`.
 
 ### 7. Imports Summary
 - **React hooks:** `useState`, `useContext`, `useEffect`
@@ -1110,13 +1113,16 @@ Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No di
 - **Icons:** `LogIn`, `User`, `Lock`, `Loader2`, `AlertCircle`, `Eye`, `EyeOff` from `lucide-react`
 
 ### 8. Additional Info
-Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode.
+Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
 
 ### 9. API
 - **Endpoint:** `POST /auth/login`
 - **Request body:** `{ username, password }`
 - **Response (success):** `{ token, userId, username, firstName, lastName, role, authorizedWorkflows[] }` — token saved to `localStorage`, user object set in AuthContext.
-- **Response (error):** throws with `errData.message` (Arabic fallback: "فشل تسجيل الدخول").
+- **Response error handling:**
+  - **401:** sets `error` state to Arabic "اسم المستخدم أو كلمة المرور غير صحيحة"
+  - **400 with `errors` map (FluentValidation):** flattens keys to lowercase, sets `fieldErrors` state for per-field display
+  - **Other errors:** falls back to `err.message` or generic Arabic fallback
 
 ## 1. File Name and Directory
 Frontend/src/pages/MergeWizard.jsx

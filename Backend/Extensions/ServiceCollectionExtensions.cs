@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPromptCompilationService, PromptCompilationService>();
         services.AddScoped<IPandocService, PandocService>();
         services.AddScoped<IMergeService, MergeService>();
+        services.AddScoped<IMaterialService, MaterialService>();
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
         services.AddScoped<IUserRepository, UserRepository>();

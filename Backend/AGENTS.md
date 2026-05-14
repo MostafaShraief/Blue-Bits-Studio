@@ -860,7 +860,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService` as scoped, and `IRepository<>` / `GenericRepository<>` as scoped open generics.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -872,7 +872,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services, and all 9 specific repositories alongside the open generic `IRepository<>`, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -1308,6 +1308,52 @@ No database calls. Consumed by `MergeEndpoints`. Implemented by `MergeService`.
 
 ### 8. Additional Info
 Created as part of the service extraction refactor. All merge OpenXML logic lives in `MergeService`.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IMaterialService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines the `IMaterialService` interface for material-related queries. Contains `GetDistinctMaterialNamesAsync` which returns a distinct, alphabetically sorted list of all material names from the repository.
+
+### 4. User Stories
+- As a developer, I can inject `IMaterialService` to get distinct material names without coupling to repository or EF Core details.
+
+### 5. Functions Summary
+- `GetDistinctMaterialNamesAsync()`: Returns `Task<List<string>>` — queries all materials via `IMaterialRepository`, projects distinct `MaterialName`s, orders them alphabetically.
+
+### 6. Integration
+No database calls. Consumed by controllers and other services. Implemented by `MaterialService`.
+
+### 7. Imports Summary
+None — pure interface in `BlueBits.Api.Services.Interfaces` namespace.
+
+### 8. Additional Info
+Created as part of the service layer extraction. All material data access logic lives in `MaterialService`.
+## 1. File Name and Directory
+`Backend/Services/MaterialService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IMaterialService`. Uses `IMaterialRepository` to fetch all materials and returns distinct, alphabetically sorted material names.
+
+### 4. User Stories
+- As a developer, I can call `MaterialService.GetDistinctMaterialNamesAsync` to retrieve distinct material names through the repository layer.
+
+### 5. Functions Summary
+- `GetDistinctMaterialNamesAsync()`: Calls `IMaterialRepository.GetAllAsync()`, then projects to `MaterialName`, applies `Distinct()`, orders alphabetically, and returns as `List<string>`.
+
+### 6. Integration
+Injected as `IMaterialService` (scoped). Depends on `IMaterialRepository` for data access. No direct database calls.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Repositories` (`IMaterialRepository`), `BlueBits.Api.Services.Interfaces` (`IMaterialService`)
+
+### 8. Additional Info
+Registered in `ServiceCollectionExtensions.AddPersistence()` alongside other services.
 ## 1. File Name and Directory
 `Backend/Services/PandocService.cs`
 

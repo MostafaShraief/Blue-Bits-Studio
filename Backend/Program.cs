@@ -17,6 +17,7 @@ try
 
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddPersistence(builder.Configuration, builder.Environment);
+    builder.Services.AddApplicationServices();
     builder.Services.AddAuthLayer(builder.Configuration);
     builder.Services.AddApiLayer();
 

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
 using BlueBits.Api.Services;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -69,11 +70,4 @@ public class PromptsController : ControllerBase
 
         return Ok(new { CompiledPrompt = compiled });
     }
-}
-
-public class CompilePromptRequest
-{
-    public string systemCode { get; set; } = string.Empty;
-    public string? GeneralNotes { get; set; }
-    public List<string>? FileNotes { get; set; }
 }

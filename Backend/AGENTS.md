@@ -115,12 +115,13 @@ Provides Admin-only CRUD endpoints for managing users. Admins can list, create, 
 Interacts directly with `BlueBitsDbContext` (SQLite via EF Core). No external APIs or services.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`, `Logging`, `System.ComponentModel.DataAnnotations`
-- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (User entity)
+- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`, `Logging`
+- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (User entity), `BlueBits.Api.DTOs.Requests` (CreateUserRequest, UpdateUserRequest)
 
 ### 8. Additional Info
 - Controller is restricted to `[Authorize(Roles = "Admin")]`.
-- DTOs are defined in the same file, separate from the entity to avoid validation conflicts.
+- DTOs (`CreateUserRequest`, `UpdateUserRequest`) are imported from `BlueBits.Api.DTOs.Requests` namespace — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
+- Validation moved from DataAnnotations to FluentValidation (`CreateUserRequestValidator`, `UpdateUserRequestValidator`).
 - Telegram username duplication check is role-scoped (same Telegram + same role = conflict; same Telegram + different role = allowed).
 ## 1. File Name and Directory
 `Backend/Controllers/AdminMaterialsController.cs`
@@ -181,11 +182,12 @@ Directly queries and mutates `WorkflowPermissions` via `BlueBitsDbContext` (EF C
 - `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Mvc` — ASP.NET Core attributes and base classes.
 - `Microsoft.EntityFrameworkCore` — For `.Include()` and async queries.
 - `BlueBits.Api.Data`, `BlueBits.Api.Models` — Internal DbContext and `WorkflowPermission` entity.
+- `BlueBits.Api.DTOs.Requests` — `CreatePermissionRequest` DTO.
 
 ### 8. Additional Info
 - Restricted to `Admin` role via `[Authorize(Roles = "Admin")]`.
 - Accepts only `TechMember` or `ScientificMember` as valid role names.
-- Nested DTO `CreatePermissionRequest` uses `required` keyword (C# 11+).
+- `CreatePermissionRequest` was previously a nested class inside this controller; now imported from `BlueBits.Api.DTOs.Requests`.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminPromptsController.cs`
 
@@ -213,7 +215,7 @@ Directly interacts with the SQLite database through Entity Framework Core (`Blue
 
 ### 8. Additional Info
 - Guarded by `[Authorize(Roles = "Admin")]` — strictly Admin-only.
-- `UpdatePromptRequest` is an inline DTO with a single `PromptText` property.
+- `UpdatePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
 - No delete endpoint — admins cannot delete prompts, in line with backend design rules.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminWorkflowsController.cs`
@@ -242,7 +244,7 @@ Interacts directly with the SQLite database via Entity Framework Core (`BlueBits
 
 ### 8. Additional Info
 - Role-locked to `Admin` via `[Authorize(Roles = "Admin")]`.
-- Contains inline DTO `ToggleWorkflowRequest` with a single `bool IsActive` property.
+- `ToggleWorkflowRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
 - No session creation or workflow execution — strictly administrative toggle.
 ## 1. File Name and Directory
 `Backend/Controllers/AuthController.cs`
@@ -266,12 +268,12 @@ Interacts with SQLite via EF Core (`BlueBitsDbContext`). Reads JWT settings (`Ke
 
 ### 7. Imports Summary
 **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`; `Microsoft.IdentityModel.Tokens`; `System.IdentityModel.Tokens.Jwt`; `System.Security.Claims`; `System.Text`.  
-**Internal:** `BlueBits.Api.Data` (`BlueBitsDbContext`), `BlueBits.Api.DTOs.Responses` (`LoginResponse`).
+**Internal:** `BlueBits.Api.Data` (`BlueBitsDbContext`), `BlueBits.Api.DTOs.Responses` (`LoginResponse`), `BlueBits.Api.DTOs.Requests` (`LoginRequest`).
 
 ### 8. Additional Info
 - Passwords compared in plaintext (no hashing).
 - `AuthorizedWorkflows` (list of SystemCodes) is the RBAC contract consumed by the frontend for dynamic UI rendering.
-- `LoginRequest` DTO is defined at the bottom of the same file.
+- `LoginRequest` DTO is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
 - `LoginResponse` DTO is extracted to `BlueBits.Api.DTOs.Responses`.
 ## 1. File Name and Directory
 `Backend/Controllers/MaterialsController.cs`
@@ -318,10 +320,10 @@ Provides authenticated endpoints for non-Admin users to retrieve AI prompt text 
 Interacts with `BlueBitsDbContext` (SQLite) to query Sessions and Prompts tables. Uses `IPromptCompilationService` for prompt compilation logic.
 
 ### 7. Imports Summary
-ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]`, `[HttpPost]`), Entity Framework Core (`DbContext`), `System.Security.Claims`, and internal project models/services (`BlueBits.Api.Data`, `BlueBits.Api.Models`, `BlueBits.Api.Services`).
+ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]`, `[HttpPost]`), Entity Framework Core (`DbContext`), `System.Security.Claims`, and internal project models/services (`BlueBits.Api.Data`, `BlueBits.Api.Models`, `BlueBits.Api.Services`, `BlueBits.Api.DTOs.Requests`).
 
 ### 8. Additional Info
-The `CompilePromptRequest` DTO is defined at the bottom of the same file with fields: `systemCode`, `GeneralNotes`, `FileNotes`. Admins are forbidden from both endpoints (`return Forbid()`).
+`CompilePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`. Admins are forbidden from both endpoints (`return Forbid()`).
 ## 1. File Name and Directory
 `Backend/Controllers/SessionsController.cs`
 
@@ -353,10 +355,10 @@ Manages the academic session lifecycle — listing, creating, viewing, saving co
 ### 7. Imports Summary
 - **ASP.NET Core**: `Authorization`, `Mvc`, `EntityFrameworkCore`, `IWebHostEnvironment`
 - **System**: `Security.Claims`
-- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services` (IPromptCompilationService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`)
+- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services` (IPromptCompilationService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`)
 
 ### 8. Additional Info
-- Two DTOs defined at file bottom: `CreateSessionRequest`, `SaveSessionContentRequest`
+- DTOs (`CreateSessionRequest`, `SaveSessionContentRequest`) are imported from `BlueBits.Api.DTOs.Requests` — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
 - `SessionSummaryDto` DTO is extracted to `BlueBits.Api.DTOs.Responses`
 - Admin role is **blocked** from `GetSessions`, `CreateSession`, and `UploadFiles`
 - File notes are linked to files via `FileId` with type `"FileNote"`; general notes use `"GeneralNote"`
@@ -886,7 +888,7 @@ Centralizes all DI registration logic that was previously inline in `Program.cs`
 Backend — Request DTOs (C# classes)
 
 ### 3. What the file does
-Contains 10 extracted request DTO classes in the `BlueBits.Api.DTOs.Requests` namespace. These are standalone copies of the inline DTOs originally defined at the bottom of their respective controller/endpoint files. The originals remain untouched.
+Contains 10 request DTO classes in the `BlueBits.Api.DTOs.Requests` namespace. These are the canonical definitions consumed by all controllers and endpoints. Previously, each DTO was defined inline in its respective controller/endpoint file; now extracted for centralized reuse.
 
 Files:
 - `LoginRequest.cs` — Username + Password (from `AuthController.cs`)
@@ -911,10 +913,10 @@ None — pure data classes with auto-properties only.
 Does not call any APIs or databases. These are plain data contracts consumed by controllers and endpoints.
 
 ### 7. Imports Summary
-- `System.ComponentModel.DataAnnotations` — used in `CreateUserRequest.cs` and `UpdateUserRequest.cs` for validation attributes.
+- (No external imports — DataAnnotations were removed in favor of FluentValidation validators in `Backend/Validators/`.)
 
 ### 8. Additional Info
-- The original inline class definitions in the controller/endpoint files are kept untouched to avoid breaking existing imports.
+- All DataAnnotation attributes were removed from `CreateUserRequest.cs` and `UpdateUserRequest.cs` — validation is now fully handled by FluentValidation validators (`CreateUserRequestValidator`, `UpdateUserRequestValidator`).
 - `CreatePermissionRequest` was originally a nested class inside `AdminPermissionsController`; it is now a standalone top-level class in its own file.
 ## 1. File Name and Directory
 `Backend/DTOs/Responses/LoginResponse.cs`
@@ -1047,3 +1049,48 @@ Directly depends on `BlueBitsDbContext` (injected via constructor). Registered a
 
 ### 8. Additional Info
 The generic constraint `where T : class` matches EF Core's entity type requirements. The class uses `_context.Set<T>()` to obtain the correct DbSet dynamically.
+## 1. File Name and Directory
+`Backend/Validators/`
+
+### 2. File Type
+Backend — FluentValidation validator classes (10 validators)
+
+### 3. What the file does
+Contains 10 `AbstractValidator<T>` implementations in the `BlueBits.Api.Validators` namespace, one for each request DTO. These replace the `System.ComponentModel.DataAnnotations` attributes previously on `CreateUserRequest` and `UpdateUserRequest`, and add validation for DTOs that had no DataAnnotations. All validators are auto-discovered by `AddValidatorsFromAssemblyContaining<Program>()` in `ServiceCollectionExtensions.cs` and executed via `AddFluentValidationAutoValidation()` before controller actions.
+
+Validators:
+- `LoginRequestValidator` — ensures Username and Password are not empty.
+- `CreateUserRequestValidator` — ports existing DataAnnotations (Required, StringLength, Regex on Username/Password), adds Telegram @ prefix normalization validation (5-32 alphanumeric chars or underscores, strips leading @).
+- `UpdateUserRequestValidator` — ports existing DataAnnotations on Password (conditional), adds Telegram @ prefix normalization validation.
+- `CreateSessionRequestValidator` — ensures WorkflowSystemCode, MaterialName, LectureType are not empty; LectureNumber > 0.
+- `SaveSessionContentRequestValidator` — ensures ContentBody is not empty.
+- `CompilePromptRequestValidator` — ensures systemCode is not empty.
+- `CreatePermissionRequestValidator` — ensures roleName is `TechMember` or `ScientificMember`; workflowId > 0.
+- `ToggleWorkflowRequestValidator` — no rules (bool-only DTO).
+- `UpdatePromptRequestValidator` — ensures PromptText is not empty.
+- `GenerateDocxRequestValidator` — ensures MarkdownText, MaterialName, Type, LectureNumber are not empty.
+
+### 4. User Stories
+- As a developer, validation rules are centralized in dedicated validator classes instead of scattered as DataAnnotation attributes on DTOs.
+- As a frontend developer, I receive consistent 400 responses with per-field error maps (via `ExceptionHandlingMiddleware`) for all invalid requests.
+- As a user, Telegram usernames are validated for correct format (5-32 alphanumeric chars, with or without @ prefix) before reaching the controller.
+
+### 5. Functions Summary
+Each validator exposes an `AbstractValidator<T>` constructor that configures `RuleFor` chains. Shared logic (`BeValidTelegramUsername`) is implemented as a private static method in `CreateUserRequestValidator` and `UpdateUserRequestValidator`.
+
+### 6. Integration
+- **FluentValidation auto-validation:** Registered via `services.AddFluentValidationAutoValidation()` in `ServiceCollectionExtensions.AddApiLayer()`.
+- **Assembly scanning:** `services.AddValidatorsFromAssemblyContaining<Program>()` discovers all validators in the `BlueBits.Api.Validators` namespace.
+- **Exception handling:** `ExceptionHandlingMiddleware` catches `FluentValidation.ValidationException` and returns 400 with `{field: [errors]}` format.
+
+### 7. Imports Summary
+Each validator imports:
+- `FluentValidation` — `AbstractValidator<T>`, `RuleFor`, `NotEmpty`, `Length`, `Matches`, `GreaterThan`, `When`
+- `BlueBits.Api.DTOs.Requests` — the corresponding request DTO class
+
+### 8. Additional Info
+- All DataAnnotation attributes (`[Required]`, `[RegularExpression]`, `[StringLength]`) were removed from `CreateUserRequest` and `UpdateUserRequest` in `DTOs/Requests/` — validation is fully handled by FluentValidation validators now.
+- Inline DTO class definitions in controllers (`AdminController.cs`, `AuthController.cs`, `SessionsController.cs`, `PromptsController.cs`, `AdminPermissionsController.cs`, `AdminWorkflowsController.cs`, `AdminPromptsController.cs`, `PandocEndpoints.cs`) were deleted — all DTOs now live exclusively in `BlueBits.Api.DTOs.Requests` namespace.
+- Telegram username validation strips the `@` prefix (if present) before checking format, accepting both `@username` and `username` forms. The actual normalization (adding `@` prefix) remains in the controller's `CreateUser`/`UpdateUser` methods. 
+- `ToggleWorkflowRequestValidator` has no rules because the DTO contains only a `bool IsActive` property.
+- The `CompilePromptRequest` property `systemCode` intentionally uses camelCase (matching JSON serialization conventions of the original inline DTO).

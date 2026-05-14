@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -37,9 +38,4 @@ public class AdminWorkflowsController : ControllerBase
 
         return Ok(workflow);
     }
-}
-
-public class ToggleWorkflowRequest
-{
-    public bool IsActive { get; set; }
 }

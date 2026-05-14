@@ -2,39 +2,39 @@ import { useState, useRef } from 'react';
 import { Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { mergeDocxFiles } from '../utils/api';
+import MergeApi from '../api/MergeApi';
+import { ApiError, RateLimitError } from '../api/HttpClient';
+import { useWizard } from '../hooks/useWizard';
+import { useToast } from '../contexts/ToastContext';
 import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['إعداد الجلسة', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
 
 export default function MergeWizard() {
-    const [step, setStep] = useState(0);
+    const { currentStep, next, prev, goTo } = useWizard({ totalSteps: 3 });
+    const { showToast } = useToast();
     const fileInputRef = useRef(null);
     const { defaultMaterial } = useSettings();
 
-const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureType, setLectureType] = useState('Theoretical');
     const [lectureNumber, setLectureNumber] = useState(1);
-
     const [files, setFiles] = useState([]);
 
-    const [status, setStatus] = useState('idle'); // idle, loading, success, error
+    const [status, setStatus] = useState('idle');
     const [downloadUrl, setDownloadUrl] = useState(null);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
 
     const canProceedStep1 = materialValid && lectureNumber;
     const canProceedStep2 = files.length > 1;
-
-    const goNext = () => setStep((s) => Math.min(s + 1, 2));
-    const goBack = () => setStep((s) => Math.max(s - 1, 0));
-
-    const getTypeLabel = () => lectureType === 'Practical' ? 'عملي' : 'نظري';
 
     const handleFileSelect = (e) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files).filter(f => f.name.endsWith('.docx'));
         setFiles(prev => [...prev, ...newFiles]);
-        e.target.value = null; // reset
+        e.target.value = null;
     };
 
     const removeFile = (index) => {
@@ -52,20 +52,46 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
         });
     };
 
+    const clearFieldError = (field) => {
+        setFieldErrors(prev => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
     const handleMerge = async () => {
         try {
             setStatus('loading');
-            
-            // Generate merged docx
-            const blob = await mergeDocxFiles(files, { materialName, type: lectureType });
-            
-            // Create object URL
-            const url = URL.createObjectURL(blob);
-            setDownloadUrl(url);
-            
+            setFieldErrors({});
+            setErrorMessage('');
+
+            const result = await MergeApi.execute(files, materialName, lectureType);
+
+            setDownloadUrl(result.url);
             setStatus('success');
         } catch (error) {
             console.error('Merge failed:', error);
+
+            if (error instanceof RateLimitError) {
+                showToast(error.message, 'warning');
+                setStatus('idle');
+                return;
+            }
+
+            if (error instanceof ApiError && error.status === 400 && error.errors) {
+                const normalized = {};
+                for (const [key, value] of Object.entries(error.errors)) {
+                    normalized[key.toLowerCase()] = value;
+                }
+                setFieldErrors(normalized);
+                setErrorMessage(error.message);
+                setStatus('error');
+                return;
+            }
+
+            setErrorMessage(error.message || 'حدث خطأ أثناء الدمج');
             setStatus('error');
         }
     };
@@ -75,29 +101,48 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
         return `${materialName} - ${typeLabel} - ملف شامل.docx`;
     };
 
+    const handleReset = () => {
+        goTo(0);
+        setFiles([]);
+        setStatus('idle');
+        setDownloadUrl(null);
+        setErrorMessage('');
+        setFieldErrors({});
+    };
+
+    const getTypeLabel = () => lectureType === 'Practical' ? 'عملي' : 'نظري';
+
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
-            {/* Title */}
             <h1 className="text-2xl font-bold text-text mb-2">دمج الملفات</h1>
-            <p className="text-sm text-text-secondary mb-6">
-                دمج عدة ملفات Word معاً بالترتيب الصحيح
-            </p>
+            <p className="text-sm text-text-secondary mb-6">دمج عدة ملفات Word معاً بالترتيب الصحيح</p>
 
-            <WizardStepper steps={STEPS} current={step} />
+            <WizardStepper steps={STEPS} current={currentStep} />
 
-            {/* STEP 0: Naming */}
-            {step === 0 && (
+            {currentStep === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+                    <div>
+                        <MaterialAutocomplete
+                            value={materialName}
+                            onChange={(val) => { setMaterialName(val); clearFieldError('materialname'); }}
+                            onValidChange={setMaterialValid}
+                        />
+                        {fieldErrors.materialname && (
+                            <p className="text-xs text-danger mt-1.5">{fieldErrors.materialname}</p>
+                        )}
+                    </div>
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
                             type="number"
                             min="1"
                             value={lectureNumber}
-                            onChange={(e) => setLectureNumber(e.target.value)}
-                            className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            onChange={(e) => { setLectureNumber(e.target.value); clearFieldError('lecturenumber'); }}
+                            className={`w-full rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.lecturenumber ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                         />
+                        {fieldErrors.lecturenumber && (
+                            <p className="text-xs text-danger mt-1.5">{fieldErrors.lecturenumber}</p>
+                        )}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
@@ -108,20 +153,23 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                             ].map(({ value, label }) => (
                                 <button
                                     key={value}
-                                    onClick={() => setLectureType(value)}
+                                    onClick={() => { setLectureType(value); clearFieldError('lecturetype'); }}
                                     className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                            ? 'border-primary bg-primary-light text-primary'
-                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                        }`}
+                                        ? 'border-primary bg-primary-light text-primary'
+                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                    }`}
                                 >
                                     {label}
                                 </button>
                             ))}
                         </div>
+                        {fieldErrors.lecturetype && (
+                            <p className="text-xs text-danger mt-1.5">{fieldErrors.lecturetype}</p>
+                        )}
                     </div>
 
                     <button
-                        onClick={goNext}
+                        onClick={next}
                         disabled={!canProceedStep1}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
@@ -130,13 +178,12 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                 </div>
             )}
 
-            {/* STEP 1: Upload & Reorder */}
-            {step === 1 && (
+            {currentStep === 1 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     {files.length === 0 ? (
-                        <div 
-                            className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl bg-surface-card hover:bg-surface-hover transition-default cursor-pointer py-16"
+                        <div
                             onClick={() => fileInputRef.current?.click()}
+                            className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl bg-surface-card hover:bg-surface-hover transition-default cursor-pointer py-16"
                         >
                             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
                                 <Upload size={32} />
@@ -148,8 +195,8 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                         <div className="space-y-3">
                             <div className="bg-surface-card border border-border rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto">
                                 {files.map((file, index) => (
-                                    <div 
-                                        key={`${file.name}-${index}`} 
+                                    <div
+                                        key={`${file.name}-${index}`}
                                         className="flex items-center gap-3 p-2 rounded-lg bg-surface-hover/50 hover:bg-surface-hover transition-default"
                                     >
                                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -160,7 +207,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                             <span className="text-sm font-medium text-text truncate" dir="ltr">{file.name}</span>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                            <button 
+                                            <button
                                                 className={`p-1.5 rounded-md transition-default ${index === 0 ? 'text-text-muted cursor-not-allowed' : 'text-text-secondary hover:bg-surface-hover'}`}
                                                 onClick={() => moveFile(index, -1)}
                                                 disabled={index === 0}
@@ -168,7 +215,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                             >
                                                 <ArrowUp size={16} />
                                             </button>
-                                            <button 
+                                            <button
                                                 className={`p-1.5 rounded-md transition-default ${index === files.length - 1 ? 'text-text-muted cursor-not-allowed' : 'text-text-secondary hover:bg-surface-hover'}`}
                                                 onClick={() => moveFile(index, 1)}
                                                 disabled={index === files.length - 1}
@@ -177,7 +224,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                                 <ArrowDown size={16} />
                                             </button>
                                             <div className="w-px h-4 bg-border mx-1"></div>
-                                            <button 
+                                            <button
                                                 className="p-1.5 rounded-md text-text-muted hover:bg-danger/10 hover:text-danger transition-default"
                                                 onClick={() => removeFile(index)}
                                                 title="حذف"
@@ -188,8 +235,8 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                     </div>
                                 ))}
                             </div>
-                            
-                            <button 
+
+                            <button
                                 className="w-full py-3 rounded-xl border border-dashed border-border bg-surface-card hover:bg-surface-hover text-text-secondary flex items-center justify-center gap-2 transition-default"
                                 onClick={() => fileInputRef.current?.click()}
                             >
@@ -198,7 +245,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                             </button>
                         </div>
                     )}
-                    
+
                     <input
                         type="file"
                         multiple
@@ -210,13 +257,13 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
 
                     <div className="flex gap-3">
                         <button
-                            onClick={goBack}
+                            onClick={prev}
                             className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                         >
                             رجوع
                         </button>
                         <button
-                            onClick={goNext}
+                            onClick={next}
                             disabled={!canProceedStep2}
                             className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                         >
@@ -226,20 +273,17 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                 </div>
             )}
 
-            {/* STEP 2: Execution */}
-            {step === 2 && (
+            {currentStep === 2 && (
                 <div className="space-y-6 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-8 text-center space-y-4">
                         {status === 'idle' && (
                             <>
                                 <Layers size={48} className="mx-auto text-primary" strokeWidth={1.3} />
-                                <p className="text-sm text-text">
-                                    جاهز لدمج {files.length} ملفات معاً
-                                </p>
+                                <p className="text-sm text-text">جاهز لدمج {files.length} ملفات معاً</p>
                                 <p className="text-xs text-text-secondary bg-surface-hover rounded-xl p-4 text-start">
                                     <strong>ملاحظة:</strong> قد تستغرق عملية الدمج عدة ثوانٍ حسب حجم الملفات.
                                 </p>
-                                
+
                                 <button
                                     onClick={handleMerge}
                                     className="px-8 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
@@ -275,12 +319,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                     </a>
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        setStep(0);
-                                        setFiles([]);
-                                        setStatus('idle');
-                                        setDownloadUrl(null);
-                                    }}
+                                    onClick={handleReset}
                                     className="text-sm text-text-muted hover:text-text underline underline-offset-4 transition-default"
                                 >
                                     دمج ملفات أخرى
@@ -294,7 +333,9 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                                     <X size={32} className="text-danger" strokeWidth={1.5} />
                                 </div>
                                 <p className="text-sm font-semibold text-danger">حدث خطأ أثناء الدمج</p>
-                                <p className="text-sm text-text-secondary">يرجى المحاولة مرة أخرى</p>
+                                {errorMessage && (
+                                    <p className="text-xs text-text-secondary">{errorMessage}</p>
+                                )}
                                 <button
                                     onClick={() => setStatus('idle')}
                                     className="mt-4 px-6 py-2 bg-surface-card border border-border text-text rounded-lg hover:bg-surface-hover transition-default"
@@ -306,7 +347,7 @@ const [materialName, setMaterialName] = useState(defaultMaterial || '');
                     </div>
 
                     <button
-                        onClick={goBack}
+                        onClick={prev}
                         className="w-full py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                     >
                         رجوع

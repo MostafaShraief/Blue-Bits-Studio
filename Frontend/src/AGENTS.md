@@ -1138,30 +1138,31 @@ A 3-step wizard that lets users set session metadata (material, type, lecture nu
 - As a user, I want to reorder, add, or remove files before merging, and download the result.
 
 ### 5. Functions Summary
-- `MergeWizard`: Main component — manages 3-step wizard state (session setup → file upload/reorder → merge & download)
-- `goNext/goBack`: Navigate between wizard steps
-- `getTypeLabel`: Returns Arabic label for lecture type ("نظري" / "عملي")
+- `MergeWizard`: Main component — manages 3-step wizard via `useWizard` hook (session setup → file upload/reorder → merge & download)
 - `handleFileSelect`: Filters and appends selected .docx files to state
 - `removeFile`: Removes a file by index
 - `moveFile`: Swaps file position (move up/down) for reordering
-- `handleMerge`: Calls `mergeDocxFiles` API, creates an object URL from the returned blob, sets success/error status
+- `clearFieldError`: Removes a single field error from `fieldErrors` state on input change
+- `handleMerge`: Calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
 - `getDownloadFileName`: Generates Arabic download filename from material name and type
+- `handleReset`: Resets wizard to step 0 and clears all state
 
 ### 6. Integration
-Calls backend via `mergeDocxFiles` utility: sends multipart FormData (`files[]`, `materialName`, `lectureType`) to `/api/merge/execute`, then fetches the returned file URL to obtain the merged .docx blob.
+Calls backend via `MergeApi.execute` (which wraps `HttpClient.httpPost`): sends multipart FormData (`files[]`, `materialName`, `lectureType`) to `/api/merge/execute`. Server returns `{ url, finalFileName }` — the download URL is used directly as the `<a download>` href (server-side file).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useRef), `lucide-react` (Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2)
-- **Internal:** `WizardStepper` (step indicator), `MaterialAutocomplete` (material name selector), `mergeDocxFiles` from `utils/api`, `useSettings` from `contexts/SettingsContext`
+- **Internal:** `WizardStepper` (step indicator), `MaterialAutocomplete` (material name selector), `MergeApi` from `api/MergeApi`, `ApiError` and `RateLimitError` from `api/HttpClient`, `useWizard` from `hooks/useWizard`, `useToast` from `contexts/ToastContext`, `useSettings` from `contexts/SettingsContext`
 
 ### 8. Additional Info
-Arabic-first RTL interface. Uses MaterialAutocomplete which fetches materials from backend via settings context. Status machine: idle → loading → success/error. Uses `URL.createObjectURL` for client-side download without server-side file persistence.
+Arabic-first RTL interface. Uses `useWizard({ totalSteps: 3 })` for step management (`currentStep`, `next`, `prev`, `goTo`). Uses `useToast` for 429 rate-limit warning toasts. Per-field validation errors from `ApiError.errors` are normalized to lowercase and bound under inputs with `border-danger` styling. Status machine: idle → loading → success/error. Download URL is served directly from the backend server (`/uploads/...`), no client-side blob creation.
 
 ### 9. API
 **Request:** `POST /api/merge/execute` with `Content-Type: multipart/form-data`
 - Body: `files[]` (FileList), `materialName` (string), `lectureType` (string)
-**Response:** `{ url: string }` — URL to the generated .docx file
-**Client flow:** Fetches the URL → converts to blob → creates object URL → renders `<a download>` for user to save.
+**Response:** `{ url: string, finalFileName: string }` — server URL to download the merged file
+**Client flow:** Calls `MergeApi.execute` → receives server URL → renders `<a download href={url}>` for direct download.
+**Error handling:** `RateLimitError` → warning toast with retry message; `ApiError` (400) with `errors` → per-field errors under inputs; other errors → error state with server message displayed.
 
 ## 1. File Name and Directory
 Frontend/src/pages/NotFound.jsx

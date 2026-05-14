@@ -47,7 +47,7 @@ Bootstraps the API: delegates all service registration to `ServiceCollectionExte
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
-- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, `IPromptService`), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
+- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
@@ -65,7 +65,7 @@ Top-level statements (no named functions). Key logic blocks:
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddApplicationServices`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 
@@ -97,7 +97,7 @@ Central reference point for the `SystemCode` pattern described in `Backend/AGENT
 Backend — C# .NET Web API Controller
 
 ### 3. What the file does
-Provides Admin-only CRUD endpoints for managing users. Admins can list, create, update, and delete users. Uses `CreateUserRequest` / `UpdateUserRequest` DTOs with validation. Enforces unique `TelegramUsername + UserRole` combinations and auto-prepends `@` to Telegram usernames.
+Thin Admin-only CRUD controller for user management. Delegates all business logic (Telegram @-prefix normalization, duplicate Telegram+Role checks, NotFound handling) to `IAdminUserService`. Decorated with Swagger `[ProducesResponseType]` attributes for API documentation.
 
 ### 4. User Stories
 - As an Admin, I can view all registered users in the system.
@@ -106,23 +106,24 @@ Provides Admin-only CRUD endpoints for managing users. Admins can list, create, 
 - As an Admin, I can delete a user from the system.
 
 ### 5. Functions Summary
-- `GetUsers()`: Returns all users from the database.
-- `CreateUser(CreateUserRequest)`: Validates input, checks Telegram+Role uniqueness, creates a user.
-- `UpdateUser(int, UpdateUserRequest)`: Validates input, checks uniqueness excluding current user, updates fields (password/join date optional).
-- `DeleteUser(int)`: Finds and removes a user by ID.
+- `GetUsers()`: Delegates to `IAdminUserService.GetAllAsync()`, returns all users.
+- `CreateUser(CreateUserRequest)`: Delegates to `IAdminUserService.CreateAsync()`, returns 201 Created with location header.
+- `UpdateUser(int, UpdateUserRequest)`: Delegates to `IAdminUserService.UpdateAsync()`, returns the updated user.
+- `DeleteUser(int)`: Delegates to `IAdminUserService.DeleteAsync()`, returns 204 No Content.
 
 ### 6. Integration
-Interacts directly with `BlueBitsDbContext` (SQLite via EF Core). No external APIs or services.
+Depends solely on `IAdminUserService` (injected via DI). No direct database access. NotFound/duplicate errors propagate through global `ExceptionHandlingMiddleware`.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`, `Logging`
-- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (User entity), `BlueBits.Api.DTOs.Requests` (CreateUserRequest, UpdateUserRequest)
+- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IAdminUserService`), `BlueBits.Api.DTOs.Requests` (`CreateUserRequest`, `UpdateUserRequest`), `BlueBits.Api.Models` (`User`)
 
 ### 8. Additional Info
 - Controller is restricted to `[Authorize(Roles = "Admin")]`.
-- DTOs (`CreateUserRequest`, `UpdateUserRequest`) are imported from `BlueBits.Api.DTOs.Requests` namespace — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
-- Validation moved from DataAnnotations to FluentValidation (`CreateUserRequestValidator`, `UpdateUserRequestValidator`).
-- Telegram username duplication check is role-scoped (same Telegram + same role = conflict; same Telegram + different role = allowed).
+- DTOs (`CreateUserRequest`, `UpdateUserRequest`) are imported from `BlueBits.Api.DTOs.Requests` namespace.
+- Validation handled by FluentValidation validators (`CreateUserRequestValidator`, `UpdateUserRequestValidator`) before reaching the controller.
+- All business logic (Telegram @-prefix normalization, duplicate Telegram+Role enforcement) moved to `AdminUserService`.
+- Swagger decorators: `[Produces("application/json")]`, `[ProducesResponseType]` for 200/201/204/404/409 on each endpoint.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminMaterialsController.cs`
 
@@ -958,17 +959,19 @@ Placed after Swagger but before all other middleware to catch every unhandled ex
 Backend — ASP.NET Core extension methods for DI service registration
 
 ### 3. What the file does
-Provides four extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, `IPromptService`), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
+Provides five extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
 
 ### 4. User Stories
 - As a developer, I can call `builder.Services.AddInfrastructure()` to register CORS, compression, rate limiting, and background services in one line.
-- As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and data services.
+- As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and repositories.
+- As a developer, I can call `builder.Services.AddApplicationServices()` to register all 11 business and admin service implementations.
 - As a developer, I can call `builder.Services.AddAuthLayer()` to configure JWT authentication and role policies.
 - As a developer, I can call `builder.Services.AddApiLayer()` to register controllers, FluentValidation, and Swagger.
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
+- `AddApplicationServices(IServiceCollection)`: Registers 11 scoped application services — 6 business services (`IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService`, `IMaterialService`) and 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`).
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -980,7 +983,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Business and admin services were extracted from `AddPersistence` into a dedicated `AddApplicationServices` method (11 total). `AddPersistence` now handles only EF Core DbContext and repositories.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 

@@ -5,6 +5,7 @@ import {
   createSession as apiCreateSession,
   saveSessionContent,
   uploadFiles as apiUploadFiles,
+  removeSession as apiRemoveSession,
 } from '../api/SessionsApi';
 import { useToast } from '../contexts/ToastContext';
 
@@ -28,11 +29,14 @@ export function useSessions({ initialPage = 1, limit = 10 } = {}) {
       setPage(data.page);
       setHasMore(data.hasMore);
     } catch (err) {
+      if (err.name === 'RateLimitError') {
+        showToast(err.message, 'warning');
+      }
       setError(err.message || 'Failed to load sessions');
     } finally {
       setIsLoading(false);
     }
-  }, [limit]);
+  }, [limit, showToast]);
 
   useEffect(() => {
     loadSessions(initialPage);
@@ -43,6 +47,10 @@ export function useSessions({ initialPage = 1, limit = 10 } = {}) {
       loadSessions(page + 1, true);
     }
   }, [isLoading, hasMore, page, loadSessions]);
+
+  const refresh = useCallback(() => {
+    loadSessions(initialPage);
+  }, [initialPage, loadSessions]);
 
   const createSession = useCallback(async (data) => {
     try {
@@ -59,10 +67,29 @@ export function useSessions({ initialPage = 1, limit = 10 } = {}) {
     try {
       return await fetchSession(id);
     } catch (err) {
-      showToast(err.message || 'Failed to load session', 'error');
+      if (err.name === 'RateLimitError') {
+        showToast(err.message, 'warning');
+      } else {
+        showToast(err.message || 'Failed to load session', 'error');
+      }
       throw err;
     }
   }, [showToast]);
+
+  const removeSession = useCallback(async (id) => {
+    try {
+      await apiRemoveSession(id);
+      showToast('تم حذف الجلسة بنجاح', 'success');
+      loadSessions(initialPage);
+    } catch (err) {
+      if (err.name === 'RateLimitError') {
+        showToast(err.message, 'warning');
+      } else {
+        showToast(err.message || 'Failed to delete session', 'error');
+      }
+      throw err;
+    }
+  }, [showToast, initialPage, loadSessions]);
 
   const saveContent = useCallback(async (sessionId, body) => {
     try {
@@ -98,5 +125,7 @@ export function useSessions({ initialPage = 1, limit = 10 } = {}) {
     saveContent,
     uploadFiles,
     loadMore,
+    refresh,
+    removeSession,
   };
 }

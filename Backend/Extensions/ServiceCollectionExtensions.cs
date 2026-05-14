@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<BlueBitsDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IPromptService, PromptService>();
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IPandocService, PandocService>();

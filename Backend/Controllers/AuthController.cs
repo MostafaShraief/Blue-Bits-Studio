@@ -1,13 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using BlueBits.Api.Data;
-using BlueBits.Api.DTOs.Responses;
 using BlueBits.Api.DTOs.Requests;
+using BlueBits.Api.DTOs.Responses;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
@@ -15,39 +11,33 @@ namespace BlueBits.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
-    private readonly IConfiguration _config;
+    private readonly IAuthService _authService;
 
-    public AuthController(BlueBitsDbContext db, IConfiguration config)
+    public AuthController(IAuthService authService)
     {
-        _db = db;
-        _config = config;
+        _authService = authService;
     }
 
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()
     {
-        // Extract user ID from JWT claims
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                          ?? User.FindFirst("sub")?.Value;
+
         if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
         {
             return Unauthorized(new { message = "Invalid token claims" });
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-        
-        if (user == null)
+        var result = await _authService.GetCurrentUserAsync(userId);
+
+        if (result == null)
         {
             return NotFound(new { message = "User not found" });
         }
 
-        // Get fresh authorized workflows from RBAC table mapping
-        var authorizedWorkflows = await _db.Workflows
-            .Where(w => w.IsActive == 1 && w.Permissions.Any(p => p.RoleName == user.UserRole))
-            .Select(w => w.SystemCode)
-            .ToListAsync();
+        var (user, workflows) = result.Value;
 
         return Ok(new LoginResponse
         {
@@ -56,60 +46,31 @@ public class AuthController : ControllerBase
             FirstName = user.FirstName,
             LastName = user.LastName,
             Role = user.UserRole,
-            AuthorizedWorkflows = authorizedWorkflows
+            AuthorizedWorkflows = workflows
         });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
-        
-        if (user == null || user.Password != request.Password)
+        var result = await _authService.LoginAsync(request.Username, request.Password);
+
+        if (result == null)
         {
             return Unauthorized(new { message = "Invalid username or password" });
         }
 
-        // Get authorized workflows from RBAC table mapping
-        var authorizedWorkflows = await _db.Workflows
-            .Where(w => w.IsActive == 1 && w.Permissions.Any(p => p.RoleName == user.UserRole))
-            .Select(w => w.SystemCode)
-            .ToListAsync();
-
-        // Generate JWT
-        var jwtSettings = _config.GetSection("Jwt");
-        var key = Encoding.ASCII.GetBytes(jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key missing"));
-        
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()), 
-            new Claim(ClaimTypes.Name, user.Username),                    
-            new Claim(ClaimTypes.Role, user.UserRole)                     
-        };
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddDays(Convert.ToDouble(jwtSettings["ExpireDays"] ?? "30")),
-            Issuer = jwtSettings["Issuer"],
-            Audience = jwtSettings["Audience"],
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        var tokenString = tokenHandler.WriteToken(token);
+        var (user, token, workflows) = result.Value;
 
         return Ok(new LoginResponse
         {
-            Token = tokenString,
+            Token = token,
             UserId = user.UserId,
             Username = user.Username,
             FirstName = user.FirstName,
             LastName = user.LastName,
             Role = user.UserRole,
-            AuthorizedWorkflows = authorizedWorkflows
+            AuthorizedWorkflows = workflows
         });
     }
 }

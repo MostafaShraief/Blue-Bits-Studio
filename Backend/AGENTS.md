@@ -253,28 +253,27 @@ Interacts directly with the SQLite database via Entity Framework Core (`BlueBits
 Backend (C# .NET Web API Controller)
 
 ### 3. What the file does
-Handles user authentication (login) and authorization (get current user). Issues JWT tokens, returns user profile + RBAC-based authorized workflow SystemCodes.
+Handles user authentication (login) and authorization (get current user). Delegates all business logic (credential validation, RBAC workflow lookup, JWT generation) to `IAuthService`.
 
 ### 4. User Stories
 - As a user, I can log in with my username/password and receive a JWT token along with my authorized workflows.
 - As an authenticated user, I can retrieve my current profile and fresh permissions via a token-based endpoint.
 
 ### 5. Functions Summary
-- `Login`: Validates credentials against DB, fetches authorized workflows via RBAC (`WorkflowPermissions`), generates & returns JWT + user profile.
-- `GetCurrentUser`: Extracts user ID from JWT claims, fetches user profile and fresh authorized workflows from DB.
+- `Login`: Delegates to `IAuthService.LoginAsync`, returns `LoginResponse` with token + user profile + authorized workflows.
+- `GetCurrentUser`: Extracts user ID from JWT claims, delegates to `IAuthService.GetCurrentUserAsync`, returns `LoginResponse`.
 
 ### 6. Integration
-Interacts with SQLite via EF Core (`BlueBitsDbContext`). Reads JWT settings (`Key`, `ExpireDays`, `Issuer`, `Audience`) from `IConfiguration`.
+Depends solely on `IAuthService` (injected via DI). No direct database or configuration access.
 
 ### 7. Imports Summary
-**External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`; `Microsoft.IdentityModel.Tokens`; `System.IdentityModel.Tokens.Jwt`; `System.Security.Claims`; `System.Text`.  
-**Internal:** `BlueBits.Api.Data` (`BlueBitsDbContext`), `BlueBits.Api.DTOs.Responses` (`LoginResponse`), `BlueBits.Api.DTOs.Requests` (`LoginRequest`).
+**External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `System.Security.Claims`.  
+**Internal:** `BlueBits.Api.DTOs.Responses` (`LoginResponse`), `BlueBits.Api.DTOs.Requests` (`LoginRequest`), `BlueBits.Api.Services.Interfaces` (`IAuthService`).
 
 ### 8. Additional Info
-- Passwords compared in plaintext (no hashing).
+- JWT generation moved to `AuthService`.
+- Controller is thin — only handles HTTP concerns (extracting claims, returning responses).
 - `AuthorizedWorkflows` (list of SystemCodes) is the RBAC contract consumed by the frontend for dynamic UI rendering.
-- `LoginRequest` DTO is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
-- `LoginResponse` DTO is extracted to `BlueBits.Api.DTOs.Responses`.
 ## 1. File Name and Directory
 `Backend/Controllers/MaterialsController.cs`
 
@@ -969,7 +968,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -981,7 +980,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPromptService`, `ISessionService`, `IPandocService`, and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -1419,6 +1418,60 @@ No database calls. Consumed by `MergeEndpoints`. Implemented by `MergeService`.
 
 ### 8. Additional Info
 Created as part of the service extraction refactor. All merge OpenXML logic lives in `MergeService`.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAuthService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines the `IAuthService` interface for authentication operations. Declares `LoginAsync` (username/password validation, JWT generation, RBAC workflow lookup) and `GetCurrentUserAsync` (user profile + fresh permissions by user ID). Uses named value tuples as return types.
+
+### 4. User Stories
+- As a developer, I can inject `IAuthService` to authenticate users and retrieve current user data without coupling to EF Core or JWT implementation details.
+
+### 5. Functions Summary
+- `LoginAsync(string username, string password)`: Returns `(User user, string token, List<string> workflows)?` — null when credentials are invalid.
+- `GetCurrentUserAsync(int userId)`: Returns `(User user, List<string> workflows)?` — null when user not found.
+
+### 6. Integration
+Consumed by `AuthController`. Implemented by `AuthService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Models` (User)
+
+### 8. Additional Info
+Created as part of the service extraction refactor. All JWT generation and RBAC workflow fetching moved from `AuthController` into `AuthService`.
+## 1. File Name and Directory
+`Backend/Services/AuthService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAuthService`. Contains all authentication logic: user lookup via `IUserRepository`, RBAC-authorized workflow fetching via `IWorkflowRepository`, and JWT token generation using configurable settings (`Key`, `Issuer`, `Audience`, `ExpireDays` from `appsettings.json`).
+
+### 4. User Stories
+- As a user, I can log in and receive a signed JWT containing my user ID, username, and role claims.
+- As a developer, JWT creation logic is centralized in one place instead of inline in the controller.
+
+### 5. Functions Summary
+- `LoginAsync`: Looks up user by username via `IUserRepository`, validates plaintext password, fetches active workflows for the user's role, generates and returns a JWT.
+- `GetCurrentUserAsync`: Looks up user by ID via `IUserRepository`, fetches active workflows for the user's role, returns user profile + workflows.
+- `GenerateJwt(User)`: Private helper — builds claims (Sub, NameIdentifier, Name, Role), creates a `JwtSecurityToken` with configurable expiry/issuer/audience, signs with HMAC-SHA256.
+
+### 6. Integration
+- **Repositories:** `IUserRepository` for user lookup, `IWorkflowRepository` for RBAC-authorized workflow querying.
+- **Configuration:** Reads Jwt:Key, Jwt:Issuer, Jwt:Audience, Jwt:ExpireDays from `IConfiguration`.
+
+### 7. Imports Summary
+- **External:** `System.IdentityModel.Tokens.Jwt`, `System.Security.Claims`, `System.Text`, `Microsoft.Extensions.Configuration`, `Microsoft.IdentityModel.Tokens`
+- **Internal:** `BlueBits.Api.Models` (User), `BlueBits.Api.Repositories` (`IUserRepository`, `IWorkflowRepository`), `BlueBits.Api.Services.Interfaces` (`IAuthService`)
+
+### 8. Additional Info
+- Registered as scoped in DI via `ServiceCollectionExtensions.AddPersistence`.
+- Passwords compared in plaintext (no hashing) — consistent with existing codebase convention.
+- JWT generation logic extracted from `AuthController` to enable unit testing and reuse.
 ## 1. File Name and Directory
 `Backend/Services/Interfaces/IMaterialService.cs`
 

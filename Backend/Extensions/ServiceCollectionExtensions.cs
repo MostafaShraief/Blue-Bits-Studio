@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
             options.UseSqlite($"Data Source={dbPath}"));
 
         services.AddScoped<IPromptCompilationService, PromptCompilationService>();
+        services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IPandocService, PandocService>();
         services.AddScoped<IMergeService, MergeService>();
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));

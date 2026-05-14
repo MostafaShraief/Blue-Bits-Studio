@@ -860,7 +860,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService` as scoped, and `IRepository<>` / `GenericRepository<>` as scoped open generics.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -872,7 +872,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services, and all 9 specific repositories alongside the open generic `IRepository<>`, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 

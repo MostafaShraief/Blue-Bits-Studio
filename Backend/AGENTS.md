@@ -47,7 +47,7 @@ Bootstraps the API: delegates all service registration to `ServiceCollectionExte
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
-- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, `IPromptCompilationService`), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
+- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, `IPromptService`), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
@@ -314,13 +314,13 @@ Provides authenticated endpoints for non-Admin users to retrieve AI prompt text 
 
 ### 5. Functions Summary
 - `GetPromptForSession`: Fetches prompt by sessionId and systemCode; validates session ownership and blocks Admins.
-- `CompilePrompt`: Takes a CompilePromptRequest, compiles the prompt via IPromptCompilationService with notes, and returns the result.
+- `CompilePrompt`: Takes a CompilePromptRequest, compiles the prompt via IPromptService with notes, and returns the result.
 
 ### 6. Integration
-Interacts with `BlueBitsDbContext` (SQLite) to query Sessions and Prompts tables. Uses `IPromptCompilationService` for prompt compilation logic.
+Depends on `IPromptService` for prompt retrieval and compilation logic.
 
 ### 7. Imports Summary
-ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]`, `[HttpPost]`), Entity Framework Core (`DbContext`), `System.Security.Claims`, and internal project models/services (`BlueBits.Api.Data`, `BlueBits.Api.Models`, `BlueBits.Api.Services`, `BlueBits.Api.DTOs.Requests`).
+ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]`, `[HttpPost]`), `System.Security.Claims`, and internal project services (`BlueBits.Api.Services.Interfaces`, `BlueBits.Api.DTOs.Requests`).
 
 ### 8. Additional Info
 `CompilePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`. Admins are forbidden from both endpoints (`return Forbid()`).
@@ -342,20 +342,20 @@ Manages the academic session lifecycle — listing, creating, viewing, saving co
 
 ### 5. Functions Summary
 - `GetSessions`: Returns paginated session summaries for the current user, filtered by `WorkflowPermissions`
-- `GetSession`: Returns full session details with includes (User, Material, Workflow, Prompts, Notes, Files, SessionContents) plus a compiled prompt via `IPromptCompilationService`
+- `GetSession`: Returns full session details with includes (User, Material, Workflow, Prompts, Notes, Files, SessionContents) plus a compiled prompt via `IPromptService`
 - `CreateSession`: Validates material + workflow existence and role permission, creates a `Session` with optional `GeneralNote`
 - `SaveSessionContent`: Upserts `SessionContent.ContentBody` for a given session (quiz/Pandoc output)
 - `UploadFiles`: Saves uploaded files to disk (`uploads/sessions/{id}/`), creates `File` entities and optional `FileNote` records
 
 ### 6. Integration
 - **Database**: All CRUD via `BlueBitsDbContext` (EF Core, SQLite)
-- **Service**: `IPromptCompilationService.CompilePromptAsync` for dynamic prompt compilation
+- **Service**: `IPromptService.CompilePromptAsync` for dynamic prompt compilation
 - **File System**: Saves uploaded files to `{ContentRootPath}/uploads/sessions/{id}/`
 
 ### 7. Imports Summary
 - **ASP.NET Core**: `Authorization`, `Mvc`, `EntityFrameworkCore`, `IWebHostEnvironment`
 - **System**: `Security.Claims`
-- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services` (IPromptCompilationService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`)
+- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services.Interfaces` (IPromptService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`)
 
 ### 8. Additional Info
 - DTOs (`CreateSessionRequest`, `SaveSessionContentRequest`) are imported from `BlueBits.Api.DTOs.Requests` — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
@@ -700,30 +700,55 @@ A nightly garbage-collector background service that reconciles physical files in
 - Errors during individual file deletion are logged as warnings (non-fatal) so one locked file does not halt cleanup of others.
 - Paths are normalized with `Path.GetFullPath` and compared case-insensitively for cross-OS compatibility.
 ## 1. File Name and Directory
-`Backend/Services/PromptCompilationService.cs`
+`Backend/Services/Interfaces/IPromptService.cs`
 
 ### 2. File Type
-Backend — Service layer
+Backend — Service interface
 
 ### 3. What the file does
-Retrieves a prompt from the database by SystemCode, then assembles a final prompt string by appending optional general user instructions and file-specific notes. Used to construct the full context text sent to AI workflows.
+Defines the `IPromptService` interface that merges the old `IPromptCompilationService` and `PromptsController` prompt logic. Exposes two methods: `GetPromptForSessionAsync` (retrieves a Prompt entity for a session by sessionId and systemCode) and `CompilePromptAsync` (compiles a prompt with user notes).
+
+### 4. User Stories
+- As a developer, I can inject `IPromptService` to fetch prompts for a session or compile prompts with user notes without coupling to EF Core or controllers.
+
+### 5. Functions Summary
+- `GetPromptForSessionAsync(int sessionId, string systemCode)`: Looks up a Prompt by session's WorkflowId and systemCode.
+- `CompilePromptAsync(string systemCode, string? generalNotes, List<string> fileNotes)`: Compiles prompt text with appended user notes.
+
+### 6. Integration
+Implemented by `PromptService`. Consumed by `PromptsController` and `SessionsController`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Models` (Prompt entity)
+
+### 8. Additional Info
+Created as part of the service extraction refactor that merged `IPromptCompilationService` and `PromptsController` prompt logic into a single service.
+## 1. File Name and Directory
+`Backend/Services/PromptService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IPromptService`. Retrieves prompts from the database by SystemCode or session, then assembles a final prompt string by appending optional general user instructions and file-specific notes. Used to construct the full context text sent to AI workflows.
 
 ### 4. User Stories
 - As a user, I want my workflow's base prompt automatically fetched so I don't have to paste it manually.
 - As a user, I want to attach general instructions and per-file notes that get appended to the prompt before submission.
 
 ### 5. Functions Summary
+- `GetPromptForSessionAsync(int sessionId, string systemCode)`: Looks up a session, then finds the Prompt entity by session's WorkflowId and systemCode. Returns null if session or prompt not found.
 - `CompilePromptAsync(string systemCode, string? generalNotes, List<string> fileNotes)`: Looks up a Prompt entity by workflow SystemCode (or its own SystemCode), appends optional user instructions and file notes, and returns the compiled string.
 
 ### 6. Integration
-Reads from the `Prompts` table via Entity Framework Core (`BlueBitsDbContext`). No external API calls.
+Reads from the `Sessions` and `Prompts` tables via Entity Framework Core (`BlueBitsDbContext`). No external API calls.
 
 ### 7. Imports Summary
 - **External:** `Microsoft.EntityFrameworkCore`, `System.Text`, `System.Linq`
-- **Internal:** `BlueBits.Api.Data` (DbContext)
+- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Services.Interfaces` (IPromptService)
 
 ### 8. Additional Info
-Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier.
+Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier. Replaces the old `PromptCompilationService`.
 ## 1. File Name and Directory
 `Backend/Extensions/SwaggerExtensions.cs`
 
@@ -850,7 +875,7 @@ Placed after Swagger but before all other middleware to catch every unhandled ex
 Backend — ASP.NET Core extension methods for DI service registration
 
 ### 3. What the file does
-Provides four extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, `IPromptCompilationService`), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
+Provides four extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, `IPromptService`), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
 
 ### 4. User Stories
 - As a developer, I can call `builder.Services.AddInfrastructure()` to register CORS, compression, rate limiting, and background services in one line.
@@ -860,7 +885,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService` as scoped, and `IRepository<>` / `GenericRepository<>` as scoped open generics.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -872,7 +897,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services, and all 9 specific repositories alongside the open generic `IRepository<>`, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 

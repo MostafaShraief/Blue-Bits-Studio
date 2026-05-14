@@ -94,10 +94,10 @@ Top-level statements (no named functions). Key logic blocks:
 
 ### 7. Imports Summary
 - **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `Microsoft.AspNetCore.RateLimiting`, `System.Threading.RateLimiting`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Services`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Services`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup.
+Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`).
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 
@@ -765,16 +765,44 @@ Reads from the `Prompts` table via Entity Framework Core (`BlueBitsDbContext`). 
 ### 8. Additional Info
 Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier.
 ## 1. File Name and Directory
+`Backend/Extensions/SwaggerExtensions.cs`
+
+### 2. File Type
+Backend — ASP.NET Core extension methods for Swagger/Swashbuckle configuration
+
+### 3. What the file does
+Provides two extension methods: `AddSwaggerWithConfig` (registers SwaggerGen with OpenAPI doc info, XML comments, JWT security definition, and controller-based endpoint grouping) and `UseSwaggerWithUI` (configures Swagger middleware and Swagger UI at `/swagger` route prefix).
+
+### 4. User Stories
+- As a developer, I can call a single extension method to fully configure Swagger with XML docs, JWT auth, and endpoint grouping.
+- As a developer, I can access Swagger UI at `/swagger` in development to explore and test API endpoints.
+
+### 5. Functions Summary
+- `AddSwaggerWithConfig(IServiceCollection)`: Configures SwaggerGen with `OpenApiInfo`, XML doc file path, Bearer JWT security definition + requirement, and endpoint tagging by controller name.
+- `UseSwaggerWithUI(IApplicationBuilder)`: Enables Swagger middleware with route template `swagger/{documentName}/swagger.json` and Swagger UI at `/swagger` pointing to `/swagger/v1/swagger.json`.
+
+### 6. Integration
+Reads the assembly's XML documentation file from the build output directory. Does not call external services or databases.
+
+### 7. Imports Summary
+- `Microsoft.OpenApi.Models` — OpenAPI schema types (`OpenApiInfo`, `OpenApiSecurityScheme`, etc.)
+- `System.Reflection` — `Assembly.GetExecutingAssembly()` to locate the XML doc file
+
+### 8. Additional Info
+- XML doc generation is enabled via `<GenerateDocumentationFile>true</GenerateDocumentationFile>` in `BlueBits.Api.csproj` with `<NoWarn>1591</NoWarn>` to suppress warnings for undocumented public members.
+- Used in `Program.cs` replacing the bare `AddSwaggerGen()` / `UseSwagger()` / `UseSwaggerUI()` calls.
+## 1. File Name and Directory
 `Backend/BlueBits.Api.csproj`
 
 ### 2. File Type
 Backend — .NET project file (MSBuild)
 
 ### 3. What the file does
-Defines the .NET project configuration: target framework (`net9.0`), NuGet package dependencies, content includes, and nullable/implicit usings settings.
+Defines the .NET project configuration: target framework (`net9.0`), NuGet package dependencies, content includes, nullable/implicit usings settings, and XML documentation file generation.
 
 ### 4. User Stories
 - As a developer, I can run `dotnet restore` / `dotnet build` and have all dependencies resolved automatically.
+- As a developer, XML doc comments are automatically compiled into an `.xml` file for Swagger consumption.
 
 ### 5. Functions Summary
 None — this is a declarative MSBuild project file.
@@ -793,5 +821,6 @@ NuGet packages installed:
 
 ### 8. Additional Info
 - `Microsoft.AspNetCore.OpenApi` was removed and replaced by `Swashbuckle.AspNetCore`.
+- `<GenerateDocumentationFile>true</GenerateDocumentationFile>` enables XML doc generation; `<NoWarn>1591</NoWarn>` suppresses missing-comment warnings on public members.
 - Rate limiting (`AddRateLimiter` / `UseRateLimiter`) uses the built-in ASP.NET Core framework types (no extra NuGet package needed in .NET 9).
 - Target framework: `net9.0`.

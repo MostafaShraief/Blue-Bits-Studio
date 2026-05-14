@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
+using BlueBits.Api.Extensions;
 using BlueBits.Api.Services;
 using Serilog;
 using Microsoft.AspNetCore.RateLimiting;
@@ -106,7 +107,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // Swagger / OpenAPI
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerWithConfig();
 
 // Rate Limiting
 builder.Services.AddRateLimiter(options =>
@@ -123,9 +124,8 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Configure Swagger UI.
-app.UseSwagger();
-app.UseSwaggerUI();
+// Configure Swagger UI at /swagger
+app.UseSwaggerWithUI();
 
 // Ensure database is created and migrations applied
 using (var scope = app.Services.CreateScope())

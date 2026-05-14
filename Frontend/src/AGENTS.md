@@ -1836,3 +1836,64 @@ FormData is built without explicit `Content-Type` headers — the browser sets t
 
 ### 9. API
 **POST** `/api/merge/execute` — body: `FormData` with `files[]` (FileList), `materialName` (string), `lectureType` (string) → response: `{ url: string, finalFileName: string }`
+
+## 1. File Name and Directory
+`Frontend/src/api/AdminApi.js`
+
+### 2. File Type
+Frontend — Admin API service module
+
+### 3. What the file does
+Provides a namespaced interface (`admin.*`) for all admin-related REST API calls using `HttpClient`. Groups endpoints by domain: `users`, `materials`, `permissions`, `prompts`, and `workflows`.
+
+### 4. User Stories
+- As an admin, I can CRUD users via `admin.users.*`.
+- As an admin, I can CRUD materials via `admin.materials.*`.
+- As an admin, I can list, create, and delete permissions via `admin.permissions.*`.
+- As an admin, I can list and update prompt text via `admin.prompts.*`.
+- As an admin, I can list and toggle workflow active state via `admin.workflows.*`.
+
+### 5. Functions Summary
+- `admin.users.fetch()`: GET `/api/admin/users`
+- `admin.users.create(data)`: POST `/api/admin/users`
+- `admin.users.update(id, data)`: PUT `/api/admin/users/{id}`
+- `admin.users.delete(id)`: DELETE `/api/admin/users/{id}`
+- `admin.materials.fetch()`: GET `/api/admin/materials`
+- `admin.materials.create(data)`: POST `/api/admin/materials`
+- `admin.materials.update(id, data)`: PUT `/api/admin/materials/{id}`
+- `admin.materials.delete(id)`: DELETE `/api/admin/materials/{id}`
+- `admin.permissions.fetch()`: GET `/api/admin/permissions`
+- `admin.permissions.create(data)`: POST `/api/admin/permissions`
+- `admin.permissions.delete(id)`: DELETE `/api/admin/permissions/{id}`
+- `admin.prompts.fetch()`: GET `/api/admin/prompts`
+- `admin.prompts.updateText(id, promptText)`: PUT `/api/admin/prompts/{id}`
+- `admin.workflows.fetch()`: GET `/api/admin/workflows`
+- `admin.workflows.toggleActive(id, isActive)`: PUT `/api/admin/workflows/{id}/toggle`
+
+### 6. Integration
+Calls the backend REST API at `/api/admin/*` endpoints through the `HttpClient` module which handles JWT auth, error/rate-limit handling, and response parsing.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost`, `httpPut`, `httpDelete` from `./HttpClient`
+
+### 8. Additional Info
+All functions delegate error handling to `HttpClient` — they return parsed JSON on success or throw `ApiError`/`RateLimitError` on failure. The `admin` object is also the default export.
+
+### 9. API
+| Namespace | Endpoint | Method | Body |
+|---|---|---|---|
+| users.fetch | `/api/admin/users` | GET | — |
+| users.create | `/api/admin/users` | POST | user data |
+| users.update | `/api/admin/users/{id}` | PUT | user data |
+| users.delete | `/api/admin/users/{id}` | DELETE | — |
+| materials.fetch | `/api/admin/materials` | GET | — |
+| materials.create | `/api/admin/materials` | POST | material data |
+| materials.update | `/api/admin/materials/{id}` | PUT | material data |
+| materials.delete | `/api/admin/materials/{id}` | DELETE | — |
+| permissions.fetch | `/api/admin/permissions` | GET | — |
+| permissions.create | `/api/admin/permissions` | POST | permission data |
+| permissions.delete | `/api/admin/permissions/{id}` | DELETE | — |
+| prompts.fetch | `/api/admin/prompts` | GET | — |
+| prompts.updateText | `/api/admin/prompts/{id}` | PUT | `{ promptText }` |
+| workflows.fetch | `/api/admin/workflows` | GET | — |
+| workflows.toggleActive | `/api/admin/workflows/{id}/toggle` | PUT | `{ isActive }` |

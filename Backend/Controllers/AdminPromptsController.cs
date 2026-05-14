@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Requests;
+using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
@@ -12,30 +11,27 @@ namespace BlueBits.Api.Controllers;
 [Route("api/admin/prompts")]
 public class AdminPromptsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
+    private readonly IAdminPromptService _adminPromptService;
 
-    public AdminPromptsController(BlueBitsDbContext db)
+    public AdminPromptsController(IAdminPromptService adminPromptService)
     {
-        _db = db;
+        _adminPromptService = adminPromptService;
     }
 
-    // GET: /api/admin/prompts
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<Prompt>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.Prompts.ToListAsync());
+        var prompts = await _adminPromptService.GetAllAsync();
+        return Ok(prompts);
     }
 
-    // PUT: /api/admin/prompts/{id}
     [HttpPut("{id}")]
+    [ProducesResponseType(typeof(Prompt), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdatePromptText(int id, [FromBody] UpdatePromptRequest req)
     {
-        var prompt = await _db.Prompts.FindAsync(id);
-        if (prompt == null) return NotFound();
-
-        prompt.PromptText = req.PromptText;
-        await _db.SaveChangesAsync();
-
+        var prompt = await _adminPromptService.UpdatePromptTextAsync(id, req);
         return Ok(prompt);
     }
 }

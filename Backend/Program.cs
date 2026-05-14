@@ -1,73 +1,47 @@
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
+using BlueBits.Api.Extensions;
+using BlueBits.Api.Middleware;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-// DbContext
-var dbPath = Path.Join(builder.Environment.ContentRootPath, "bluebits.db");
-builder.Services.AddDbContext<BlueBitsDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
-
-// CORS
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("AllowFrontend",
-        policy =>
-        {
-            policy.SetIsOriginAllowed(origin => true) // Allow any origin for development
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials(); // Often needed with any origin
-        });
-});
+    var builder = WebApplication.CreateBuilder(args);
 
-// Avoid cyclic JSON serialization
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-    options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-});
+    builder.Host.UseSerilog((context, services, config) =>
+        config.ReadFrom.Configuration(context.Configuration));
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+    builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddPersistence(builder.Configuration, builder.Environment);
+    builder.Services.AddApplicationServices();
+    builder.Services.AddAuthLayer(builder.Configuration);
+    builder.Services.AddApiLayer();
 
-var app = builder.Build();
+    var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
+    app.UseSwaggerWithUI();
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.EnsureDatabaseCreated();
+    app.UseRateLimiter();
+    app.UseCors("AllowFrontend");
+    app.UseResponseCompression();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.ServeUploadedFiles();
+    app.MapControllers();
+    app.MapGroup("/api/pandoc").MapPandocEndpoints().RequireAuthorization("WorkflowPolicy");
+    app.MapGroup("/api/merge").MapMergeEndpoints().RequireAuthorization("WorkflowPolicy");
+
+    app.Run();
 }
-
-// Ensure database is created and migrations applied
-using (var scope = app.Services.CreateScope())
+catch (Exception ex)
 {
-    var db = scope.ServiceProvider.GetRequiredService<BlueBitsDbContext>();
-    db.Database.EnsureCreated();
+    Log.Fatal(ex, "Application terminated unexpectedly");
 }
-
-// app.UseHttpsRedirection();
-// Commented to allow HTTP connections from frontend dev server
-
-app.UseCors("AllowFrontend");
-
-// Serve static files for uploaded images
-var uploadPath = Path.Join(app.Environment.ContentRootPath, "uploads");
-if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
-
-app.UseStaticFiles(new StaticFileOptions
+finally
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
-    RequestPath = "/uploads"
-});
-
-// Map Endpoints
-app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi();
-
-app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi();
-
-app.MapGroup("/api/sessions")
-   .MapSessionEndpoints()
-   .WithOpenApi();
-
-app.Run();
+    Log.CloseAndFlush();
+}

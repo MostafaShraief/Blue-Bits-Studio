@@ -17,7 +17,7 @@ Blue Bits Studio is a React 19 + TailwindCSS v4 frontend application connected t
 4. Run `dotnet run` to start the backend server. The API will listen on `http://localhost:5135`.
 
 ### Frontend
-1. Open a new terminal in the root project folder.
+1. Navigate to the `Frontend/` folder.
 2. Run `pnpm install`
 3. Run `pnpm dev` to start the Vite development server.
 

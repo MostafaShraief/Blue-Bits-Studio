@@ -1,11 +1,22 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlueBits.Api.Models;
 
 public class Prompt
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid SessionId { get; set; }
-    public string PromptText { get; set; } = string.Empty;
-    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
-
-    public Session Session { get; set; } = null!;
+    [Key]
+    public int PromptId { get; set; }
+    
+    public int WorkflowId { get; set; }
+    
+    [Required]
+    public required string SystemCode { get; set; }
+    
+    [Required]
+    public required string PromptName { get; set; }
+    
+    [Required]
+    public required string PromptText { get; set; }
+    
+    public Workflow Workflow { get; set; } = null!;
 }

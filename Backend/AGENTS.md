@@ -1309,6 +1309,52 @@ No database calls. Consumed by `MergeEndpoints`. Implemented by `MergeService`.
 ### 8. Additional Info
 Created as part of the service extraction refactor. All merge OpenXML logic lives in `MergeService`.
 ## 1. File Name and Directory
+`Backend/Services/Interfaces/IMaterialService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines the `IMaterialService` interface for material-related queries. Contains `GetDistinctMaterialNamesAsync` which returns a distinct, alphabetically sorted list of all material names from the repository.
+
+### 4. User Stories
+- As a developer, I can inject `IMaterialService` to get distinct material names without coupling to repository or EF Core details.
+
+### 5. Functions Summary
+- `GetDistinctMaterialNamesAsync()`: Returns `Task<List<string>>` — queries all materials via `IMaterialRepository`, projects distinct `MaterialName`s, orders them alphabetically.
+
+### 6. Integration
+No database calls. Consumed by controllers and other services. Implemented by `MaterialService`.
+
+### 7. Imports Summary
+None — pure interface in `BlueBits.Api.Services.Interfaces` namespace.
+
+### 8. Additional Info
+Created as part of the service layer extraction. All material data access logic lives in `MaterialService`.
+## 1. File Name and Directory
+`Backend/Services/MaterialService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IMaterialService`. Uses `IMaterialRepository` to fetch all materials and returns distinct, alphabetically sorted material names.
+
+### 4. User Stories
+- As a developer, I can call `MaterialService.GetDistinctMaterialNamesAsync` to retrieve distinct material names through the repository layer.
+
+### 5. Functions Summary
+- `GetDistinctMaterialNamesAsync()`: Calls `IMaterialRepository.GetAllAsync()`, then projects to `MaterialName`, applies `Distinct()`, orders alphabetically, and returns as `List<string>`.
+
+### 6. Integration
+Injected as `IMaterialService` (scoped). Depends on `IMaterialRepository` for data access. No direct database calls.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Repositories` (`IMaterialRepository`), `BlueBits.Api.Services.Interfaces` (`IMaterialService`)
+
+### 8. Additional Info
+Registered in `ServiceCollectionExtensions.AddPersistence()` alongside other services.
+## 1. File Name and Directory
 `Backend/Services/PandocService.cs`
 
 ### 2. File Type

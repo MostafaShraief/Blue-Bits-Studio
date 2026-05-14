@@ -1936,3 +1936,41 @@ Calls `SessionsApi` (which uses `HttpClient` for JWT auth, error/rate-limit hand
 ### 9. API
 - **Internal:** Delegates all HTTP to `SessionsApi` (SessionsApi.js). See SessionsApi.md for endpoint details.
 - **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminMaterials.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for admin materials CRUD. Wraps `AdminApi.materials.*` calls with loading/error states, toast notifications, and validation error mapping from backend `ApiError.errors`.
+
+### 4. User Stories
+- As an admin, I call `fetchAll()` to load all materials with loading/error state.
+- As an admin, I call `create(data)`, `update(id, data)`, or `remove(id)` with toast feedback and automatic list refresh on success.
+
+### 5. Functions Summary
+- `useAdminMaterials()`: Hook — returns state and CRUD actions.
+- `fetchAll()`: Fetches all materials from `admin.materials.fetch()`, sets `materials` state or `error` on failure.
+- `create(data)`: Creates a material via `admin.materials.create(data)`, shows success toast, re-fetches list, maps validation errors on failure.
+- `update(id, data)`: Updates a material via `admin.materials.update(id, data)`, shows success toast, re-fetches list, maps validation errors on failure.
+- `remove(id)`: Deletes a material via `admin.materials.delete(id)`, shows success toast, re-fetches list on success.
+
+### 6. Integration
+Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for success/error notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `formatValidationErrors` from `../utils/errorFormatter`
+
+### 8. Additional Info
+- `validationErrors` is set from `err.errors` (flattened via `formatValidationErrors`) on 400 validation failures — useful for per-field inline error display.
+- List errors show a toast and set `error` state for programmatic handling.
+- Mutations re-throw after handling so callers can chain `.catch()` if needed.
+- No auto-fetch on mount — caller must invoke `fetchAll()` explicitly.
+
+### 9. API
+- **Internal:** Delegates all HTTP to `admin.materials.*` (AdminApi.js). Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext`.
+- **Validation Errors:** Maps `err.errors` via `formatValidationErrors` into `{ field: message }` shape.

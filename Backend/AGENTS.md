@@ -171,23 +171,23 @@ Admin-only CRUD controller for `WorkflowPermissions` (RBAC mappings between role
 - As an Admin, I can revoke a role's access to a workflow by deleting the permission mapping.
 
 ### 5. Functions Summary
-- `GetAll()`: GET `/api/admin/permissions` — Returns all `WorkflowPermissions` with included `Workflow` nav property.
-- `Create(CreatePermissionRequest)`: POST `/api/admin/permissions` — Creates a permission after validating roleName and checking for duplicates.
-- `Delete(int id)`: DELETE `/api/admin/permissions/{id}` — Deletes a permission by ID; returns 404 if not found.
+- `GetAll()`: GET `/api/admin/permissions` — Delegates to `IAdminPermissionService.GetAllAsync`, returns all `WorkflowPermissions` with included `Workflow` nav property.
+- `Create(CreatePermissionRequest)`: POST `/api/admin/permissions` — Delegates to `IAdminPermissionService.CreateAsync`, returns 201 Created. Catches `InvalidOperationException` (invalid role or duplicate) → 400 BadRequest.
+- `Delete(int id)`: DELETE `/api/admin/permissions/{id}` — Delegates to `IAdminPermissionService.DeleteAsync`, returns 204 No Content. `NotFoundException` thrown by service is handled by `ExceptionHandlingMiddleware` → 404.
 
 ### 6. Integration
-Directly queries and mutates `WorkflowPermissions` via `BlueBitsDbContext` (EF Core / SQLite).
+Depends solely on `IAdminPermissionService` (injected via DI). No direct database or EF Core access.
 
 ### 7. Imports Summary
 - `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Mvc` — ASP.NET Core attributes and base classes.
-- `Microsoft.EntityFrameworkCore` — For `.Include()` and async queries.
-- `BlueBits.Api.Data`, `BlueBits.Api.Models` — Internal DbContext and `WorkflowPermission` entity.
 - `BlueBits.Api.DTOs.Requests` — `CreatePermissionRequest` DTO.
+- `BlueBits.Api.Services.Interfaces` — `IAdminPermissionService`.
 
 ### 8. Additional Info
 - Restricted to `Admin` role via `[Authorize(Roles = "Admin")]`.
-- Accepts only `TechMember` or `ScientificMember` as valid role names.
-- `CreatePermissionRequest` was previously a nested class inside this controller; now imported from `BlueBits.Api.DTOs.Requests`.
+- All business logic (role validation, duplicate checking, CRUD) moved to `AdminPermissionService`.
+- `InvalidOperationException` from the service (invalid role name / duplicate mapping) is caught and returned as 400 BadRequest.
+- `NotFoundException` from `DeleteAsync` propagates to `ExceptionHandlingMiddleware` → 404.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminPromptsController.cs`
 

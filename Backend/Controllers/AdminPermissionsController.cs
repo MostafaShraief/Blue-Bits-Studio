@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Requests;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
@@ -12,61 +10,38 @@ namespace BlueBits.Api.Controllers;
 [Route("api/admin/permissions")]
 public class AdminPermissionsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
+    private readonly IAdminPermissionService _permissionService;
 
-    public AdminPermissionsController(BlueBitsDbContext db)
+    public AdminPermissionsController(IAdminPermissionService permissionService)
     {
-        _db = db;
+        _permissionService = permissionService;
     }
 
-    // GET: /api/admin/permissions
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.WorkflowPermissions
-            .Include(p => p.Workflow)
-            .ToListAsync());
+        var permissions = await _permissionService.GetAllAsync();
+        return Ok(permissions);
     }
 
-    // POST: /api/admin/permissions
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePermissionRequest request)
     {
-        // Validate role name
-        if (request.roleName != "TechMember" && request.roleName != "ScientificMember")
+        try
         {
-            return BadRequest(new { message = "Role must be 'TechMember' or 'ScientificMember'" });
+            var permission = await _permissionService.CreateAsync(request);
+            return Created($"/api/admin/permissions/{permission.PermissionId}", permission);
         }
-
-        // Check if mapping already exists
-        var existing = await _db.WorkflowPermissions
-            .FirstOrDefaultAsync(p => p.RoleName == request.roleName && p.WorkflowId == request.workflowId);
-        
-        if (existing != null)
+        catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = "This role-to-workflow mapping already exists" });
+            return BadRequest(new { message = ex.Message });
         }
-
-        var permission = new WorkflowPermission
-        {
-            RoleName = request.roleName,
-            WorkflowId = request.workflowId
-        };
-
-        _db.WorkflowPermissions.Add(permission);
-        await _db.SaveChangesAsync();
-        return Created($"/api/admin/permissions/{permission.PermissionId}", permission);
     }
 
-    // DELETE: /api/admin/permissions/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var permission = await _db.WorkflowPermissions.FindAsync(id);
-        if (permission == null) return NotFound();
-
-        _db.WorkflowPermissions.Remove(permission);
-        await _db.SaveChangesAsync();
+        await _permissionService.DeleteAsync(id);
         return NoContent();
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
+using BlueBits.Api.Repositories;
 using BlueBits.Api.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -48,6 +49,7 @@ public static class ServiceCollectionExtensions
             options.UseSqlite($"Data Source={dbPath}"));
 
         services.AddScoped<IPromptCompilationService, PromptCompilationService>();
+        services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
         return services;
     }

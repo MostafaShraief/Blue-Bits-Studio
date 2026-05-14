@@ -202,21 +202,21 @@ Admin-only CRUD controller for managing AI prompt templates. Exposes two endpoin
 - As an Admin, I want to update the text of a specific prompt so I can refine AI assistant behavior.
 
 ### 5. Functions Summary
-- `GetAll()`: Returns every prompt record from the database via `Prompts.ToListAsync()`.
-- `UpdatePromptText(int id)`: Finds a prompt by primary key, sets `PromptText` from the request body, and persists changes.
+- `GetAll()`: Delegates to `IAdminPromptService.GetAllAsync()` — returns all prompts from the repository.
+- `UpdatePromptText(int id)`: Delegates to `IAdminPromptService.UpdatePromptTextAsync()` — updates the prompt text by ID. Service throws `NotFoundException` (handled by global middleware) when prompt is not found.
 
 ### 6. Integration
-Directly interacts with the SQLite database through Entity Framework Core (`BlueBitsDbContext.Prompts`). No external API or service calls.
+Depends solely on `IAdminPromptService` (injected via DI). No direct database or repository access.
 
 ### 7. Imports Summary
-- `Microsoft.AspNetCore.Authorization` / `Mvc`: ASP.NET Core auth filters and MVC controller base.
-- `Microsoft.EntityFrameworkCore`: EF Core for async database queries.
-- `BlueBits.Api.Data` / `Models`: Internal DbContext (`BlueBitsDbContext`) and entity models.
+- **ASP.NET Core:** `Authorize`, `ApiController`, `ControllerBase`, `HttpGet`, `HttpPut`, `FromBody`, `Route`, `IActionResult`
+- **Internal:** `BlueBits.Api.DTOs.Requests` (`UpdatePromptRequest`), `BlueBits.Api.Models` (`Prompt`), `BlueBits.Api.Services.Interfaces` (`IAdminPromptService`)
 
 ### 8. Additional Info
 - Guarded by `[Authorize(Roles = "Admin")]` — strictly Admin-only.
 - `UpdatePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
 - No delete endpoint — admins cannot delete prompts, in line with backend design rules.
+- Both actions are decorated with `[ProducesResponseType]` attributes for Swagger/OpenAPI documentation, leveraging the XML doc configuration from `SwaggerExtensions.cs`.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminWorkflowsController.cs`
 

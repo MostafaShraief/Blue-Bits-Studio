@@ -829,42 +829,50 @@ No direct API calls. Data flows through hooks:
 Frontend (React component)
 
 ### 3. What the file does
-Admin CRUD page for managing users. Displays a sortable/filterable table of users with role badges, batch info, Telegram copy, and dates. Provides a modal form for creating/editing users with field validation.
+Admin CRUD page for managing users. Uses `useAdminUsers` hook for all data fetching and mutation. Displays a sortable/filterable table of users with role badges, batch info, Telegram copy, and dates. Provides a modal form for creating/editing users with client-side input guards and server-side per-field validation errors. Delete confirmation modal instead of `window.confirm()`. 429 rate-limit errors surface via toast (handled by HttpClient → hook's error handler).
 
 ### 4. User Stories
 - As an Admin, I can view all users in a table, filter by role/batch, and sort by name, role, batch, or dates.
-- As an Admin, I can create, edit, or delete users via a modal form with input validation.
+- As an Admin, I can create, edit, or delete users via a modal form with inline field-level validation errors from the backend.
+- As an Admin, I get a clear Arabic toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `loadUsers`: Fetches all users from backend and sets state
-- `handleSubmit`: Validates inputs and calls create/update API
-- `handleEdit`: Populates modal with user data for editing
-- `handleDelete`: Confirms and deletes a user via API
-- `resetForm`: Clears form state and resets editing ID
-- `openCreateModal` / `closeModal`: Controls modal visibility with animation
-- `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only)
-- `getRoleBadge`: Renders colored role badge with icon
-- `formatDate`: Formats dates to Arabic locale
-- `handleCopyTelegram`: Copies Telegram username to clipboard
-- `handleSort` / `getSortIcon`: Cycles sort state (asc → desc → none)
-- `resetFilters`: Clears all filter and sort settings
+- `useAdminUsers()`: Hook providing users, form state, modal state, CRUD actions, and validation errors.
+- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. On 400 errors, hook sets `validationErrors` for per-field display.
+- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode.
+- `closeModal()`: Hook method with 200ms closing animation.
+- `handleDelete(id)`: Sets `deleteConfirmId` to show confirm dialog; `confirmDelete`/`cancelDelete` complete the flow.
+- `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only) via `onBeforeInput`.
+- `getRoleBadge`: Renders colored role badge with icon.
+- `formatDate`: Formats dates to Arabic locale.
+- `handleCopyTelegram`: Copies Telegram username to clipboard.
+- `handleSort` / `getSortIcon`: Cycles sort state (asc → desc → none).
+- `resetFilters`: Clears all filter and sort settings.
 
 ### 6. Integration
-Calls backend admin REST API via `authFetch`: `fetchAdminUsers`, `createAdminUser`, `updateAdminUser`, `deleteAdminUser`.
+Delegates all HTTP to `useAdminUsers` hook → `AdminApi` (HttpClient). HttpClient handles 429 (RateLimitError with toast via hook's catch), 400 (validation errors mapped to fields), and 401 (auto-logout redirect). The old `utils/api` functions are no longer used.
 
 ### 7. Imports Summary
-- React hooks: `useState`, `useEffect`, `useMemo`
-- Internal: `../../utils/api` (admin user CRUD functions)
-- External: `lucide-react` icons (Users, Plus, Pencil, Trash2, etc.)
+- React hooks: `useState`, `useMemo`
+- Internal: `useAdminUsers` from `../../hooks/useAdminUsers`
+- External: `lucide-react` icons (Users, Pencil, Trash2, Loader2, etc.)
 
 ### 8. Additional Info
-Arabic-first RTL UI. Telegram + role combination must be unique (handles 409 conflict). Protected `userId === 1` from deletion. Uses `onBeforeInput` for clean keyboard validation without blocking Ctrl combinations.
+- Arabic-first RTL UI.
+- Protected `userId === 1` from deletion.
+- Uses `onBeforeInput` for clean keyboard validation without blocking Ctrl combinations.
+- Client-side validation errors show under fields with auto-dismiss (2.5s); server-side `validationErrors` persist until modal closes.
+- Delete uses a modal confirmation dialog instead of `window.confirm()`.
+- 429 rate-limit toasts are auto-handled by HttpClient → hook's error handler (`showToast(err.message, 'error')`).
 
 ### 9. API
+All API calls go through `AdminApi` (HttpClient):
 - `GET /api/admin/users` → returns array of user objects
 - `POST /api/admin/users` → creates user; body: `{ firstName, lastName, username, password, userRole, batchNumber, telegramUsername?, teamJoinDate? }`
 - `PUT /api/admin/users/{id}` → updates user; body: same as create without `username`
 - `DELETE /api/admin/users/{id}` → deletes user
+- 400 responses with `errors` map → `validationErrors` state for per-field inline display.
+- 429 responses → `RateLimitError` thrown by HttpClient, caught by hook's `handleSubmit` → error toast.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/Admin-Unauthorized.jsx`

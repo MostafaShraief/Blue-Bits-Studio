@@ -357,13 +357,14 @@ Thin controller that delegates all session business logic to `ISessionService`. 
 ### 7. Imports Summary
 - **ASP.NET Core**: `Authorization`, `Mvc`
 - **System**: `Security.Claims`
-- **Internal**: `BlueBits.Api.Services.Interfaces` (`ISessionService`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`), `BlueBits.Api.Exceptions`
+- **Internal**: `BlueBits.Api.Services.Interfaces` (`ISessionService`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`)
 
 ### 8. Additional Info
 - All RBAC logic moved to `SessionService` (`Backend/Services/SessionService.cs`)
 - Admin blocks, ownership verification, and workflow permission checks are handled by `SessionService` which throws `ForbiddenException` (handled by `ExceptionHandlingMiddleware` → 403)
 - Entity-not-found cases throw `NotFoundException` (handled by middleware → 404)
 - `SaveSessionContentRequest` and `CreateSessionRequest` validated by FluentValidation before reaching controller
+- All endpoints documented with XML `<summary>` / `<param>` / `<returns>` tags for Swagger/OpenAPI generation via Swashbuckle
 ## 1. File Name and Directory
 `Backend/Data/BlueBitsDbContext.cs`
 

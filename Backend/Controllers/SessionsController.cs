@@ -1,9 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Services.Interfaces;
-using BlueBits.Api.Exceptions;
 
 namespace BlueBits.Api.Controllers;
 
@@ -19,6 +18,10 @@ public class SessionsController : ControllerBase
         _sessionService = sessionService;
     }
 
+    /// <summary>Returns a paginated list of sessions for the current user, filtered by their role's workflow permissions.</summary>
+    /// <param name="page">Page number (1-based).</param>
+    /// <param name="limit">Number of items per page.</param>
+    /// <returns>Paginated session list with metadata.</returns>
     [HttpGet]
     public async Task<IActionResult> GetSessions([FromQuery] int page = 1, [FromQuery] int limit = 20)
     {
@@ -33,6 +36,9 @@ public class SessionsController : ControllerBase
         return Ok(new { sessions = result.Sessions, result.TotalCount, result.Page, result.Limit, result.HasMore });
     }
 
+    /// <summary>Returns full session details including user, material, workflow, notes, files, content, and compiled prompt.</summary>
+    /// <param name="id">Session ID.</param>
+    /// <returns>Session detail with all navigation properties and compiled prompt.</returns>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetSession(int id)
     {
@@ -67,6 +73,9 @@ public class SessionsController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>Creates a new session for the authenticated user tied to a material and workflow.</summary>
+    /// <param name="req">Session creation payload.</param>
+    /// <returns>201 Created with session ID and workflow ID.</returns>
     [HttpPost]
     public async Task<IActionResult> CreateSession([FromBody] CreateSessionRequest req)
     {
@@ -82,6 +91,10 @@ public class SessionsController : ControllerBase
         return Created($"/api/sessions/{result.SessionId}", new { result.SessionId, result.WorkflowId });
     }
 
+    /// <summary>Saves (upserts) generated content body for a session.</summary>
+    /// <param name="req">Content body payload.</param>
+    /// <param name="sessionId">Session ID (query param).</param>
+    /// <returns>Ok with saved session ID.</returns>
     [HttpPost("save")]
     public async Task<IActionResult> SaveSessionContent([FromBody] SaveSessionContentRequest req, [FromQuery] int? sessionId)
     {
@@ -89,9 +102,13 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
 
         await _sessionService.SaveSessionContentAsync(userId, sessionId, req);
-        return Ok(new { sessionId = sessionId, message = "Content saved successfully" });
+        return Ok(new { sessionId, message = "Content saved successfully" });
     }
 
+    /// <summary>Uploads files with optional per-file notes to a session.</summary>
+    /// <param name="id">Session ID.</param>
+    /// <param name="form">Multipart form containing "files" (IFormFile collection) and "notes" (string array).</param>
+    /// <returns>Ok on success.</returns>
     [HttpPost("{id}/files")]
     public async Task<IActionResult> UploadFiles(int id, [FromForm] IFormCollection form)
     {

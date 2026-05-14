@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.DTOs.Responses;
 using BlueBits.Api.Services;
 
 namespace BlueBits.Api.Controllers;
@@ -309,12 +310,3 @@ public class SaveSessionContentRequest
     public required string ContentBody { get; set; }
 }
 
-// DTO for session list summary (lightweight - avoids fetching heavy fields like QuizData, CompiledPrompt)
-public class SessionSummaryDto
-{
-    public int Id { get; set; }
-    public string MaterialName { get; set; } = string.Empty;
-    public string WorkflowType { get; set; } = string.Empty;
-    public string CreatedAt { get; set; } = string.Empty;
-    public int LectureNumber { get; set; }
-}

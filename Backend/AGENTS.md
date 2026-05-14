@@ -266,12 +266,13 @@ Interacts with SQLite via EF Core (`BlueBitsDbContext`). Reads JWT settings (`Ke
 
 ### 7. Imports Summary
 **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`; `Microsoft.IdentityModel.Tokens`; `System.IdentityModel.Tokens.Jwt`; `System.Security.Claims`; `System.Text`.  
-**Internal:** `BlueBits.Api.Data` (`BlueBitsDbContext`).
+**Internal:** `BlueBits.Api.Data` (`BlueBitsDbContext`), `BlueBits.Api.DTOs.Responses` (`LoginResponse`).
 
 ### 8. Additional Info
 - Passwords compared in plaintext (no hashing).
 - `AuthorizedWorkflows` (list of SystemCodes) is the RBAC contract consumed by the frontend for dynamic UI rendering.
-- `LoginRequest` and `LoginResponse` DTOs are defined at the bottom of the same file.
+- `LoginRequest` DTO is defined at the bottom of the same file.
+- `LoginResponse` DTO is extracted to `BlueBits.Api.DTOs.Responses`.
 ## 1. File Name and Directory
 `Backend/Controllers/MaterialsController.cs`
 
@@ -352,10 +353,11 @@ Manages the academic session lifecycle — listing, creating, viewing, saving co
 ### 7. Imports Summary
 - **ASP.NET Core**: `Authorization`, `Mvc`, `EntityFrameworkCore`, `IWebHostEnvironment`
 - **System**: `Security.Claims`
-- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services` (IPromptCompilationService)
+- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services` (IPromptCompilationService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`)
 
 ### 8. Additional Info
-- Three DTOs defined at file bottom: `CreateSessionRequest`, `SaveSessionContentRequest`, `SessionSummaryDto`
+- Two DTOs defined at file bottom: `CreateSessionRequest`, `SaveSessionContentRequest`
+- `SessionSummaryDto` DTO is extracted to `BlueBits.Api.DTOs.Responses`
 - Admin role is **blocked** from `GetSessions`, `CreateSession`, and `UploadFiles`
 - File notes are linked to files via `FileId` with type `"FileNote"`; general notes use `"GeneralNote"`
 - Session content uses upsert logic (first `SessionContent` record)
@@ -914,3 +916,73 @@ Does not call any APIs or databases. These are plain data contracts consumed by 
 ### 8. Additional Info
 - The original inline class definitions in the controller/endpoint files are kept untouched to avoid breaking existing imports.
 - `CreatePermissionRequest` was originally a nested class inside `AdminPermissionsController`; it is now a standalone top-level class in its own file.
+## 1. File Name and Directory
+`Backend/DTOs/Responses/LoginResponse.cs`
+
+### 2. File Type
+Backend — Response DTO
+
+### 3. What the file does
+Defines the `LoginResponse` DTO returned after successful authentication. Contains JWT token, user profile (ID, username, name, role), and the list of authorized workflow SystemCodes for RBAC-driven frontend rendering.
+
+### 4. User Stories
+- As a user, I receive my JWT token and profile upon login.
+- As a frontend developer, I consume the `AuthorizedWorkflows` list to dynamically render UI tabs.
+
+### 5. Functions Summary
+None — pure data class with auto-properties.
+
+### 6. Integration
+Returned by `AuthController.Login` and `AuthController.GetCurrentUser`. No direct database or service calls.
+
+### 7. Imports Summary
+None — uses only `namespace BlueBits.Api.DTOs.Responses`.
+
+### 8. Additional Info
+Extracted from the inline DTO originally defined in `AuthController.cs`. `AuthorizedWorkflows` is the RBAC contract consumed by the frontend.
+## 1. File Name and Directory
+`Backend/DTOs/Responses/SessionSummaryDto.cs`
+
+### 2. File Type
+Backend — Response DTO
+
+### 3. What the file does
+Defines the `SessionSummaryDto` used for paginated session list responses. Lightweight projection that avoids fetching heavy fields like `QuizData` or `CompiledPrompt`.
+
+### 4. User Stories
+- As a user, I can view a paginated list of my sessions with key metadata (material name, workflow type, creation date, lecture number).
+
+### 5. Functions Summary
+None — pure data class with auto-properties.
+
+### 6. Integration
+Returned by `SessionsController.GetSessions`. No direct database or service calls.
+
+### 7. Imports Summary
+None — uses only `namespace BlueBits.Api.DTOs.Responses`.
+
+### 8. Additional Info
+Extracted from the inline DTO originally defined in `SessionsController.cs`. Used in LINQ `Select` projections for efficient querying.
+## 1. File Name and Directory
+`Backend/DTOs/Responses/ErrorResponse.cs`
+
+### 2. File Type
+Backend — Response DTO
+
+### 3. What the file does
+Defines the `ErrorResponse` DTO used by `ExceptionHandlingMiddleware` for standardized JSON error responses. Contains `Error` (message), `StatusCode` (HTTP status), and `TraceId` (correlation identifier for debugging).
+
+### 4. User Stories
+- As a frontend developer, I receive a consistent `{error, statusCode, traceId}` JSON envelope for all API errors.
+
+### 5. Functions Summary
+None — pure data class with auto-properties.
+
+### 6. Integration
+Returned by `ExceptionHandlingMiddleware` for all unhandled exceptions. No direct database or service calls.
+
+### 7. Imports Summary
+None — uses only `namespace BlueBits.Api.DTOs.Responses`.
+
+### 8. Additional Info
+Follows the standardized error envelope pattern described in Backend AGENTS.md. Matches the JSON shape already returned by `ExceptionHandlingMiddleware`.

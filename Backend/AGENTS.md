@@ -1047,3 +1047,223 @@ Directly depends on `BlueBitsDbContext` (injected via constructor). Registered a
 
 ### 8. Additional Info
 The generic constraint `where T : class` matches EF Core's entity type requirements. The class uses `_context.Set<T>()` to obtain the correct DbSet dynamically.
+## 1. File Name and Directory
+`Backend/Repositories/IUserRepository.cs` + `Backend/Repositories/UserRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<User>` with user-specific queries. `IUserRepository` declares `GetByUsernameAsync` and `ExistsByTelegramAndRoleAsync`. `UserRepository` implements these against `BlueBitsDbContext`.
+
+### 4. User Stories
+- As the AuthController, I can look up a user by username for login without writing raw EF Core queries.
+- As the AdminController, I can check for duplicate Telegram+Role combinations before creating a user.
+
+### 5. Functions Summary
+- `GetByUsernameAsync(string username)`: Returns the first `User` matching the given username, or null.
+- `ExistsByTelegramAndRoleAsync(string telegramUsername, string role)`: Returns true if a user with the given Telegram username and role already exists.
+
+### 6. Integration
+Injected as `IUserRepository` (scoped). Wraps `BlueBitsDbContext.Users` via the generic `GenericRepository<User>` base.
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (User)
+
+### 8. Additional Info
+Registered in `AddPersistence` alongside the other specific repositories in `ServiceCollectionExtensions`.
+## 1. File Name and Directory
+`Backend/Repositories/IMaterialRepository.cs` + `Backend/Repositories/MaterialRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<Material>` with no additional methods. Provides the standard CRUD contract for the `Material` entity. `MaterialRepository` is a thin wrapper around `GenericRepository<Material>`.
+
+### 4. User Stories
+- As a developer, I can inject `IMaterialRepository` to perform CRUD on materials without coupling to `BlueBitsDbContext` directly.
+
+### 5. Functions Summary
+Inherits all methods from `IRepository<Material>` (GetByIdAsync, GetAllAsync, AddAsync, Update, Delete, SaveChangesAsync, FindAsync).
+
+### 6. Integration
+Injected as `IMaterialRepository` (scoped). All CRUD operations delegate to `GenericRepository<Material>`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (Material)
+
+### 8. Additional Info
+Registered in `AddPersistence` alongside the other specific repositories. Part of the 9-repository family of specific interfaces.
+## 1. File Name and Directory
+`Backend/Repositories/IWorkflowRepository.cs` + `Backend/Repositories/WorkflowRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<Workflow>` with workflow-specific queries. `IWorkflowRepository` declares `GetBySystemCodeAsync` and `GetActiveWorkflowsForRoleAsync`. `WorkflowRepository` implements these with EF Core includes and filtering.
+
+### 4. User Stories
+- As the SessionsController, I can look up a workflow by SystemCode (with Permissions included) to validate session creation.
+- As the AuthController, I can fetch all active workflows that a given role is permitted to access.
+
+### 5. Functions Summary
+- `GetBySystemCodeAsync(string systemCode)`: Returns a `Workflow` with its `Permissions` collection included, or null.
+- `GetActiveWorkflowsForRoleAsync(string role)`: Returns all active workflows (`IsActive == 1`) where the given role has a matching `WorkflowPermission`.
+
+### 6. Integration
+Injected as `IWorkflowRepository` (scoped). Wraps `BlueBitsDbContext.Workflows` and uses `Include` / `Any` for permission-aware queries.
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (Workflow)
+
+### 8. Additional Info
+`GetBySystemCodeAsync` eagerly loads `Permissions` so callers can immediately check role access without a second query. `GetActiveWorkflowsForRoleAsync` uses the RBAC join through `WorkflowPermissions`.
+## 1. File Name and Directory
+`Backend/Repositories/IWorkflowPermissionRepository.cs` + `Backend/Repositories/WorkflowPermissionRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<WorkflowPermission>` with RBAC-specific query. `IWorkflowPermissionRepository` declares `ExistsByRoleAndWorkflowAsync`. `WorkflowPermissionRepository` implements it against `BlueBitsDbContext`.
+
+### 4. User Stories
+- As a controller, I can quickly check whether a given role has permission to access a specific workflow by its ID.
+
+### 5. Functions Summary
+- `ExistsByRoleAndWorkflowAsync(string role, int workflowId)`: Returns true if a `WorkflowPermission` record exists matching both the role name and workflow ID.
+
+### 6. Integration
+Injected as `IWorkflowPermissionRepository` (scoped). Wraps `BlueBitsDbContext.WorkflowPermissions`.
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (WorkflowPermission)
+
+### 8. Additional Info
+Used by the SessionsController to verify a user's role has access to a session's workflow before returning session details.
+## 1. File Name and Directory
+`Backend/Repositories/IPromptRepository.cs` + `Backend/Repositories/PromptRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<Prompt>` with no additional methods. `PromptRepository` is a thin wrapper around `GenericRepository<Prompt>`.
+
+### 4. User Stories
+- As a developer, I can inject `IPromptRepository` to perform CRUD on prompt templates without coupling to `BlueBitsDbContext` directly.
+
+### 5. Functions Summary
+Inherits all methods from `IRepository<Prompt>` (GetByIdAsync, GetAllAsync, AddAsync, Update, Delete, SaveChangesAsync, FindAsync).
+
+### 6. Integration
+Injected as `IPromptRepository` (scoped). All CRUD operations delegate to `GenericRepository<Prompt>`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (Prompt)
+
+### 8. Additional Info
+Part of the 9-repository family. Prompts are managed by admins through `AdminPromptsController`.
+## 1. File Name and Directory
+`Backend/Repositories/ISessionRepository.cs` + `Backend/Repositories/SessionRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<Session>` with session-specific pagination, eager-loading, and utility queries. `ISessionRepository` declares three specialized methods. `SessionRepository` implements them against `BlueBitsDbContext`.
+
+### 4. User Stories
+- As a user, I can view a paginated list of my sessions with Material and Workflow metadata loaded.
+- As a user, viewing a session loads all related data (User, Material, Workflow, Prompts, Notes, Files, SessionContent) in a single query.
+- As the UploadFiles endpoint, I can determine the next `OrderIndex` for file ordering within a session.
+
+### 5. Functions Summary
+- `GetSessionsByUserIdPaginatedAsync(int userId, int page, int limit)`: Returns a tuple of `(IEnumerable<Session> Sessions, int TotalCount)` — paginated sessions for a user, ordered by `CreatedAt` desc, with `Material` and `Workflow` included.
+- `GetSessionWithAllIncludesAsync(int sessionId)`: Returns a `Session` with all navigation properties eagerly loaded (User, Material, Workflow, Workflow.Prompts, Notes, Files ordered by OrderIndex, SessionContents).
+- `GetMaxOrderIndexAsync(int sessionId)`: Returns the maximum `OrderIndex` among files in the given session, or 0 if no files exist.
+
+### 6. Integration
+Injected as `ISessionRepository` (scoped). Wraps `BlueBitsDbContext.Sessions` with multiple `Include` chains for complex eager-loading.
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (Session)
+
+### 8. Additional Info
+`GetMaxOrderIndexAsync` uses a nullable int `Max` trick to handle empty result sets gracefully, returning 0 when no files exist.
+## 1. File Name and Directory
+`Backend/Repositories/ISessionContentRepository.cs` + `Backend/Repositories/SessionContentRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<SessionContent>` with no additional methods. `SessionContentRepository` is a thin wrapper around `GenericRepository<SessionContent>`.
+
+### 4. User Stories
+- As a developer, I can inject `ISessionContentRepository` to perform CRUD on session content (quiz/Pandoc output) without coupling to `BlueBitsDbContext` directly.
+
+### 5. Functions Summary
+Inherits all methods from `IRepository<SessionContent>` (GetByIdAsync, GetAllAsync, AddAsync, Update, Delete, SaveChangesAsync, FindAsync).
+
+### 6. Integration
+Injected as `ISessionContentRepository` (scoped). All CRUD operations delegate to `GenericRepository<SessionContent>`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (SessionContent)
+
+### 8. Additional Info
+Part of the 9-repository family. SessionContent is managed through the `SessionsController.SaveSessionContent` endpoint using upsert logic.
+## 1. File Name and Directory
+`Backend/Repositories/IFileRepository.cs` + `Backend/Repositories/FileRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<File>` with a specialized query for file path enumeration. `IFileRepository` declares `GetAllLocalPathsAsync`. `FileRepository` implements it and uses the `File = BlueBits.Api.Models.File` alias to avoid naming conflicts with `System.IO.File`.
+
+### 4. User Stories
+- As the `OrphanFileCleanupService`, I can retrieve all `LocalFilePath` values from the database to compare against physical disk files during nightly cleanup.
+
+### 5. Functions Summary
+- `GetAllLocalPathsAsync()`: Returns a `List<string>` of all `LocalFilePath` values from the `Files` table.
+
+### 6. Integration
+Injected as `IFileRepository` (scoped). Used by `OrphanFileCleanupService` for nightly orphan file reconciliation.
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `File = BlueBits.Api.Models.File`
+
+### 8. Additional Info
+Uses `using File = BlueBits.Api.Models.File` to disambiguate from `System.IO.File`, consistent with the pattern used in `BlueBitsDbContext.cs`.
+## 1. File Name and Directory
+`Backend/Repositories/INoteRepository.cs` + `Backend/Repositories/NoteRepository.cs`
+
+### 2. File Type
+Backend — C# specific repository interface + implementation
+
+### 3. What the file does
+Extends `IRepository<Note>` with no additional methods. `NoteRepository` is a thin wrapper around `GenericRepository<Note>`.
+
+### 4. User Stories
+- As a developer, I can inject `INoteRepository` to perform CRUD on notes (general notes and file notes) without coupling to `BlueBitsDbContext` directly.
+
+### 5. Functions Summary
+Inherits all methods from `IRepository<Note>` (GetByIdAsync, GetAllAsync, AddAsync, Update, Delete, SaveChangesAsync, FindAsync).
+
+### 6. Integration
+Injected as `INoteRepository` (scoped). All CRUD operations delegate to `GenericRepository<Note>`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext), `BlueBits.Api.Models` (Note)
+
+### 8. Additional Info
+Part of the 9-repository family. Notes are managed through the `SessionsController` during session creation (GeneralNote) and file upload (FileNote).

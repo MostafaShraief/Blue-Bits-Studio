@@ -51,6 +51,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPromptCompilationService, PromptCompilationService>();
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IMaterialRepository, MaterialRepository>();
+        services.AddScoped<IWorkflowRepository, WorkflowRepository>();
+        services.AddScoped<IWorkflowPermissionRepository, WorkflowPermissionRepository>();
+        services.AddScoped<IPromptRepository, PromptRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
+        services.AddScoped<ISessionContentRepository, SessionContentRepository>();
+        services.AddScoped<IFileRepository, FileRepository>();
+        services.AddScoped<INoteRepository, NoteRepository>();
+
         return services;
     }
 

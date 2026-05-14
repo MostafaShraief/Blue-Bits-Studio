@@ -262,8 +262,8 @@ Handles user authentication (login) and authorization (get current user). Delega
 - As an authenticated user, I can retrieve my current profile and fresh permissions via a token-based endpoint.
 
 ### 5. Functions Summary
-- `Login`: Delegates to `IAuthService.LoginAsync`, returns `LoginResponse` with token + user profile + authorized workflows.
-- `GetCurrentUser`: Extracts user ID from JWT claims, delegates to `IAuthService.GetCurrentUserAsync`, returns `LoginResponse`.
+- `Login`: Delegates to `IAuthService.LoginAsync`, returns `LoginResponse` with token + user profile + authorized workflows. Decorated with `[ProducesResponseType]` for Swagger (200 with `LoginResponse`, 401).
+- `GetCurrentUser`: Extracts user ID from JWT claims, delegates to `IAuthService.GetCurrentUserAsync`, returns `LoginResponse`. Decorated with `[ProducesResponseType]` for Swagger (200 with `LoginResponse`, 401, 404).
 
 ### 6. Integration
 Depends solely on `IAuthService` (injected via DI). No direct database or configuration access.
@@ -276,6 +276,8 @@ Depends solely on `IAuthService` (injected via DI). No direct database or config
 - JWT generation moved to `AuthService`.
 - Controller is thin — only handles HTTP concerns (extracting claims, returning responses).
 - `AuthorizedWorkflows` (list of SystemCodes) is the RBAC contract consumed by the frontend for dynamic UI rendering.
+- Both endpoints decorated with `[ProducesResponseType]` swagger attributes for accurate OpenAPI documentation.
+- XML doc comments on controller class and action methods provide inline documentation for Swagger UI.
 ## 1. File Name and Directory
 `Backend/Controllers/MaterialsController.cs`
 

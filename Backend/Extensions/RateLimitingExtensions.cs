@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.RateLimiting;
-using System.Net;
 using System.Threading.RateLimiting;
 
 namespace BlueBits.Api.Extensions;
@@ -33,10 +32,12 @@ public static class RateLimitingExtensions
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.OnRejected = async (context, cancellationToken) =>
+            options.OnRejected = (context, cancellationToken) =>
             {
                 context.HttpContext.Response.Headers.RetryAfter = "1";
-                await ValueTask.CompletedTask;
+                context.HttpContext.Response.ContentType = "application/json";
+                var body = new { error = "Too many requests. Please try again later.", statusCode = 429 };
+                return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(body, cancellationToken));
             };
         });
 

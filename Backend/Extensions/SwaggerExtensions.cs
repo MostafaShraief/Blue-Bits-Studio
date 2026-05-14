@@ -48,8 +48,8 @@ public static class SwaggerExtensions
                 }
             });
 
-            c.TagActionsBy(api => new[] { api.ActionDescriptor.RouteValues["controller"] });
-            c.OrderActionsBy(api => api.ActionDescriptor.RouteValues["controller"]);
+            c.TagActionsBy(api => new[] { api.ActionDescriptor.RouteValues.TryGetValue("controller", out var controller) ? controller : "Integrations" });
+            c.OrderActionsBy(api => api.ActionDescriptor.RouteValues.TryGetValue("controller", out var controller) ? controller : "Integrations");
         });
 
         return services;

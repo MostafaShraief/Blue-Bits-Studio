@@ -4,7 +4,7 @@ Read `DATABASE.md`.
 
 ## Project Vision
 This backend powers a **Unified Academic Workflow Platform**. It acts as a modular "Super App" where different features (Workflows) are dynamically managed, heavily relying on Role-Based Access Control (RBAC).
-
+                  
 ## Architecture & Database
 - **Tech Stack:** C# .NET (Web API), Entity Framework Core, SQLite.
 - **Dynamic Workflows:** Do **not** hardcode workflow logic to Database IDs (e.g., `WorkflowId == 3`). Always use the immutable `SystemCode` (e.g., `"LEC_EXT"`, `"BANK_QS"`) to bridge C# and the Database.
@@ -16,6 +16,7 @@ This backend powers a **Unified Academic Workflow Platform**. It acts as a modul
 2. **File Management (Crucial):** Never rely solely on SQLite's `ON DELETE CASCADE` for physical files. Implement and maintain a C# `BackgroundService` (Garbage Collector) that nightly compares database `Files` records against physical disk files and deletes orphans.
 3. **Admin Endpoints:** Admins cannot execute workflows. Admin endpoints should only provide CRUD for Users, Materials, and toggling `IsActive` on Workflows. Admin cannot delete system Workflows or Prompts (only update text or visibility).
 4. **Error Logging:** Log exceptions with context: UserID, SystemCode, SessionID, and the exact physical file path if applicable.
+5. **Global Exception Handling:** Use `NotFoundException` for missing-resource errors. Avoid inline `return NotFound()` in favor of throwing `NotFoundException` when the error should propagate through the global `ExceptionHandlingMiddleware`. The middleware returns standardized JSON `{error, statusCode, traceId}` and logs full diagnostic context.
 
 ## AI Prompt Instructions
 When generating code for this backend:
@@ -66,7 +67,7 @@ Also, you must update `Endpoint Reference` section if there is **any** change fo
 Backend — ASP.NET Core Web API entry point (top-level statements)
 
 ### 3. What the file does
-Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, rate limiting via `RateLimitingExtensions`, FluentValidation), configures middleware pipeline (CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
+Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, rate limiting via `RateLimitingExtensions`, FluentValidation), configures middleware pipeline (global exception handler, CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
 
 ### 4. User Stories
 - As a user, I authenticate via JWT to access protected API endpoints.
@@ -80,7 +81,7 @@ Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS,
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
 - Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting via `AddRateLimiting()` (FixedWindow 5 req/s per IP, Swagger/health excluded), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
-- Middleware pipeline: CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
+- Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
 - `MapPandocEndpoints` / `MapMergeEndpoints`: Minimal API groups secured with `WorkflowPolicy`
@@ -94,7 +95,7 @@ Top-level statements (no named functions). Key logic blocks:
 
 ### 7. Imports Summary
 - **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `Microsoft.AspNetCore.RateLimiting`, `System.Threading.RateLimiting`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Services`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`, `BlueBits.Api.Services`
 
 ### 8. Additional Info
 Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
@@ -824,3 +825,62 @@ NuGet packages installed:
 - `<GenerateDocumentationFile>true</GenerateDocumentationFile>` enables XML doc generation; `<NoWarn>1591</NoWarn>` suppresses missing-comment warnings on public members.
 - Rate limiting (`AddRateLimiter` / `UseRateLimiter`) uses the built-in ASP.NET Core framework types (no extra NuGet package needed in .NET 9).
 - Target framework: `net9.0`.
+## 1. File Name and Directory
+`Backend/Exceptions/NotFoundException.cs`
+
+### 2. File Type
+Backend — Custom exception class
+
+### 3. What the file does
+Defines a `NotFoundException` thrown when a requested resource (entity, record) is not found. Accepts either a plain message or a resource name + identifier for automatic message formatting. Caught and handled by `ExceptionHandlingMiddleware` returning 404.
+
+### 4. User Stories
+- As a controller/service, I can throw `NotFoundException` to signal a missing resource and have the global middleware return a standardized 404 JSON response.
+
+### 5. Functions Summary
+- `NotFoundException(string message)`: Plain message constructor.
+- `NotFoundException(string resourceName, object resourceId)`: Auto-formats `"{resourceName} with identifier '{resourceId}' was not found"`.
+
+### 6. Integration
+Consumed by the `ExceptionHandlingMiddleware` and any backend service/controller that needs to signal a not-found condition.
+
+### 7. Imports Summary
+None — pure `System.Exception` subclass in `BlueBits.Api.Exceptions` namespace.
+
+### 8. Additional Info
+Part of the global exception handling strategy. Replaces ad-hoc `return NotFound()` calls with a throwable exception that the middleware formats consistently.
+## 1. File Name and Directory
+`Backend/Middleware/ExceptionHandlingMiddleware.cs`
+
+### 2. File Type
+Backend — ASP.NET Core middleware
+
+### 3. What the file does
+Global exception handling middleware that catches all unhandled exceptions, logs UserID/SystemCode/SessionId/request path via Serilog, and returns a standardized JSON error envelope `{error, statusCode, traceId}`. Handles three exception categories: FluentValidation `ValidationException` → 400 with per-field error details, `NotFoundException` → 404, and all other unhandled exceptions → 500.
+
+### 4. User Stories
+- As a developer, all unhandled exceptions produce a consistent JSON error response instead of HTML or raw 500s.
+- As a developer, FluentValidation failures return field-level error maps for frontend form validation.
+- As a developer, `NotFoundException` throws from anywhere produce a clean 404 response.
+- As an operator, all errors are logged with diagnostic context (UserID, SystemCode, SessionId, request path) for debugging.
+
+### 5. Functions Summary
+- `InvokeAsync(HttpContext)`: Wraps the next middleware in try/catch dispatching to per-type handlers.
+- `HandleValidationExceptionAsync`: 400 with grouped `{field: [errors]}` map.
+- `HandleNotFoundExceptionAsync`: 404 with exception message as error.
+- `HandleGenericExceptionAsync`: 500 with generic "An unexpected error occurred" message.
+- `ExtractSystemCode`: Best-effort extraction from route values `systemCode`, then query params `systemCode`/`workflowSystemCode`.
+- `ExtractSessionId`: Best-effort extraction from route values `id`/`sessionId`, then query param `sessionId`.
+
+### 6. Integration
+Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddleware>()`. Logs through standard `ILogger<ExceptionHandlingMiddleware>`. Consumes `FluentValidation.ValidationException` and `BlueBits.Api.Exceptions.NotFoundException`.
+
+### 7. Imports Summary
+- `System.Diagnostics` — `Activity.Current` for trace ID
+- `System.Security.Claims` — `ClaimTypes.NameIdentifier` for user ID extraction
+- `System.Text.Json` — `JsonSerializer` for writing JSON responses
+- `FluentValidation` — `ValidationException` for validation error handling
+- `BlueBits.Api.Exceptions` — `NotFoundException`
+
+### 8. Additional Info
+Placed after Swagger but before all other middleware to catch every unhandled exception across the entire pipeline. Uses best-effort extraction for SystemCode/SessionId (may be "N/A" if not present in route/query). Trace ID uses `Activity.Current.Id` when available, falling back to `HttpContext.TraceIdentifier`. `ValidationException` errors are grouped by `PropertyName` to produce `{fieldName: [errorMessage, ...]}` maps matching common frontend validation patterns.

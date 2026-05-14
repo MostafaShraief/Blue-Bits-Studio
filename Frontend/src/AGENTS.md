@@ -909,38 +909,42 @@ No API interaction.
 Frontend (React component)
 
 ### 3. What the file does
-A 3-step wizard (`إعداد الجلسة`, `إدراج النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, then preview/copy the compiled prompt for use in Google AI Studio.
+A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, compile a prompt, then preview/copy it — all in one combined second step. Uses `useWizard` hook for step management and session lifecycle. Replaced legacy `utils/api.js` with `SessionsApi` + `PromptsApi`.
 
 ### 4. User Stories
 - As a coordinator, I want to select a material, lecture number, and type (Theoretical/Practical), so the system knows the context.
-- As a coordinator, I want to paste reviewed Markdown and get a compiled prompt, so I can send it to Google AI Studio for formatting.
+- As a coordinator, I want to paste reviewed Markdown and compile a prompt, so I can send it to Google AI Studio for formatting.
 - As a coordinator, I want to save my session or copy the prompt, so I can resume later or use it immediately.
+- As a coordinator, I want to see per-field validation errors under inputs when the backend rejects my session data.
+- As a coordinator, I want a toast notification when I hit a rate limit (429) instead of a confusing error.
 
 ### 5. Functions Summary
 - `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
 - `handleNextStep0`: Validates metadata fields (material, lecture number/type, workflow) before advancing to step 1.
-- `goNext`: Creates a session, compiles prompt (auto-save path: fetch from DB; else stateless), then advances to step 2.
-- `goBack`: Decrements step (min 0).
+- `handleCompile`: Creates a session via `wizard.createSession`, then compiles the prompt (auto-save path: fetch compiled prompt from saved session via `getSession`; else stateless via `compilePrompt`). Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
-- `handleSave`: Refetches session to mark it as saved.
+- `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
+- `clearFieldError`: Removes a specific field error on input change (avoids stale validation markup).
 
 ### 6. Integration
-Calls three backend APIs: `createSession` (POST), `fetchSession` (GET), `compilePromptStateless` (POST).
+Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useCallback, useEffect, useContext), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
-- **Internal:** `WizardStepper`, `PromptPreview`, `MaterialAutocomplete`, `AuthContext`, `useSettings`, `api` utils (createSession, fetchSession, compilePromptStateless).
+- **Internal:** `WizardStepper`, `PromptPreview`, `MaterialAutocomplete`, `useWizard`, `useToast`, `AuthContext`, `useSettings`, `SessionsApi.getSession`, `PromptsApi.compilePrompt`, `HttpClient.RateLimitError`.
 
 ### 8. Additional Info
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
 - Supports session restore via `?id=` and `?type=bank|lecture` query params.
+- 429 errors trigger warning toast via `RateLimitError` from HttpClient.
+- FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
 ### 9. API
-- **createSession (POST):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Receives `{ sessionId, id }`.
-- **fetchSession (GET):** Fetches session by ID. Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
-- **compilePromptStateless (POST):** Sends `{ systemCode, generalNotes, fileNotes }`. Receives `{ compiledPrompt }`.
+- **`useWizard.createSession` → SessionsApi.createSession (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
+- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
+- **PromptsApi.compilePrompt (POST /api/prompts/compile):** Sends `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
 Frontend/src/pages/Dashboard.jsx

@@ -866,7 +866,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, and `IPromptCompilationService` as scoped.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService` as scoped, and `IRepository<>` / `GenericRepository<>` as scoped open generics.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -875,7 +875,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 
 ### 7. Imports Summary
 - **External:** `System.Security.Claims`, `System.Text`, `System.Text.Json.Serialization`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.ResponseCompression`, `Microsoft.IdentityModel.Tokens`, `Microsoft.EntityFrameworkCore`, `FluentValidation`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Services`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`
 
 ### 8. Additional Info
 Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently.
@@ -986,3 +986,64 @@ None — uses only `namespace BlueBits.Api.DTOs.Responses`.
 
 ### 8. Additional Info
 Follows the standardized error envelope pattern described in Backend AGENTS.md. Matches the JSON shape already returned by `ExceptionHandlingMiddleware`.
+## 1. File Name and Directory
+`Backend/Repositories/IRepository.cs`
+
+### 2. File Type
+Backend — C# generic repository interface
+
+### 3. What the file does
+Defines the `IRepository<T>` generic interface for abstracting data access operations over any entity type. Declares the standard CRUD contract: `GetByIdAsync`, `GetAllAsync`, `AddAsync`, `Update`, `Delete`, `SaveChangesAsync`, and `FindAsync(Expression)`.
+
+### 4. User Stories
+- As a developer, I can inject `IRepository<T>` instead of directly depending on `BlueBitsDbContext`, enabling unit-testable and decoupled data access.
+- As a developer, I can perform common CRUD and query operations through a consistent interface without writing raw EF Core code.
+
+### 5. Functions Summary
+- `GetByIdAsync(object id)`: Finds an entity by its primary key.
+- `GetAllAsync()`: Returns all entities of type T.
+- `AddAsync(T entity)`: Inserts a new entity asynchronously.
+- `Update(T entity)`: Marks an entity as modified.
+- `Delete(T entity)`: Removes an entity.
+- `SaveChangesAsync()`: Persists all pending changes to the database.
+- `FindAsync(Expression<Func<T, bool>> predicate)`: Queries entities matching a predicate expression.
+
+### 6. Integration
+Consumed by services and controllers via DI. Implemented by `GenericRepository<T>` which wraps `BlueBitsDbContext`.
+
+### 7. Imports Summary
+- `System.Linq.Expressions` — for `Expression<Func<T, bool>>`
+
+### 8. Additional Info
+The interface is generic (`where T : class`) and designed to work with any EF Core entity type. Registration in DI is scoped via `services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>))` in `ServiceCollectionExtensions`.
+## 1. File Name and Directory
+`Backend/Repositories/GenericRepository.cs`
+
+### 2. File Type
+Backend — C# generic repository implementation
+
+### 3. What the file does
+Implements `IRepository<T>` by wrapping `BlueBitsDbContext` and delegating all operations to EF Core's `DbSet<T>` and `DbContext` APIs. Provides the concrete data access logic for the generic repository pattern.
+
+### 4. User Stories
+- As a developer, injecting `GenericRepository<T>` (via the `IRepository<T>` interface) gives me a ready-to-use data access layer for any entity without writing repetitive queries.
+- As a developer, I can call `SaveChangesAsync()` on the repository to commit all changes in a unit-of-work fashion.
+
+### 5. Functions Summary
+- `GetByIdAsync(object id)`: Delegates to `DbSet.FindAsync(id)`.
+- `GetAllAsync()`: Delegates to `DbSet.ToListAsync()`.
+- `AddAsync(T entity)`: Delegates to `DbSet.AddAsync(entity)`.
+- `Update(T entity)`: Delegates to `DbSet.Update(entity)`.
+- `Delete(T entity)`: Delegates to `DbSet.Remove(entity)`.
+- `SaveChangesAsync()`: Delegates to `DbContext.SaveChangesAsync()`.
+- `FindAsync(Expression<Func<T, bool>> predicate)`: Filters the DbSet with `Where(predicate).ToListAsync()`.
+
+### 6. Integration
+Directly depends on `BlueBitsDbContext` (injected via constructor). Registered as a scoped service in DI. All database communication flows through EF Core's DbSet and DbContext APIs.
+
+### 7. Imports Summary
+- **External:** `System.Linq.Expressions`, `Microsoft.EntityFrameworkCore`
+- **Internal:** `BlueBits.Api.Data` (BlueBitsDbContext)
+
+### 8. Additional Info
+The generic constraint `where T : class` matches EF Core's entity type requirements. The class uses `_context.Set<T>()` to obtain the correct DbSet dynamically.

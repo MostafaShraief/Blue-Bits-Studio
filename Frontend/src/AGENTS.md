@@ -1655,3 +1655,33 @@ No backend/database calls. Renders via portal at `document.body` to ensure z-ind
 - Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
 - Toasts stack vertically with a 0.5rem gap.
 - Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
+
+## 1. File Name and Directory
+`Frontend/src/api/MaterialsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a dedicated function to fetch distinct material names from the backend via `HttpClient`. Acts as a clean, tree-shakeable alternative to the legacy `utils/api.js` `fetchMaterials` function.
+
+### 4. User Stories
+- As a developer, I call `getDistinctNames()` to get a `string[]` of all material names for autocomplete/dropdown UIs.
+
+### 5. Functions Summary
+- `getDistinctNames()`: Calls `httpGet('/api/materials')` and returns the parsed JSON response (`string[]`).
+
+### 6. Integration
+Calls `GET /api/materials` via `HttpClient` (`./HttpClient`). No direct database interaction.
+
+### 7. Imports Summary
+- **Internal:** `httpGet` from `./HttpClient`
+
+### 8. Additional Info
+- Response is an array of strings (material names), e.g. `["مادة 1", "مادة 2"]`.
+- Auth token is automatically attached by `HttpClient` (JWT from localStorage).
+- Error handling is inherited from `HttpClient`'s `handleResponse` (401 auto-logout, rate limiting, etc.).
+
+### 9. API
+**Request:** `GET /api/materials` — no body, no params.
+**Response:** `string[]` — array of material name strings.

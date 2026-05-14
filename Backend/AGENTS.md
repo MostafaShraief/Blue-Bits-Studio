@@ -436,12 +436,13 @@ Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `
 Relies on `IPandocService` for all Pandoc CLI and OpenXML processing.
 
 ### 7. Imports Summary
-- **Internal**: `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
+- **Internal**: `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`), `BlueBits.Api.DTOs.Requests` (`GenerateDocxRequest`)
 
 ### 8. Additional Info
 - Requires **pandoc** installed on the system PATH.
 - Template `.dotx` files must exist in `Resources/PandocTemplates/`.
 - All OpenXML/math processing moved to `PandocService`.
+- `GenerateDocxRequest` DTO imported from `BlueBits.Api.DTOs.Requests`.
 ## 1. File Name and Directory
 `Backend/Models/File.cs`
 
@@ -1420,7 +1421,7 @@ Defines the `IMergeService` interface for merging multiple DOCX files into a sin
 No database calls. Consumed by `MergeEndpoints`. Implemented by `MergeService`.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Http` (`IFormFileCollection`)
+- **External:** `Microsoft.AspNetCore.Http` (`IFormFile`)
 
 ### 8. Additional Info
 Created as part of the service extraction refactor. All merge OpenXML logic lives in `MergeService`.

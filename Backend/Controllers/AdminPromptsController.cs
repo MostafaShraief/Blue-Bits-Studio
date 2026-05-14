@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -37,9 +38,4 @@ public class AdminPromptsController : ControllerBase
 
         return Ok(prompt);
     }
-}
-
-public class UpdatePromptRequest
-{
-    public string PromptText { get; set; } = string.Empty;
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -55,13 +56,6 @@ public class AdminPermissionsController : ControllerBase
         _db.WorkflowPermissions.Add(permission);
         await _db.SaveChangesAsync();
         return Created($"/api/admin/permissions/{permission.PermissionId}", permission);
-    }
-
-    // DTO
-    public class CreatePermissionRequest
-    {
-        public required string roleName { get; set; }
-        public required int workflowId { get; set; }
     }
 
     // DELETE: /api/admin/permissions/{id}

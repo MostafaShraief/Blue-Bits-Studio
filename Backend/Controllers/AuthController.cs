@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using BlueBits.Api.Data;
 using BlueBits.Api.DTOs.Responses;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -111,10 +112,4 @@ public class AuthController : ControllerBase
             AuthorizedWorkflows = authorizedWorkflows
         });
     }
-}
-
-public class LoginRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
 }

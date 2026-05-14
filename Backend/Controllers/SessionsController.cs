@@ -6,6 +6,7 @@ using BlueBits.Api.Data;
 using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Responses;
 using BlueBits.Api.Services;
+using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
 
@@ -292,21 +293,5 @@ public class SessionsController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok();
     }
-}
-
-// DTO for creating a session
-public class CreateSessionRequest
-{
-    public required string WorkflowSystemCode { get; set; }
-    public required string MaterialName { get; set; }
-    public required int LectureNumber { get; set; }
-    public required string LectureType { get; set; }
-    public string? GeneralNotes { get; set; }
-}
-
-// DTO for saving session content (quiz/pandoc)
-public class SaveSessionContentRequest
-{
-    public required string ContentBody { get; set; }
 }
 

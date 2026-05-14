@@ -1,14 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2 } from 'lucide-react';
-import { fetchSessions, removeSession } from '../utils/api';
+import { createPortal } from 'react-dom';
+import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2, X, Info } from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useSessions } from '../hooks/useSessions';
 
-/**
- * Centralized route mapping from backend SystemCode to frontend route.
- * Fixes broken routing where backend returns SystemCodes like 'LEC_EXT'
- * but frontend was checking for friendly names like 'lecture'.
- */
 const getSessionRoute = (session) => {
     const { workflowType, id } = session;
     switch (workflowType) {
@@ -19,7 +15,7 @@ const getSessionRoute = (session) => {
         case 'BANK_QS': return `/quiz?id=${id}`;
         case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
-        default: return '/'; // Fallback to dashboard instead of broken route
+        default: return '/';
     }
 };
 
@@ -34,7 +30,6 @@ const FILTERS = [
     { value: 'PANDOC', label: 'Pandoc', systemCode: 'PANDOC' },
 ];
 
-/** TYPE_META now uses SystemCodes to match backend workflowType values */
 const TYPE_META = {
     LEC_EXT: { label: 'استخراج محاضرة', icon: FileSearch, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     BANK_EXT: { label: 'استخراج بنك', icon: FileSearch, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
@@ -45,73 +40,170 @@ const TYPE_META = {
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 };
 
-export default function History() {
-    const [sessions, setSessions] = useState([]);
-    const [filter, setFilter] = useState('all');
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [totalCount, setTotalCount] = useState(0);
+function useModalExit(isOpen) {
+    const [shouldRender, setShouldRender] = useState(isOpen);
+    const [isExiting, setIsExiting] = useState(false);
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            setIsExiting(false);
+        } else if (shouldRender) {
+            setIsExiting(true);
+            const timer = setTimeout(() => {
+                setShouldRender(false);
+                setIsExiting(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, shouldRender]);
+    return { shouldRender, isExiting };
+}
 
-    // Get hasWorkflowAccess from AuthContext
+function SessionDetailModal({ session, onClose, getSession }) {
+    const { shouldRender, isExiting } = useModalExit(!!session);
+    const [detail, setDetail] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (session) {
+            setLoading(true);
+            getSession(session.id)
+                .then(setDetail)
+                .catch(() => setDetail(null))
+                .finally(() => setLoading(false));
+        }
+    }, [session, getSession]);
+
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') onClose();
+        };
+        if (session) document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [session, onClose]);
+
+    if (!shouldRender) return null;
+
+    const meta = session ? (TYPE_META[session.workflowType] || TYPE_META.LEC_EXT) : null;
+    const Icon = meta?.icon;
+
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+                className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isExiting ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+                onClick={onClose}
+            />
+            <div className={`relative bg-surface-card rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden ${isExiting ? 'animate-scaleOut' : 'animate-scaleIn'}`}>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <h2 className="text-lg font-semibold text-text">تفاصيل الجلسة</h2>
+                    <button onClick={onClose}
+                        className="p-2 rounded-lg hover:bg-surface-hover text-text-muted hover:text-text transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 size={24} className="animate-spin text-primary" />
+                        </div>
+                    ) : detail ? (
+                        <>
+                            <div className="flex items-center gap-3 pb-3 border-b border-border">
+                                {Icon && (
+                                    <div className={`w-10 h-10 rounded-xl ${meta.bgClass} flex items-center justify-center shrink-0`}>
+                                        <Icon size={18} className={meta.textClass} strokeWidth={1.8} />
+                                    </div>
+                                )}
+                                <div>
+                                    <p className="text-sm font-medium text-text">{meta?.label || session.workflowType}</p>
+                                    <p className="text-xs text-text-muted">رقم الجلسة: {session.id}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-text-muted">اسم المادة</span>
+                                    <span className="text-text font-medium">{detail.materialName || session.materialName || '—'}</span>
+                                </div>
+                                {detail.lectureNumber && (
+                                    <div className="flex justify-between">
+                                        <span className="text-text-muted">رقم المحاضرة</span>
+                                        <span className="text-text font-medium">{detail.lectureNumber}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between">
+                                    <span className="text-text-muted">تاريخ الإنشاء</span>
+                                    <span className="text-text font-medium">
+                                        {new Intl.DateTimeFormat('ar-SY', {
+                                            timeZone: 'Asia/Damascus',
+                                            day: 'numeric',
+                                            month: 'short',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        }).format(new Date(detail.createdAt || session.createdAt))}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {detail.compiledPrompt && (
+                                <div className="pt-3 border-t border-border">
+                                    <p className="text-xs text-text-muted mb-2">النص المُجمّع</p>
+                                    <p className="text-xs text-text bg-surface rounded-xl p-3 whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
+                                        {detail.compiledPrompt}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="text-center py-8 text-text-muted">
+                            <p className="text-sm">تعذر تحميل التفاصيل</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
+export default function History() {
+    const [filter, setFilter] = useState('all');
     const { hasWorkflowAccess } = useAuth();
 
-    // Filter FILTERS based on user's permissions
+    const {
+        sessions,
+        totalCount,
+        hasMore,
+        isLoading,
+        loadMore,
+        getSession,
+        removeSession,
+    } = useSessions({ limit: 20 });
+
+    const [detailSession, setDetailSession] = useState(null);
+    const [deleting, setDeleting] = useState(null);
+
     const visibleFilters = useMemo(() => {
         return FILTERS.filter(f => f.systemCode === null || hasWorkflowAccess(f.systemCode));
     }, [hasWorkflowAccess]);
 
-    const limit = 20;
-
-    useEffect(() => {
-        // Reset sessions when filter changes
-        setSessions([]);
-        setPage(1);
-        setHasMore(false);
-        loadSessions(1);
-    }, [filter]);
-
-    const loadSessions = async (pageNum) => {
-        const data = await fetchSessions(pageNum, limit);
-        if (data.sessions) {
-            if (pageNum === 1) {
-                setSessions(data.sessions);
-            } else {
-                setSessions(prev => [...prev, ...data.sessions]);
-            }
-            setHasMore(data.hasMore);
-            setTotalCount(data.totalCount);
-        }
-    };
-
-    const handleLoadMore = async () => {
-        if (loadingMore || !hasMore) return;
-        setLoadingMore(true);
-        const nextPage = page + 1;
-        await loadSessions(nextPage);
-        setPage(nextPage);
-        setLoadingMore(false);
-    };
-
     const filtered = useMemo(() => {
-        // First filter by category
         let result = filter === 'all' ? sessions : sessions.filter((s) => s.workflowType === filter);
-        
-        // Second layer of security: filter out sessions for unauthorized workflows
-        // This handles cases where backend might send unauthorized data (cache, lag, etc.)
-        result = result.filter(s => s.workflowType === 'all' || hasWorkflowAccess(s.workflowType));
-        
+        result = result.filter(s => hasWorkflowAccess(s.workflowType));
         return result;
     }, [sessions, filter, hasWorkflowAccess]);
 
     const handleDelete = async (id) => {
-        if (window.confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+        if (!window.confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+        setDeleting(id);
+        try {
             await removeSession(id);
-            // Reload from page 1 after deletion
-            setSessions([]);
-            setPage(1);
-            setHasMore(false);
-            await loadSessions(1);
+        } catch {
+        } finally {
+            setDeleting(null);
         }
     };
 
@@ -120,7 +212,6 @@ export default function History() {
             <h1 className="text-2xl font-bold text-text mb-2">السجل</h1>
             <p className="text-sm text-text-secondary mb-6">جميع الجلسات السابقة</p>
 
-            {/* Filters */}
             <div className="flex flex-wrap gap-2 mb-6">
                 {visibleFilters.map(({ value, label }) => (
                     <button
@@ -136,8 +227,12 @@ export default function History() {
                 ))}
             </div>
 
-            {/* List */}
-            {filtered.length === 0 ? (
+            {isLoading && sessions.length === 0 ? (
+                <div className="bg-surface-card border border-border rounded-2xl p-14 text-center">
+                    <Loader2 size={36} className="mx-auto text-primary mb-4 animate-spin" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسات...</p>
+                </div>
+            ) : filtered.length === 0 ? (
                 <div className="bg-surface-card border border-border rounded-2xl p-10 text-center">
                     <Clock size={40} className="mx-auto text-text-muted mb-3" strokeWidth={1.3} />
                     <p className="text-sm text-text-muted">لا توجد جلسات</p>
@@ -148,11 +243,12 @@ export default function History() {
                         const meta = TYPE_META[s.workflowType] || TYPE_META.LEC_EXT;
                         const Icon = meta.icon;
                         const linkTo = getSessionRoute(s);
+                        const isDeleting = deleting === s.id;
 
                         return (
                             <div
                                 key={s.id}
-                                className="bg-surface-card border border-border rounded-2xl overflow-hidden transition-default hover:shadow-md"
+                                className={`bg-surface-card border border-border rounded-2xl overflow-hidden transition-default hover:shadow-md ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                             >
                                 <div className="w-full flex flex-wrap items-center gap-4 px-5 py-4 text-start">
                                     <div
@@ -178,8 +274,14 @@ export default function History() {
                                             }).format(new Date(s.createdAt))}
                                         </p>
                                     </div>
-                                    
+
                                     <div className="flex gap-2 shrink-0">
+                                        <button
+                                            onClick={() => setDetailSession(s)}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-text-muted border border-border hover:bg-surface-hover transition-default"
+                                        >
+                                            <Info size={13} />
+                                        </button>
                                         <Link
                                             to={linkTo}
                                             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default bg-surface-card"
@@ -189,9 +291,10 @@ export default function History() {
                                         </Link>
                                         <button
                                             onClick={() => handleDelete(s.id)}
-                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-danger border border-danger/30 hover:bg-danger-light transition-default"
+                                            disabled={isDeleting}
+                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-danger border border-danger/30 hover:bg-danger-light transition-default disabled:opacity-50"
                                         >
-                                            <Trash2 size={13} />
+                                            {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                             حذف
                                         </button>
                                     </div>
@@ -200,15 +303,14 @@ export default function History() {
                         );
                     })}
 
-                    {/* Load More Button */}
                     {hasMore && (
                         <div className="mt-6 text-center">
                             <button
-                                onClick={handleLoadMore}
-                                disabled={loadingMore}
+                                onClick={loadMore}
+                                disabled={isLoading}
                                 className="px-6 py-3 rounded-xl text-sm font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                             >
-                                {loadingMore ? (
+                                {isLoading ? (
                                     <>
                                         <Loader2 size={16} className="animate-spin" />
                                         جارٍ التحميل...
@@ -220,7 +322,6 @@ export default function History() {
                         </div>
                     )}
 
-                    {/* Sessions Count */}
                     {filtered.length > 0 && (
                         <p className="text-xs text-text-muted text-center mt-4">
                             عرض {filtered.length} من {totalCount} جلسة
@@ -228,6 +329,12 @@ export default function History() {
                     )}
                 </div>
             )}
+
+            <SessionDetailModal
+                session={detailSession}
+                onClose={() => setDetailSession(null)}
+                getSession={getSession}
+            />
         </div>
     );
 }

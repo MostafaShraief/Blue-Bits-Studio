@@ -1067,33 +1067,37 @@ Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BA
 Frontend
 
 ### 3. What the file does
-Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw). Users can view or delete any session. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
+Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info, loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
 
 ### 4. User Stories
 - As a user, I want to browse my past sessions filtered by workflow type so I can quickly resume work.
-- As a user, I want to delete old/unwanted sessions.
+- As a user, I want to view session details in a modal (workflow type, material, date, compiled prompt).
+- As a user, I want to delete old/unwanted sessions with a loading indicator.
+- As a user, I see a loading spinner while the initial list loads.
+- As a user, I see a warning toast when rate-limited (429).
 
 ### 5. Functions Summary
 - `getSessionRoute(session)`: Maps backend `workflowType` SystemCode + session `id` to a frontend route.
-- `History` (default export): Main component — manages sessions state, filter, pagination, delete, and renders the UI.
-- `loadSessions(pageNum)`: Calls `fetchSessions` API and updates state (appends or replaces).
-- `handleLoadMore()`: Increments page and loads next batch.
-- `handleDelete(id)`: Confirms via `window.confirm`, calls `removeSession` API, then reloads from page 1.
+- `useModalExit(isOpen)`: Custom hook managing modal render state with exit animation (200ms).
+- `SessionDetailModal({ session, onClose, getSession })`: Portal-rendered modal that fetches and displays full session details (workflow type icon, material name, lecture number, creation date, compiled prompt).
+- `History` (default export): Main component — consumes `useSessions({ limit: 20 })` for paginated sessions, manages filter/delete/detail state.
+- `handleDelete(id)`: Confirms via `window.confirm`, calls `removeSession` from hook, manages per-item deleting state.
 
 ### 6. Integration
-Calls `fetchSessions` and `removeSession` from `../utils/api`.
+Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`). Uses `useAuth` for RBAC filter gating.
 
 ### 7. Imports Summary
-- **React hooks**: `useState`, `useMemo`, `useEffect`
-- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2` from `lucide-react`
-- **Internal**: `fetchSessions`, `removeSession` from `../utils/api`; `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`
+- **React hooks**: `useState`, `useMemo`, `useRef`, `useEffect`
+- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2`, `X`, `Info` from `lucide-react`
+- **Internal**: `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`; `useSessions` from `../hooks/useSessions`; `createPortal` from `react-dom`
 
 ### 8. Additional Info
-Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones (defense-in-depth against stale/cached data).
+Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete.
 
 ### 9. API
-- `fetchSessions(pageNum, limit)` → returns `{ sessions: Session[], hasMore: boolean, totalCount: number }`
-- `removeSession(id)` → `DELETE` endpoint, returns success/error.
+- **Read:** Delegated to `useSessions` → `SessionsApi.getSessions(page, limit)` → `GET /api/sessions?page=&limit=`.
+- **Detail:** `getSession(id)` from `useSessions` → `GET /api/sessions/{id}`.
+- **Delete:** `removeSession(id)` from `useSessions` → `DELETE /api/sessions/{id}`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/Login.jsx`
@@ -1768,17 +1772,19 @@ Designed as a thin service layer over `HttpClient` — no custom error handling,
 Frontend — API service module
 
 ### 3. What the file does
-Provides dedicated functions for all session-related API calls using the `HttpClient` base module. Covers paginated session listing, single session retrieval, session creation, session content saving, and multipart file uploads with notes.
+Provides dedicated functions for all session-related API calls using the `HttpClient` base module. Covers paginated session listing, single session retrieval, session creation, session deletion, session content saving, and multipart file uploads with notes.
 
 ### 4. User Stories
 - As a developer, I can import `getSessions(page, limit)` from SessionsApi to fetch a paginated list of sessions.
 - As a developer, I can import `uploadFiles(sessionId, files, notes)` to upload files with per-file notes via multipart FormData.
 - As a developer, I can import `createSession(data)` and `saveSessionContent(sessionId, body)` to create/update sessions.
+- As a developer, I can import `removeSession(id)` to delete a session via `DELETE /api/sessions/{id}`.
 
 ### 5. Functions Summary
 - `getSessions(page, limit)`: GET `/api/sessions?page=&limit=` — returns paginated session list.
 - `getSession(id)`: GET `/api/sessions/{id}` — returns single session detail.
 - `createSession(data)`: POST `/api/sessions` with JSON body — creates a new session.
+- `removeSession(id)`: DELETE `/api/sessions/{id}` — deletes a session.
 - `saveSessionContent(sessionId, body)`: POST `/api/sessions/save` — saves session content (quiz, markdown, etc).
 - `uploadFiles(sessionId, files, notes)`: POST `/api/sessions/{id}/files` with `FormData` (multipart) — uploads files with optional per-file notes.
 
@@ -1786,7 +1792,7 @@ Provides dedicated functions for all session-related API calls using the `HttpCl
 Calls backend REST API through the shared `HttpClient` (`./HttpClient.js`). All requests automatically get JWT auth, error handling, and rate-limit interception from HttpClient.
 
 ### 7. Imports Summary
-- **Internal:** `httpGet`, `httpPost` from `./HttpClient`
+- **Internal:** `httpGet`, `httpPost`, `httpDelete` from `./HttpClient`
 
 ### 8. Additional Info
 - `uploadFiles` constructs a `FormData` object: appends each file under `'files'` key and each note under `'notes'` key. The browser automatically sets `Content-Type: multipart/form-data`.
@@ -1799,6 +1805,7 @@ Calls backend REST API through the shared `HttpClient` (`./HttpClient.js`). All 
 | GET | `/api/sessions?page=&limit=` | — | Paginated session list |
 | GET | `/api/sessions/{id}` | — | Single session detail |
 | POST | `/api/sessions` | `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }` | Create session |
+| DELETE | `/api/sessions/{id}` | — | Delete session |
 | POST | `/api/sessions/save` | `{ sessionId, contentBody }` | Save session content |
 | POST | `/api/sessions/{id}/files` | `FormData` (files + notes) | Upload files via multipart |
 
@@ -1924,36 +1931,43 @@ All functions delegate error handling to `HttpClient` — they return parsed JSO
 Frontend — Custom React hook
 
 ### 3. What the file does
-Provides a reusable hook for paginated session lifecycle management. Auto-fetches the first page on mount, supports "load more" pagination, and wraps all SessionsApi calls with ToastContext notifications.
+Provides a reusable hook for paginated session lifecycle management. Auto-fetches the first page on mount, supports "load more" pagination, delete with auto-refresh, and wraps all SessionsApi calls with ToastContext notifications. Handles `RateLimitError` (429) with warning toasts.
 
 ### 4. User Stories
 - As a developer, I call `useSessions()` and get `{ sessions, totalCount, page, hasMore, isLoading, error }` for a paginated session list.
 - As a developer, I call `loadMore()` to append the next page of sessions.
+- As a developer, I call `refresh()` to reload from page 1.
+- As a developer, I call `removeSession(id)` to delete a session with success/429 toast + auto-refresh.
 - As a developer, I call `createSession(data)`, `getSession(id)`, `saveContent(sessionId, body)`, or `uploadFiles(sessionId, files, notes)` and get toast feedback on success/error.
+- As a developer, 429 rate-limit errors show a warning toast for load/list, get, and remove operations.
 
 ### 5. Functions Summary
 - `useSessions({ initialPage, limit })`: Hook — accepts optional `initialPage` (default 1) and `limit` (default 10). Returns state and action methods.
 - `loadMore()`: Increments page and appends results if `hasMore` is true and not already loading.
+- `refresh()`: Reloads sessions from `initialPage` (replaces current list).
 - `createSession(data)`: Calls `SessionsApi.createSession`, shows success/error toast, returns created session.
-- `getSession(id)`: Calls `SessionsApi.getSession`, shows error toast on failure, returns session.
+- `getSession(id)`: Calls `SessionsApi.getSession`, shows error/429 warning toast on failure, returns session.
+- `removeSession(id)`: Calls `SessionsApi.removeSession`, shows success/429 warning toast, auto-refreshes list on success.
 - `saveContent(sessionId, body)`: Calls `SessionsApi.saveSessionContent`, shows success/error toast, returns result.
 - `uploadFiles(sessionId, files, notes)`: Calls `SessionsApi.uploadFiles`, shows success/error toast, returns result.
 
 ### 6. Integration
-Calls `SessionsApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for user-facing success/error notifications.
+Calls `SessionsApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for user-facing success/error/warning notifications.
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useEffect, useCallback)
-- **Internal:** `SessionsApi` functions from `../api/SessionsApi`, `useToast` from `../contexts/ToastContext`
+- **Internal:** `SessionsApi` functions from `../api/SessionsApi` (including `removeSession`), `useToast` from `../contexts/ToastContext`
 
 ### 8. Additional Info
-- Load errors are set in `error` state for programmatic handling; no toast is shown for list load failures to avoid spamming the user.
-- Mutation methods (`createSession`, `saveContent`, `uploadFiles`) show toasts and re-throw so callers can chain `.catch()` if needed.
+- Load errors are set in `error` state for programmatic handling. 429 errors during list loading show a warning toast.
 - `loadMore` is a no-op guard (ignores call if already loading or `hasMore` is false).
+- `removeSession` catches `RateLimitError` specifically to show a warning toast, other errors show generic error toast.
+- `refresh()` re-calls `loadSessions(initialPage)` replacing the current list.
+- Return value includes: `sessions`, `totalCount`, `page`, `hasMore`, `isLoading`, `error`, `loadMore`, `refresh`, `createSession`, `getSession`, `removeSession`, `saveContent`, `uploadFiles`.
 
 ### 9. API
 - **Internal:** Delegates all HTTP to `SessionsApi` (SessionsApi.js). See SessionsApi.md for endpoint details.
-- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure, `'warning'` for 429 rate-limit errors.
 
 ## 1. File Name and Directory
 `Frontend/src/hooks/useAdminMaterials.js`

@@ -1836,3 +1836,41 @@ FormData is built without explicit `Content-Type` headers — the browser sets t
 
 ### 9. API
 **POST** `/api/merge/execute` — body: `FormData` with `files[]` (FileList), `materialName` (string), `lectureType` (string) → response: `{ url: string, finalFileName: string }`
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useSessions.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for paginated session lifecycle management. Auto-fetches the first page on mount, supports "load more" pagination, and wraps all SessionsApi calls with ToastContext notifications.
+
+### 4. User Stories
+- As a developer, I call `useSessions()` and get `{ sessions, totalCount, page, hasMore, isLoading, error }` for a paginated session list.
+- As a developer, I call `loadMore()` to append the next page of sessions.
+- As a developer, I call `createSession(data)`, `getSession(id)`, `saveContent(sessionId, body)`, or `uploadFiles(sessionId, files, notes)` and get toast feedback on success/error.
+
+### 5. Functions Summary
+- `useSessions({ initialPage, limit })`: Hook — accepts optional `initialPage` (default 1) and `limit` (default 10). Returns state and action methods.
+- `loadMore()`: Increments page and appends results if `hasMore` is true and not already loading.
+- `createSession(data)`: Calls `SessionsApi.createSession`, shows success/error toast, returns created session.
+- `getSession(id)`: Calls `SessionsApi.getSession`, shows error toast on failure, returns session.
+- `saveContent(sessionId, body)`: Calls `SessionsApi.saveSessionContent`, shows success/error toast, returns result.
+- `uploadFiles(sessionId, files, notes)`: Calls `SessionsApi.uploadFiles`, shows success/error toast, returns result.
+
+### 6. Integration
+Calls `SessionsApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for user-facing success/error notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useEffect, useCallback)
+- **Internal:** `SessionsApi` functions from `../api/SessionsApi`, `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Load errors are set in `error` state for programmatic handling; no toast is shown for list load failures to avoid spamming the user.
+- Mutation methods (`createSession`, `saveContent`, `uploadFiles`) show toasts and re-throw so callers can chain `.catch()` if needed.
+- `loadMore` is a no-op guard (ignores call if already loading or `hasMore` is false).
+
+### 9. API
+- **Internal:** Delegates all HTTP to `SessionsApi` (SessionsApi.js). See SessionsApi.md for endpoint details.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.

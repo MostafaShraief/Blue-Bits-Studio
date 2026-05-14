@@ -18,6 +18,13 @@ public class PromptsController : ControllerBase
         _promptService = promptService;
     }
 
+    /// <summary>Fetches the AI prompt for a session by session ID and workflow system code.</summary>
+    /// <param name="sessionId">The session ID.</param>
+    /// <param name="systemCode">The workflow system code (e.g. LEC_EXT).</param>
+    /// <returns>The prompt text and name.</returns>
+    /// <response code="200">Returns the prompt text and name.</response>
+    /// <response code="403">Forbidden for Admin users.</response>
+    /// <response code="404">Prompt not found for this workflow.</response>
     [HttpGet("{sessionId}/{systemCode}")]
     public async Task<IActionResult> GetPromptForSession(int sessionId, string systemCode)
     {
@@ -33,20 +40,24 @@ public class PromptsController : ControllerBase
         return Ok(new { prompt.PromptText, prompt.PromptName });
     }
 
+    /// <summary>Compiles a prompt with user notes.</summary>
+    /// <param name="req">The compile request containing systemCode, general notes, and file notes.</param>
+    /// <returns>The compiled prompt text.</returns>
+    /// <response code="200">Returns the compiled prompt.</response>
+    /// <response code="400">systemCode is required.</response>
+    /// <response code="403">Forbidden for Admin users.</response>
     [HttpPost("compile")]
     public async Task<IActionResult> CompilePrompt([FromBody] CompilePromptRequest req)
     {
         if (User.IsInRole("Admin")) return Forbid();
 
         if (string.IsNullOrWhiteSpace(req.systemCode))
-        {
             return BadRequest("systemCode is required.");
-        }
 
         var compiled = await _promptService.CompilePromptAsync(
             req.systemCode,
             req.GeneralNotes,
-            req.FileNotes ?? new List<string>()
+            req.FileNotes ?? []
         );
 
         return Ok(new { CompiledPrompt = compiled });

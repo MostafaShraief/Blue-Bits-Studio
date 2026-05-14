@@ -49,12 +49,6 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<BlueBitsDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IPromptService, PromptService>();
-        services.AddScoped<ISessionService, SessionService>();
-        services.AddScoped<IPandocService, PandocService>();
-        services.AddScoped<IMergeService, MergeService>();
-        services.AddScoped<IMaterialService, MaterialService>();
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
         services.AddScoped<IUserRepository, UserRepository>();
@@ -66,6 +60,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISessionContentRepository, SessionContentRepository>();
         services.AddScoped<IFileRepository, FileRepository>();
         services.AddScoped<INoteRepository, NoteRepository>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPromptService, PromptService>();
+        services.AddScoped<ISessionService, SessionService>();
+        services.AddScoped<IPandocService, PandocService>();
+        services.AddScoped<IMergeService, MergeService>();
+        services.AddScoped<IMaterialService, MaterialService>();
 
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IAdminMaterialService, AdminMaterialService>();

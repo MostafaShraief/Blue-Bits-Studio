@@ -1974,3 +1974,97 @@ Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth,
 - **Internal:** Delegates all HTTP to `admin.materials.*` (AdminApi.js). Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`.
 - **Toast:** Calls `showToast(message, type)` from `ToastContext`.
 - **Validation Errors:** Maps `err.errors` via `formatValidationErrors` into `{ field: message }` shape.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminPermissions.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing role-workflow permissions. Provides `list`, `create`, and `delete` operations via `admin.permissions.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all permissions, create new ones, and delete existing ones with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminPermissions()`: Hook returning `{ items, isLoading, error, validationErrors, list, create, delete }`.
+- `list()`: Fetches all permissions, sets `items`.
+- `create(data)`: Creates a permission, shows success/error toast, sets `validationErrors` on 400.
+- `delete(id)`: Deletes a permission, optimistically removes from `items`, shows toast.
+
+### 6. Integration
+Calls `admin.permissions` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors` (`Record<string, string>`). Re-throws all errors after toast so callers can chain `.catch()`.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminPrompts.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing workflow AI prompts. Provides `list` and `updateText` operations via `admin.prompts.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all prompts and update their text with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminPrompts()`: Hook returning `{ items, isLoading, error, validationErrors, list, updateText }`.
+- `list()`: Fetches all prompts, sets `items`.
+- `updateText(id, promptText)`: Updates a prompt's text, optimistic update of `items`, shows success/error toast, sets `validationErrors` on 400.
+
+### 6. Integration
+Calls `admin.prompts` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors`. Re-throws after toast.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminWorkflows.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing workflow activation states. Provides `list` and `toggleActive` operations via `admin.workflows.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all workflows and toggle their active state with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminWorkflows()`: Hook returning `{ items, isLoading, error, validationErrors, list, toggleActive }`.
+- `list()`: Fetches all workflows, sets `items`.
+- `toggleActive(id, isActive)`: Toggles a workflow's active state, optimistic update of `items`, shows success/error toast, sets `validationErrors` on 400.
+
+### 6. Integration
+Calls `admin.workflows` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors`. Re-throws after toast.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.

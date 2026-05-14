@@ -1033,36 +1033,40 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 Frontend (React page component)
 
 ### 3. What the file does
-Multi-step wizard (3 steps) for extracting lecture/question-bank content: Step 1 — session metadata entry, Step 2 — image uploads + general notes, Step 3 — prompt preview + guided copy loop. Supports both `LEC_EXT` (lecture extraction) and `BANK_EXT` (bank extraction) workflows.
+Refactored 3-step wizard that uses `useWizard` hook for step navigation, `SessionsApi` + `PromptsApi` via HttpClient for all backend calls. Steps: session metadata entry → image uploads + notes → prompt preview + guided copy loop. Integrates `ToastContext` for 429 rate-limit warnings and FluentValidation field error binding.
 
 ### 4. User Stories
 - As a user, I can select extraction type (lecture/bank), pick a material, enter lecture number & type, then proceed.
 - As a user, I can upload images with per-image notes and add general notes to build the extraction prompt.
-- As a user, I can preview the compiled prompt, copy it along with images to clipboard, and save the session.
+- As a user, I see inline field validation errors under inputs when the backend rejects data.
+- As a user, I see an Arabic warning toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `ExtractionWizard` (default export): Main component; manages 3-step state, handles session creation, prompt compilation, and navigation.
+- `ExtractionWizard` (default export): Main component; uses `useWizard` for step state, `SessionsApi.createSession`/`getSession`/`uploadFiles`, `PromptsApi.compilePrompt` for API calls, `useToast` for error toasts.
 - `addImage`: Appends a file to the images array with an object URL.
 - `removeImage`: Removes an image by index and revokes its object URL.
 - `updateImageNote`: Updates the note for a specific image.
-- `goNext`: Advances step; on step 1→2, creates a session (with file uploads) and compiles the prompt (via DB fetch or stateless API).
-- `goBack`: Decrements step.
-- `handleSave`: Marks session as saved by re-fetching it.
+- `goNext`: Advances step; on step 1→2, creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
+- `goBack`: Calls `prev()` from useWizard.
+- `handleSave`: Marks session as saved by re-fetching via `getSession`.
+- `clearFieldError(field)`: Removes a field-specific validation error on input change.
 
 ### 6. Integration
-Calls backend REST API (`/api/sessions`, `/api/prompts/compile`) via `createSession`, `fetchSession`, and `compilePromptStateless` utility functions.
+Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `apiUploadFiles`) and `PromptsApi` (`apiCompilePrompt`) — all through HttpClient which handles JWT auth, 401 auto-redirect, and typed errors. Uses `ToastContext` for 429 Arabic toast warnings and 400 validation toasts.
 
 ### 7. Imports Summary
 - **External:** `useState`, `useCallback`, `useEffect`, `useContext` (React), `useSearchParams`, `Link`, `useNavigate` (React Router).
-- **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `createSession`/`fetchSession`/`compilePromptStateless` from `../utils/api`, `useSettings` context, `AuthContext`.
+- **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Supports both auto-save (fetch compiled prompt from DB) and stateless prompt compilation modes. Handles session restoration via `?id=` query param and `?type=bank` URL param.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. No inline `fetch` calls — all API communication goes through HttpClient-based services.
 
 ### 9. API
-- **`POST /api/sessions`** — `createSession({ materialName, workflowSystemCode, lectureNumber, lectureType, generalNotes })` → creates session, then uploads files via `POST /api/sessions/{id}/files` with `FormData` (files + notes). Returns session object with `id`/`sessionId`.
-- **`GET /api/sessions/{id}`** — `fetchSession(id)` → fetches session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
-- **`POST /api/prompts/compile`** — `compilePromptStateless({ systemCode, generalNotes, fileNotes })` → returns `{ compiledPrompt }` without persisting.
+- **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
+- **`POST /api/sessions/{id}/files`** — `apiUploadFiles(sessionId, files, notes)` with `FormData` → returns result.
+- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
+- **`POST /api/prompts/compile`** — `apiCompilePrompt(systemCode, generalNotes, fileNotes)` → returns `{ compiledPrompt }`.
+- **Validation error handling:** 400 with `errors` map (FluentValidation) → `fieldErrors` camelCase state → inline red border + error `<p>` under each field. 429 → Arabic toast with retry-after duration via `formatRateLimitError`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/History.jsx`

@@ -2117,3 +2117,43 @@ Calls `AdminApi.users.*` methods (`fetch`, `create`, `update`, `delete`) which u
 ### 9. API
 - **Internal:** Delegates all HTTP to `AdminApi.users.*` (AdminApi.js). See AdminApi.md for endpoint details.
 - **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useWizard.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+
+Provides a generic multi-step wizard state manager. Manages `currentStep` navigation (`next`, `prev`, `goTo`), `sessionId` (auto-set from createSession API response), and `wizardData` for arbitrary workflow data. Integrates with `useSessions` for session create/save and uses `ToastContext` for error handling.
+
+### 4. User Stories
+- As a developer, I call `useWizard({ totalSteps: 3 })` and get `{ currentStep, next, prev, goTo, sessionId, wizardData, setWizardData }` to manage wizard state.
+- As a developer, I call `createSession(data)` which creates a backend session and auto-stores the returned `sessionId`.
+- As a developer, I call `saveContent(body)` to persist wizard data against the current session.
+
+### 5. Functions Summary
+- `useWizard({ totalSteps })`: Hook — accepts `totalSteps` (default 1). Returns wizard state and actions.
+- `next()`: Advances to the next step, clamped to `totalSteps - 1`.
+- `prev()`: Goes back one step, clamped to 0.
+- `goTo(step)`: Jumps to a specific step index (validated against bounds).
+- `createSession(data)`: Wraps `useSessions.createSession`, stores the returned session ID, shows error toast on failure.
+- `saveContent(body)`: Wraps `useSessions.saveContent` for the current session; shows error toast if no session exists or on API failure.
+- `setSessionId(id)`: Allows external restoration of a session ID (e.g., from URL params).
+- `setWizardData(data)`: Replaces the entire wizard data object.
+
+### 6. Integration
+Uses `useSessions` (which delegates to `SessionsApi` / `HttpClient` for REST calls). Uses `ToastContext` via both `useSessions` and direct `showToast` calls for error handling.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `useSessions` from `./useSessions`, `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Step navigation is bounded: `next` stops at `totalSteps - 1`, `prev` stops at 0, `goTo` silently ignores out-of-range steps.
+- `sessionId` is automatically set from `session.id ?? session.sessionId` after a successful `createSession` call.
+- `saveContent` silently returns `undefined` if no `sessionId` is set and shows an error toast.
+
+### 9. API
+No direct API calls. Delegates all HTTP to `useSessions` → `SessionsApi` (`SessionsApi.js`). See SessionsApi.md for endpoint details.

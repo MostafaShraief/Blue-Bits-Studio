@@ -974,41 +974,46 @@ Arabic-first UI with RTL layout. Admin users are no longer redirected — they s
 Frontend
 
 ### 3. What the file does
-A 3-step wizard (`إعداد الجلسة` → `المدخلات` → `المعاينة والنسخ`) for creating AI prompts that generate Python drawing code. Users configure session metadata, upload reference images + description, then preview/copy the compiled prompt.
+A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompts that generate Python drawing code. Combines session metadata + image upload + description into one unified input step, then previews/copies the compiled prompt. Uses `useWizard` hook for step/session management, `SessionsApi` for CRUD, `PromptsApi.compilePrompt` for stateless compilation.
 
 ### 4. User Stories
-- As a user, I can create a drawing session by selecting a material, lecture number, and lecture type.
-- As a user, I can upload up to 3 reference images, write a description, and generate an AI prompt for Python chart code.
+- As a user, I can create a drawing session by selecting a material, lecture number, lecture type, uploading reference images, and writing a description — all in one step.
 - As a user, I can preview the compiled prompt and copy it to Google AI Studio.
+- As a user, I see inline Arabic validation errors under form fields when the backend rejects data.
+- As a user, I see a warning toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `DrawWizard()`: Main component rendering the 3-step wizard flow.
+- `DrawWizard()`: Main component rendering the 2-step wizard flow.
 - `addImage(file)`: Adds an image (max 3) to the images state.
 - `removeImage(index)`: Removes an image by index and revokes its object URL.
 - `updateImageNote(index, text)`: Updates the note for an image at given index.
-- `goNext()`: Validates step 0 (session data), then creates a session + compiles prompt, advances to step 2.
-- `goBack()`: Resets step to 0.
-- `handleSave()`: Saves the session via `fetchSession` (no-op if already saved).
+- `handleNext()`: Validates all fields, creates a session via `SessionsApi.createSession`, uploads files via `SessionsApi.uploadFiles`, compiles prompt (auto-save: fetch from DB; otherwise via `PromptsApi.compilePrompt`), then advances to step 1.
+- `handleSave()`: Re-fetches session to confirm persistence, sets saved state.
+- `clearFieldError(field)`: Clears a single field validation error on input change.
 
 ### 6. Integration
-Calls backend REST APIs: `createSession`, `fetchSession`, `compilePromptStateless`. No direct DB interaction.
+Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession`, `SessionsApi.uploadFiles` (multipart), and `PromptsApi.compilePrompt`. Each uses `HttpClient` which handles JWT auth, 401 logout, 429 rate-limit, and 400 validation errors.
 
 ### 7. Imports Summary
 - **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback)
 - **Internal components:** WizardStepper, PromptPreview, GuidedCopyLoop, ImageUploader, PasteButton, PasteImageButton, MaterialAutocomplete
-- **Utils:** `createSession`, `fetchSession`, `compilePromptStateless` from `../utils/api`
-- **Context:** `useSettings` from `SettingsContext`
+- **New API modules:** `useWizard` hook, `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
+- **Contexts:** `useSettings` from `SettingsContext`, `useToast` from `ToastContext`
+- **Errors:** `ApiError`, `RateLimitError` from `HttpClient`
 
 ### 8. Additional Info
 - Arabic-first RTL UI with Tailwind CSS v4.
-- Global paste listener on step 1 to capture image pastes outside text inputs.
+- Global paste listener on step 0 to capture image pastes outside text inputs.
 - Max 3 images with a quality warning if more than 1 is added.
 - Supports both auto-save (persisted session) and stateless prompt compilation.
+- 429 errors show a warning toast with Arabic retry-after message (vs generic error toast).
+- FluentValidation field errors from 400 responses are normalized to lowercase keys and displayed under each input with red border styling, matching the Login.jsx pattern.
 
 ### 9. API
-- `fetchSession(id)` → `GET` session data: `{ material, lectureNumber, lectureType, compiledPrompt, notes[], files[] }`
-- `createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'DRAW', generalNotes, files })` → `POST` returns `{ sessionId, id }`
-- `compilePromptStateless({ systemCode: 'DRAW', generalNotes, fileNotes })` → `POST` returns `{ compiledPrompt }`
+- `SessionsApi.getSession(id)` → GET `/api/sessions/{id}` — returns session data with `compiledPrompt`, `notes[]`, `files[]`.
+- `SessionsApi.createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'DRAW', generalNotes })` → POST `/api/sessions` — returns `{ id, sessionId }`.
+- `SessionsApi.uploadFiles(sessionId, files[], notes[])` → POST `/api/sessions/{id}/files` — multipart upload of image files with per-file notes.
+- `PromptsApi.compilePrompt('DRAW', generalNotes, fileNotes[])` → POST `/api/prompts/compile` — returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/ExtractionWizard.jsx`

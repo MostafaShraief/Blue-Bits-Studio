@@ -7,54 +7,65 @@ import ImageUploader from '../components/ImageUploader';
 import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
+import { useWizard } from '../hooks/useWizard';
+import { compilePrompt } from '../api/PromptsApi';
+import { getSession, createSession, uploadFiles } from '../api/SessionsApi';
 import { useSettings } from '../contexts/SettingsContext';
+import { useToast } from '../contexts/ToastContext';
+import { ApiError, RateLimitError } from '../api/HttpClient';
 
-const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
+const STEPS = ['البرومبت', 'النتيجة'];
 
 export default function DrawWizard() {
     const [searchParams] = useSearchParams();
     const { autoSave, defaultMaterial } = useSettings();
+    const { showToast } = useToast();
     const id = searchParams.get('id');
 
-    useEffect(() => {
-        if (id) {
-            fetchSession(id).then(data => {
-                if (data) {
-if (data.material && data.material.materialName) setMaterialName(data.material.materialName);
-                    if (data.lectureNumber) setLectureNumber(data.lectureNumber);
-                    if (data.lectureType) setLectureType(data.lectureType);
-                    if (data.compiledPrompt) setPrompt(data.compiledPrompt);
-                    setSessionId(data.id || data.sessionId || id);
-                    const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
-                    if (notes) setDescription(notes);
+    const { currentStep, next, prev, goTo, setSessionId } = useWizard({ totalSteps: 2 });
 
-                    if (data.files && data.files.length > 0) {
-                        const loadedImages = data.files.map(img => ({
-                            file: null,
-                            url: '/uploads/' + img.localFilePath,
-                            note: data.notes?.find(n => n.noteType === 'FileNote' && n.fileId === img.fileId)?.noteText || ''
-                        }));
-                        setImages(loadedImages);
-                    }
-                    setSaved(true);
-                    setStep(2);
-                }
-            });
-        }
-    }, [id]);
-
-    const [step, setStep] = useState(0);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('');
-    const [sessionId, setSessionId] = useState(null);
     const [description, setDescription] = useState('');
-    const [images, setImages] = useState([]); // { file, url, note }
+    const [images, setImages] = useState([]);
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [restoring, setRestoring] = useState(!!id);
+
+    useEffect(() => {
+        if (!id) { setRestoring(false); return; }
+
+        getSession(id)
+            .then(data => {
+                if (!data) return;
+                if (data.material?.materialName) setMaterialName(data.material.materialName);
+                if (data.lectureNumber) setLectureNumber(String(data.lectureNumber));
+                if (data.lectureType) setLectureType(data.lectureType);
+                if (data.compiledPrompt) setPrompt(data.compiledPrompt);
+                setSessionId(data.id || data.sessionId || id);
+
+                const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
+                if (notes) setDescription(notes);
+
+                if (data.files?.length > 0) {
+                    const loadedImages = data.files.map(img => ({
+                        file: null,
+                        url: '/uploads/' + img.localFilePath,
+                        note: data.notes?.find(n => n.noteType === 'FileNote' && n.fileId === img.fileId)?.noteText || '',
+                    }));
+                    setImages(loadedImages);
+                }
+
+                setSaved(true);
+                goTo(1);
+            })
+            .catch(() => {})
+            .finally(() => setRestoring(false));
+    }, [id]);
 
     const addImage = useCallback((file) => {
         setImages((prev) => {
@@ -75,10 +86,9 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
         setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
     }, []);
 
-
     useEffect(() => {
         const handleGlobalPaste = (e) => {
-            if (step !== 1) return;
+            if (currentStep !== 0) return;
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
             const items = e.clipboardData?.items;
             if (!items) return;
@@ -93,7 +103,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                     }
                 }
             }
-            
+
             if (pastedImage && !e.clipboardData.getData('text/plain') && ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
                 e.preventDefault();
             }
@@ -101,93 +111,108 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
-    }, [step, addImage]);
+    }, [currentStep, addImage]);
 
-    const goNext = async () => {
-        if (step === 0) {
-            if (!materialValid || !lectureNumber || !lectureType) {
-                alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
-                return;
-            }
-            setStep(1);
-            return;
-        }
+    const clearFieldError = (field) => {
+        setFieldErrors((prev) => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
 
-        if (step === 1) {
-            setIsLoadingPrompt(true);
-            try {
-                const processedImages = await Promise.all(images.map(async (img, i) => {
+    const handleNext = async () => {
+        const errors = {};
+        if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+        if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+        if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+        if (!description.trim()) errors.description = 'الرجاء إدخال وصف الرسم';
+        if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+
+        setIsLoadingPrompt(true);
+        setFieldErrors({});
+
+        try {
+            const processedImages = await Promise.all(
+                images.map(async (img, i) => {
                     if (!img.file && img.url) {
                         try {
                             const res = await fetch(img.url);
                             const blob = await res.blob();
                             const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
                             return { ...img, file };
-                        } catch (err) {
+                        } catch {
                             return img;
                         }
                     }
                     return img;
-                }));
+                }),
+            );
 
-                // Always create session to get an ID (handleSave will need it)
-                const createdSession = await createSession({
-                    materialId: null,
-                    materialName,
-                    lectureNumber: Number(lectureNumber),
-                    lectureType,
-                    workflowSystemCode: 'DRAW',
-                    generalNotes: description,
-                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
-                });
+            const createdSession = await createSession({
+                materialId: null,
+                materialName,
+                lectureNumber: Number(lectureNumber),
+                lectureType,
+                workflowSystemCode: 'DRAW',
+                generalNotes: description,
+            });
 
-                const idToFetch = createdSession.sessionId || createdSession.id;
-                setSessionId(idToFetch);
+            const idToFetch = createdSession.id || createdSession.sessionId;
+            setSessionId(idToFetch);
 
-                let finalPrompt = '';
-
-                if (autoSave) {
-                    // Fetch compiled prompt from saved session
-                    const sessionData = await fetchSession(idToFetch);
-                    finalPrompt = sessionData?.compiledPrompt || '';
-                    setSaved(true);
-                } else {
-                    // Compile prompt stateless (no DB fetch needed)
-                    const res = await compilePromptStateless({
-                        systemCode: 'DRAW',
-                        generalNotes: description,
-                        fileNotes: processedImages.map(img => img.note || ''),
-                    });
-                    finalPrompt = res?.compiledPrompt || '';
-                    setSaved(false);
-                }
-
-                setPrompt(finalPrompt);
-                setStep(2);
-            } catch (err) {
-                console.error("Failed to generate prompt or save session", err);
-                alert(err.message || "Failed to generate prompt. Please try again.");
+            const filesToUpload = processedImages.filter(img => img.file);
+            if (filesToUpload.length > 0) {
+                await uploadFiles(
+                    idToFetch,
+                    filesToUpload.map(img => img.file),
+                    filesToUpload.map(img => img.note || ''),
+                );
             }
-            setIsLoadingPrompt(false);
-        }
-    };
 
-    const goBack = () => setStep(0);
+            let finalPrompt = '';
+
+            if (autoSave) {
+                const sessionData = await getSession(idToFetch);
+                finalPrompt = sessionData?.compiledPrompt || '';
+                setSaved(true);
+            } else {
+                const res = await compilePrompt('DRAW', description, processedImages.map(img => img.note || ''));
+                finalPrompt = res?.compiledPrompt || '';
+                setSaved(false);
+            }
+
+            setPrompt(finalPrompt);
+            next();
+        } catch (err) {
+            if (err instanceof RateLimitError) {
+                showToast(err.message, 'warning');
+            } else if (err instanceof ApiError && err.status === 400 && err.errors) {
+                const normalized = {};
+                for (const [key, value] of Object.entries(err.errors)) {
+                    normalized[key.toLowerCase()] = value;
+                }
+                setFieldErrors(normalized);
+            } else {
+                showToast(err.message || 'حدث خطأ غير متوقع', 'error');
+            }
+        }
+
+        setIsLoadingPrompt(false);
+    };
 
     const handleSave = useCallback(async () => {
         if (saved || !sessionId) return;
         try {
-            await fetchSession(sessionId);
+            await getSession(sessionId);
             setSaved(true);
         } catch (err) {
-            console.error("Failed to save session", err);
+            showToast(err.message || 'فشل حفظ الجلسة', 'error');
         }
-    }, [sessionId, saved]);
+    }, [sessionId, saved, showToast]);
 
-    /* ── Auto Save ──────────────────────── */
-    useEffect(() => {
-        // No-op: session is always created in goNext
-    }, [step, autoSave, saved, prompt, sessionId, handleSave]);
+    if (restoring) return null;
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -198,14 +223,23 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                 </p>
             </div>
 
-            <WizardStepper steps={STEPS} current={step} />
+            <WizardStepper steps={STEPS} current={currentStep} />
 
-            {/* Step 1: Naming */}
-            {step === 0 && (
+            {currentStep === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
                         <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
-                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+
+                        <div>
+                            <MaterialAutocomplete
+                                value={materialName}
+                                onChange={(v) => { setMaterialName(v); clearFieldError('materialname'); }}
+                                onValidChange={setMaterialValid}
+                            />
+                            {fieldErrors.materialname && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.materialname}</p>
+                            )}
+                        </div>
 
                         <div>
                             <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
@@ -214,9 +248,12 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                 min="1"
                                 placeholder="مثال: 5"
                                 value={lectureNumber}
-                                onChange={(e) => setLectureNumber(e.target.value)}
-                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                onChange={(e) => { setLectureNumber(e.target.value); clearFieldError('lecturenumber'); }}
+                                className={`w-full rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.lecturenumber ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                             />
+                            {fieldErrors.lecturenumber && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.lecturenumber}</p>
+                            )}
                         </div>
 
                         <div>
@@ -228,7 +265,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                 ].map(({ value, label }) => (
                                     <button
                                         key={value}
-                                        onClick={() => setLectureType(value)}
+                                        onClick={() => { setLectureType(value); clearFieldError('lecturetype'); }}
                                         className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                                 ? 'border-primary bg-primary-light text-primary'
                                                 : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
@@ -238,25 +275,17 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                     </button>
                                 ))}
                             </div>
+                            {fieldErrors.lecturetype && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.lecturetype}</p>
+                            )}
                         </div>
                     </div>
 
-                    <button
-                        onClick={goNext}
-                        disabled={!materialValid || !lectureNumber || !lectureType}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
-                    >
-                        التالي
-                    </button>
-                </div>
-            )}
-
-            {/* Step 2: Inputs */}
-            {step === 1 && (
-                <div className="space-y-5 animate-fade-slide-in">
-                    {/* Image upload (optional) */}
                     <div data-tour="draw-images">
-                        <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3><PasteImageButton onPasteImage={addImage} /></div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-text">الصور المرجعية (اختياري)</h3>
+                            <PasteImageButton onPasteImage={addImage} />
+                        </div>
                         <ImageUploader
                             images={images}
                             onAdd={addImage}
@@ -276,7 +305,6 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                         )}
                     </div>
 
-                    {/* Description */}
                     <div data-tour="draw-description">
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="block text-sm font-medium text-text">وصف الرسم المطلوب</label>
@@ -291,46 +319,35 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
                                     if (items[i].type.indexOf('image') !== -1) {
                                         hasImage = true;
                                         const file = items[i].getAsFile();
-                                        if (file) {
-                                            addImage(file);
-                                        }
+                                        if (file) addImage(file);
                                     }
                                 }
                                 if (hasImage) e.preventDefault();
                             }}
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                            onChange={(e) => { setDescription(e.target.value); clearFieldError('description'); }}
                             placeholder="اكتب وصفاً تفصيلياً للمخطط أو الرسم البياني المطلوب..."
                             rows={6}
                             dir="auto"
-                            className="w-full resize-none rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            className={`w-full resize-none rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.description ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                         />
+                        {fieldErrors.description && (
+                            <p className="text-xs text-danger mt-1">{fieldErrors.description}</p>
+                        )}
                     </div>
 
-                    <div className="flex gap-3">
-                        <button
-                            onClick={goBack}
-                            disabled={isLoadingPrompt}
-                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default disabled:opacity-40"
-                        >
-                            رجوع
-                        </button>
-                        <button
-                            onClick={goNext}
-                            disabled={!description.trim() || isLoadingPrompt}
-                            className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
-                        >
-                            {isLoadingPrompt ? 'جاري التحضير...' : 'معاينة البرومبت'}
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleNext}
+                        disabled={!description.trim() || isLoadingPrompt}
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                    >
+                        {isLoadingPrompt ? 'جاري التحضير...' : 'توليد البرومبت'}
+                    </button>
                 </div>
             )}
 
-            {/* Step 3: Preview & Guided Copy */}
-            {step === 2 && (
+            {currentStep === 1 && (
                 <div data-tour="draw-preview" className="space-y-6 animate-fade-slide-in">
-
-                    {/* Image gallery */}
                     {images.length > 0 && (
                         <div>
                             <h3 className="text-sm font-semibold text-text mb-3">الصور المرفقة</h3>
@@ -366,7 +383,7 @@ if (data.material && data.material.materialName) setMaterialName(data.material.m
 
                     <div className="flex gap-3">
                         <button
-                            onClick={goBack}
+                            onClick={prev}
                             className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                         >
                             رجوع

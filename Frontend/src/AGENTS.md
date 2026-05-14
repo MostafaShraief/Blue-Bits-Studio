@@ -1655,3 +1655,44 @@ No backend/database calls. Renders via portal at `document.body` to ensure z-ind
 - Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
 - Toasts stack vertically with a 0.5rem gap.
 - Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
+
+## 1. File Name and Directory
+`Frontend/src/api/SessionsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides dedicated functions for all session-related API calls using the `HttpClient` base module. Covers paginated session listing, single session retrieval, session creation, session content saving, and multipart file uploads with notes.
+
+### 4. User Stories
+- As a developer, I can import `getSessions(page, limit)` from SessionsApi to fetch a paginated list of sessions.
+- As a developer, I can import `uploadFiles(sessionId, files, notes)` to upload files with per-file notes via multipart FormData.
+- As a developer, I can import `createSession(data)` and `saveSessionContent(sessionId, body)` to create/update sessions.
+
+### 5. Functions Summary
+- `getSessions(page, limit)`: GET `/api/sessions?page=&limit=` — returns paginated session list.
+- `getSession(id)`: GET `/api/sessions/{id}` — returns single session detail.
+- `createSession(data)`: POST `/api/sessions` with JSON body — creates a new session.
+- `saveSessionContent(sessionId, body)`: POST `/api/sessions/save` — saves session content (quiz, markdown, etc).
+- `uploadFiles(sessionId, files, notes)`: POST `/api/sessions/{id}/files` with `FormData` (multipart) — uploads files with optional per-file notes.
+
+### 6. Integration
+Calls backend REST API through the shared `HttpClient` (`./HttpClient.js`). All requests automatically get JWT auth, error handling, and rate-limit interception from HttpClient.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+- `uploadFiles` constructs a `FormData` object: appends each file under `'files'` key and each note under `'notes'` key. The browser automatically sets `Content-Type: multipart/form-data`.
+- Default pagination: `page=1`, `limit=10`.
+- Uses HttpClient's typed error classes (`ApiError`, `RateLimitError`).
+
+### 9. API
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| GET | `/api/sessions?page=&limit=` | — | Paginated session list |
+| GET | `/api/sessions/{id}` | — | Single session detail |
+| POST | `/api/sessions` | `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }` | Create session |
+| POST | `/api/sessions/save` | `{ sessionId, contentBody }` | Save session content |
+| POST | `/api/sessions/{id}/files` | `FormData` (files + notes) | Upload files via multipart |

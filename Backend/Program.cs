@@ -6,12 +6,30 @@ using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
 using BlueBits.Api.Services;
+using Serilog;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using FluentValidation.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/bluebits-.log", rollingInterval: RollingInterval.Day)
+    .CreateBootstrapLogger();
 
-// Register controllers
-builder.Services.AddControllers().AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; });
-builder.Services.AddScoped<IPromptCompilationService, PromptCompilationService>();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseSerilog((context, config) =>
+        config.ReadFrom.Configuration(context.Configuration));
+
+    // Register controllers
+    builder.Services.AddControllers()
+        .AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; });
+
+    builder.Services.AddFluentValidationAutoValidation();
+
+    builder.Services.AddScoped<IPromptCompilationService, PromptCompilationService>();
 
 // JWT Config
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -87,16 +105,27 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Swagger / OpenAPI
+builder.Services.AddSwaggerGen();
+
+// Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("Fixed", opt =>
+    {
+        opt.PermitLimit = 100;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 5;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+// Configure Swagger UI.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Ensure database is created and migrations applied
 using (var scope = app.Services.CreateScope())
@@ -111,6 +140,8 @@ using (var scope = app.Services.CreateScope())
 app.UseCors("AllowFrontend");
 
 app.UseResponseCompression();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -128,8 +159,17 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapControllers();
 
 // Map Minimal Endpoints and Secure Them with WorkflowPolicy (excludes Admin)
-app.MapGroup("/api/pandoc").MapPandocEndpoints().WithOpenApi().RequireAuthorization("WorkflowPolicy");
+app.MapGroup("/api/pandoc").MapPandocEndpoints().RequireAuthorization("WorkflowPolicy");
 
-app.MapGroup("/api/merge").MapMergeEndpoints().WithOpenApi().RequireAuthorization("WorkflowPolicy");
+app.MapGroup("/api/merge").MapMergeEndpoints().RequireAuthorization("WorkflowPolicy");
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

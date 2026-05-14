@@ -66,33 +66,38 @@ Also, you must update `Endpoint Reference` section if there is **any** change fo
 Backend — ASP.NET Core Web API entry point (top-level statements)
 
 ### 3. What the file does
-Bootstraps the API: registers services (JWT auth, EF Core SQLite, CORS, compression, OpenAPI), configures middleware pipeline (CORS, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
+Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, Rate Limiting, FluentValidation), configures middleware pipeline (CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
 
 ### 4. User Stories
 - As a user, I authenticate via JWT to access protected API endpoints.
 - As a non-Admin user, I can execute workflow endpoints (Pandoc, Merge) without being blocked.
 - As an Admin, I am denied access to all workflow endpoints via WorkflowPolicy.
 - As a developer, the app auto-creates the SQLite DB and serves uploaded files on startup.
+- As a developer, I can view API documentation and test endpoints via Swagger UI.
+- As a developer, all requests are logged through Serilog to console and rolling files.
 
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
-- Service registration: Controllers, JWT auth, DbContext, CORS, compression, OpenAPI, `IPromptCompilationService`, `OrphanFileCleanupService`
-- Middleware pipeline: CORS → ResponseCompression → Auth → StaticFiles → Controllers → Minimal endpoints
+- Bootstrap logger: Serilog writes to Console and rolling file (`logs/bluebits-.log`)
+- Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting (FixedWindow 100/min), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
+- Middleware pipeline: CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
+- Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
 - `MapPandocEndpoints` / `MapMergeEndpoints`: Minimal API groups secured with `WorkflowPolicy`
 
 ### 6. Integration
 - **Database:** SQLite via EF Core (`BlueBitsDbContext`)
 - **Auth:** JWT bearer tokens (Issuer, Audience, SymmetricKey from config)
 - **Background Service:** `OrphanFileCleanupService` for nightly file cleanup
+- **Logging:** Serilog (Console + rolling File sinks)
 - **Static Files:** Serves physical files from `./uploads/` at `/uploads` URL path
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`
+- **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `Microsoft.AspNetCore.RateLimiting`, `System.Threading.RateLimiting`, `FluentValidation.AspNetCore`
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Services`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security.
+Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup.
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 
@@ -759,4 +764,34 @@ Reads from the `Prompts` table via Entity Framework Core (`BlueBitsDbContext`). 
 
 ### 8. Additional Info
 Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier.
-rence` section if there is **any** change for any endpoint.
+## 1. File Name and Directory
+`Backend/BlueBits.Api.csproj`
+
+### 2. File Type
+Backend — .NET project file (MSBuild)
+
+### 3. What the file does
+Defines the .NET project configuration: target framework (`net9.0`), NuGet package dependencies, content includes, and nullable/implicit usings settings.
+
+### 4. User Stories
+- As a developer, I can run `dotnet restore` / `dotnet build` and have all dependencies resolved automatically.
+
+### 5. Functions Summary
+None — this is a declarative MSBuild project file.
+
+### 6. Integration
+References NuGet packages that provide: authentication (JwtBearer), database (EF Core SQLite), document processing (OpenXML), logging (Serilog), API documentation (Swashbuckle), validation (FluentValidation), and rate limiting (built-in ASP.NET Core).
+
+### 7. Imports Summary
+NuGet packages installed:
+- `DocumentFormat.OpenXml` — DOCX file manipulation
+- `FluentValidation.AspNetCore` — FluentValidation auto-validation integration
+- `Microsoft.AspNetCore.Authentication.JwtBearer` — JWT authentication
+- `Microsoft.EntityFrameworkCore.Sqlite` / `Design` — SQLite database with EF Core
+- `Serilog.AspNetCore` / `Sinks.Console` / `Sinks.File` — structured logging
+- `Swashbuckle.AspNetCore` — Swagger/OpenAPI UI
+
+### 8. Additional Info
+- `Microsoft.AspNetCore.OpenApi` was removed and replaced by `Swashbuckle.AspNetCore`.
+- Rate limiting (`AddRateLimiter` / `UseRateLimiter`) uses the built-in ASP.NET Core framework types (no extra NuGet package needed in .NET 9).
+- Target framework: `net9.0`.

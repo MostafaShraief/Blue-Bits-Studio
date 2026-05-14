@@ -278,26 +278,29 @@ Depends solely on `IAuthService` (injected via DI). No direct database or config
 `Backend/Controllers/MaterialsController.cs`
 
 ### 2. File Type
-Backend
+Backend — ASP.NET Core Web API Controller
 
 ### 3. What the file does
-Provides an authenticated API endpoint that returns a distinct, alphabetically sorted list of all material (subject) names from the database.
+Thin controller that delegates all material querying to `IMaterialService`. Returns a distinct, alphabetically sorted list of all material (subject) names from the database.
 
 ### 4. User Stories
 - As a user, I want to see a list of available materials so I can select which subject to work with.
 - As a frontend developer, I need an endpoint that provides distinct material names for dropdown/list rendering.
 
 ### 5. Functions Summary
-- `GetMaterials()`: GET `/api/materials` — queries `Materials` table, projects distinct `MaterialName`s, orders them alphabetically, returns as JSON array.
+- `GetMaterials()`: GET `/api/materials` — delegates to `IMaterialService.GetDistinctMaterialNamesAsync()`, returns the result as JSON array.
 
 ### 6. Integration
-Interacts with the SQLite database via Entity Framework Core (`BlueBitsDbContext.Materials`).
+Depends solely on `IMaterialService` (injected via DI). No direct database or EF Core access.
 
 ### 7. Imports Summary
-External: `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Mvc`, `Microsoft.EntityFrameworkCore`. Internal: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (Entities).
+- **External:** `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Mvc`
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IMaterialService`)
 
 ### 8. Additional Info
-Protected by `[Authorize]` — only authenticated users can call this endpoint. No pagination, filtering, or role-based restrictions on the materials list itself.
+- Protected by `[Authorize]` — only authenticated users can call this endpoint.
+- Decorated with `[Produces("application/json")]` for Swagger.
+- No pagination, filtering, or role-based restrictions on the materials list itself.
 ## 1. File Name and Directory
 `Backend/Controllers/PromptsController.cs`
 

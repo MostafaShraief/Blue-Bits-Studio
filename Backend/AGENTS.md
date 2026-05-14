@@ -131,32 +131,32 @@ Depends solely on `IAdminUserService` (injected via DI). No direct database acce
 Backend (C# .NET Web API Controller)
 
 ### 3. What the file does
-Provides full CRUD (Create, Read, Update, Delete) for the `Material` entity through RESTful endpoints, restricted to users with the `Admin` role.
+Thin Admin-only controller that delegates all material CRUD operations to `IAdminMaterialService`. Uses `CreateMaterialRequest` / `UpdateMaterialRequest` DTOs instead of the raw `Material` entity. Missing-resource errors for `Update` and `Delete` propagate as `NotFoundException` through `ExceptionHandlingMiddleware` (404). The controller is purely an HTTP adapter — no business logic or data access.
 
 ### 4. User Stories
 - As an Admin, I can list all materials to manage them.
 - As an Admin, I can view, create, update, or delete a specific material.
 
 ### 5. Functions Summary
-- `GetAll()`: Returns all materials.
-- `GetById(int id)`: Returns a single material by ID, or 404.
-- `Create(Material material)`: Creates a new material, returns 201 with location header.
-- `Update(int id, Material updated)`: Updates `MaterialName` and `MaterialYear`, returns the updated material.
-- `Delete(int id)`: Deletes a material, returns 204 No Content.
+- `GetAll()`: Delegates to `_materialService.GetAllAsync()`, returns all materials.
+- `GetById(int id)`: Delegates to `_materialService.GetByIdAsync(id)`, returns a single material or 404.
+- `Create(CreateMaterialRequest)`: Delegates to `_materialService.CreateAsync(request)`, returns 201 with location header.
+- `Update(int id, UpdateMaterialRequest)`: Delegates to `_materialService.UpdateAsync(id, request)`, returns the updated material. Throws `NotFoundException` via middleware if material not found.
+- `Delete(int id)`: Delegates to `_materialService.DeleteAsync(id)`, returns 204 No Content. Throws `NotFoundException` via middleware if material not found.
 
 ### 6. Integration
-Interacts with a SQLite database via Entity Framework Core (`BlueBitsDbContext.Materials` DbSet).
+Depends solely on `IAdminMaterialService` (injected via DI). No direct database access.
 
 ### 7. Imports Summary
 - **ASP.NET Core:** `Authorize`, `ApiController`, `Route`, `HttpGet/Post/Put/Delete`, `FromBody`, `IActionResult`, `ControllerBase`
-- **EF Core:** `ToListAsync`, `FindAsync`, `SaveChangesAsync`
-- **Internal:** `BlueBitsDbContext` (Data), `Material` (Models)
+- **Internal:** `BlueBits.Api.DTOs.Requests` (`CreateMaterialRequest`, `UpdateMaterialRequest`), `BlueBits.Api.Models` (`Material`), `BlueBits.Api.Services.Interfaces` (`IAdminMaterialService`)
 
 ### 8. Additional Info
 - Entire controller decorated with `[Authorize(Roles = "Admin")]` — no non-admin access.
 - Route prefix: `api/admin/materials`.
 - All methods are async.
-- Update only modifies `MaterialName` and `MaterialYear`, not all fields.
+- Service layer (`AdminMaterialService`) throws `NotFoundException` on Update/Delete for missing entities, handled globally by `ExceptionHandlingMiddleware`.
+- Request validation handled by FluentValidation (auto-discovered validators from assembly).
 ## 1. File Name and Directory
 `Backend/Controllers/AdminPermissionsController.cs`
 
@@ -1012,8 +1012,8 @@ Files:
 - `ToggleWorkflowRequest.cs` — IsActive toggle (from `AdminWorkflowsController.cs`)
 - `UpdatePromptRequest.cs` — PromptText update (from `AdminPromptsController.cs`)
 - `GenerateDocxRequest.cs` — DOCX generation parameters (from `PandocEndpoints.cs`)
-- `CreateMaterialRequest.cs` — Material creation with name and year (extracted for `AdminMaterialsController` service layer)
-- `UpdateMaterialRequest.cs` — Material update with name and year (extracted for `AdminMaterialsController` service layer)
+- `CreateMaterialRequest.cs` — Material creation with name and year (consumed by refactored `AdminMaterialsController` via `IAdminMaterialService`)
+- `UpdateMaterialRequest.cs` — Material update with name and year (consumed by refactored `AdminMaterialsController` via `IAdminMaterialService`)
 
 ### 4. User Stories
 - As a developer, I can reference all request DTOs from a single namespace `BlueBits.Api.DTOs.Requests` for reuse and discoverability.

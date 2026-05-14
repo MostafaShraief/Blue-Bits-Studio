@@ -6,6 +6,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BlueBits.Api.Data;
+using BlueBits.Api.DTOs.Responses;
 
 namespace BlueBits.Api.Controllers;
 
@@ -116,15 +117,4 @@ public class LoginRequest
 {
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-}
-
-public class LoginResponse
-{
-    public string Token { get; set; } = string.Empty;
-    public int UserId { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
-    public List<string> AuthorizedWorkflows { get; set; } = new();
 }

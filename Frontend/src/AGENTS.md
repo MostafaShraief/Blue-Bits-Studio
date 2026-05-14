@@ -1715,3 +1715,29 @@ Uses the HttpClient client (which auto-attaches JWT and handles errors). Designe
 ### 9. API
 - **GET** `/api/prompts/{sessionId}/{systemCode}` — Returns `{ promptText, promptName }`.
 - **POST** `/api/prompts/compile` — Body: `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
+
+## 1. File Name and Directory
+`Frontend/src/api/AuthApi.js`
+
+### 2. File Type
+Frontend — API service
+
+### 3. What the file does
+Provides authentication API methods using `HttpClient`. Exposes `login` (POST credentials) and `getCurrentUser` (GET current profile) — both return `LoginResponse` with JWT token, user profile, and authorized workflow SystemCodes.
+
+### 4. User Stories
+- As a user, I can log in with my username and password and receive a token + profile.
+- As a user, I can fetch my current profile and permissions using my stored token.
+
+### 5. Functions Summary
+- `login(username, password)`: POSTs to `/api/auth/login`, returns parsed `LoginResponse`.
+- `getCurrentUser()`: GETs `/api/auth/me`, returns parsed `LoginResponse`.
+
+### 6. Integration
+Calls backend REST API at `/api/auth/login` and `/api/auth/me`. Uses `HttpClient` which auto-attaches JWT tokens and handles error responses (401 auto-redirect, 429 rate limit, etc.).
+
+### 7. Imports Summary
+- **Internal:** `httpPost`, `httpGet` from `./HttpClient`
+
+### 8. Additional Info
+Designed as a thin service layer over `HttpClient` — no custom error handling, serialization, or token management. Errors propagate as `ApiError` / `RateLimitError` from `HttpClient`. Old `utils/api.js` remains untouched.

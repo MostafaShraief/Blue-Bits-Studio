@@ -1,41 +1,38 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Requests;
+using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
 [Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/admin/workflows")]
+[Produces("application/json")]
 public class AdminWorkflowsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
+    private readonly IAdminWorkflowService _adminWorkflowService;
 
-    public AdminWorkflowsController(BlueBitsDbContext db)
+    public AdminWorkflowsController(IAdminWorkflowService adminWorkflowService)
     {
-        _db = db;
+        _adminWorkflowService = adminWorkflowService;
     }
 
-    // GET: /api/admin/workflows
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<Workflow>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.Workflows.ToListAsync());
+        var workflows = await _adminWorkflowService.GetAllAsync();
+        return Ok(workflows);
     }
 
-    // PUT: /api/admin/workflows/{id}/toggle
     [HttpPut("{id}/toggle")]
+    [ProducesResponseType(typeof(Workflow), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ToggleActive(int id, [FromBody] ToggleWorkflowRequest req)
     {
-        var workflow = await _db.Workflows.FindAsync(id);
-        if (workflow == null) return NotFound();
-
-        workflow.IsActive = req.IsActive ? 1 : 0;
-        await _db.SaveChangesAsync();
-
+        var workflow = await _adminWorkflowService.ToggleActiveAsync(id, req);
         return Ok(workflow);
     }
 }

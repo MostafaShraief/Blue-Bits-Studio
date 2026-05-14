@@ -231,19 +231,20 @@ Admin-only REST controller for managing workflows. Lists all workflows and toggl
 - As an **Admin**, I can enable or disable a workflow to control its availability.
 
 ### 5. Functions Summary
-- `GetAll()`: Returns all workflows from the database.
-- `ToggleActive(int id, ToggleWorkflowRequest req)`: Sets `IsActive` on a workflow by its ID.
+- `GetAll()`: Delegates to `IAdminWorkflowService.GetAllAsync()`, returns all workflows.
+- `ToggleActive(int id, ToggleWorkflowRequest req)`: Delegates to `IAdminWorkflowService.ToggleActiveAsync()`, sets `IsActive` on a workflow by its ID.
 
 ### 6. Integration
-Interacts directly with the SQLite database via Entity Framework Core (`BlueBitsDbContext`). No external API or service calls.
+Depends solely on `IAdminWorkflowService` (injected via DI) for all workflow operations. No direct database or EF Core access.
 
 ### 7. Imports Summary
-- **ASP.NET Core**: `Authorize`, `ApiController`, `ControllerBase`, `HttpGet`, `HttpPut`, `FromBody`, `Route`, `IActionResult`
-- **EF Core**: `DbContext`, `FindAsync`, `ToListAsync`
-- **Internal**: `BlueBitsDbContext` (data context), `Workflow` (model)
+- **ASP.NET Core**: `Authorize`, `ApiController`, `ControllerBase`, `HttpGet`, `HttpPut`, `FromBody`, `Route`, `IActionResult`, `Produces`, `ProducesResponseType`
+- **Internal**: `BlueBits.Api.DTOs.Requests` (`ToggleWorkflowRequest`), `BlueBits.Api.Models` (`Workflow`), `BlueBits.Api.Services.Interfaces` (`IAdminWorkflowService`)
 
 ### 8. Additional Info
 - Role-locked to `Admin` via `[Authorize(Roles = "Admin")]`.
+- Controller is thin — delegates all logic to `IAdminWorkflowService`, which uses `IWorkflowRepository` and throws `NotFoundException` for missing workflows.
+- Decorated with `[Produces("application/json")]` and per-endpoint `[ProducesResponseType]` for Swagger documentation.
 - `ToggleWorkflowRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`.
 - No session creation or workflow execution — strictly administrative toggle.
 ## 1. File Name and Directory

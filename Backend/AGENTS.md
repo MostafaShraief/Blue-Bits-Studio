@@ -877,3 +877,40 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 
 ### 8. Additional Info
 Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently.
+## 1. File Name and Directory
+`Backend/DTOs/Requests/`
+
+### 2. File Type
+Backend — Request DTOs (C# classes)
+
+### 3. What the file does
+Contains 10 extracted request DTO classes in the `BlueBits.Api.DTOs.Requests` namespace. These are standalone copies of the inline DTOs originally defined at the bottom of their respective controller/endpoint files. The originals remain untouched.
+
+Files:
+- `LoginRequest.cs` — Username + Password (from `AuthController.cs`)
+- `CreateUserRequest.cs` — Full user creation with validation attributes (from `AdminController.cs`)
+- `UpdateUserRequest.cs` — User update with optional password (from `AdminController.cs`)
+- `CreateSessionRequest.cs` — Session creation with WorkflowSystemCode, MaterialName, etc. (from `SessionsController.cs`)
+- `SaveSessionContentRequest.cs` — Single ContentBody property (from `SessionsController.cs`)
+- `CompilePromptRequest.cs` — Prompt compilation with systemCode, notes (from `PromptsController.cs`)
+- `CreatePermissionRequest.cs` — RBAC permission grant (from `AdminPermissionsController.cs`, originally a nested class)
+- `ToggleWorkflowRequest.cs` — IsActive toggle (from `AdminWorkflowsController.cs`)
+- `UpdatePromptRequest.cs` — PromptText update (from `AdminPromptsController.cs`)
+- `GenerateDocxRequest.cs` — DOCX generation parameters (from `PandocEndpoints.cs`)
+
+### 4. User Stories
+- As a developer, I can reference all request DTOs from a single namespace `BlueBits.Api.DTOs.Requests` for reuse and discoverability.
+- As a developer, I can add new request DTOs without polluting controller files.
+
+### 5. Functions Summary
+None — pure data classes with auto-properties only.
+
+### 6. Integration
+Does not call any APIs or databases. These are plain data contracts consumed by controllers and endpoints.
+
+### 7. Imports Summary
+- `System.ComponentModel.DataAnnotations` — used in `CreateUserRequest.cs` and `UpdateUserRequest.cs` for validation attributes.
+
+### 8. Additional Info
+- The original inline class definitions in the controller/endpoint files are kept untouched to avoid breaking existing imports.
+- `CreatePermissionRequest` was originally a nested class inside `AdminPermissionsController`; it is now a standalone top-level class in its own file.

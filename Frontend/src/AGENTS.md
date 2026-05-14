@@ -2074,3 +2074,46 @@ Catches `ApiError` with `status === 400` to populate `validationErrors`. Re-thro
 
 ### 9. API
 Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminUsers.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mount, manages modal create/edit flow with animated close, delete confirmation, and captures validation errors from 400 API responses. Uses `AdminApi.users.*` for all HTTP operations and `ToastContext` for user-facing notifications.
+
+### 4. User Stories
+- As an admin, I can view all users via `loadUsers()` and see loading/error states.
+- As an admin, I can open a create modal or pre-filled edit modal, submit the form, and see success/error toasts with validation errors highlighted.
+- As an admin, I can trigger delete confirmation and confirm/cancel deletion.
+
+### 5. Functions Summary
+- `useAdminUsers()`: Hook — returns all state and action methods.
+- `loadUsers()`: Fetches all admin users via `AdminApi.users.fetch()` and sets `users` state.
+- `openCreateModal()`: Resets form, opens modal in create mode.
+- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode.
+- `closeModal()`: Triggers closing animation, then resets all modal state after 200ms.
+- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows toast, reloads list on success; sets `validationErrors` on 400.
+- `handleDelete(id)`: Sets `deleteConfirmId` to trigger confirm UI.
+- `confirmDelete()`: Deletes the user at `deleteConfirmId`, shows toast, reloads list.
+- `cancelDelete()`: Clears `deleteConfirmId` without deleting.
+
+### 6. Integration
+Calls `AdminApi.users.*` methods (`fetch`, `create`, `update`, `delete`) which use `HttpClient` for JWT auth and error handling. Uses `ToastContext` for success/error notifications. Captures `ApiError.errors` from 400 responses into `validationErrors` state.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useEffect, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Load errors are set in `error` state without toasts to avoid spam.
+- Submit errors propagate validation errors (`err.errors`) from 400 responses into `validationErrors` for per-field display, and re-throw for caller chaining.
+- `handleSubmit` strips `username` from the payload on update (only sent on create).
+- Modal close animation uses a 200ms timeout consistent with existing admin page patterns.
+- `deleteConfirmId` holds the user ID pending confirmation; set to `null` when idle.
+
+### 9. API
+- **Internal:** Delegates all HTTP to `AdminApi.users.*` (AdminApi.js). See AdminApi.md for endpoint details.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.

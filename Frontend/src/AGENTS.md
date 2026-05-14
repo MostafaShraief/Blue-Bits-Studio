@@ -1545,3 +1545,49 @@ Zero imports. Standalone utility with no dependencies.
 ### 9. API
 No direct API interaction. Designed to format errors from backend responses (429, 400 with validation errors, 4xx/5xx).
 
+## 1. File Name and Directory
+`Frontend/src/api/HttpClient.js`
+
+### 2. File Type
+Frontend — Base HTTP client with auth/error/rate-limit interception
+
+### 3. What the file does
+Thin fetch wrapper that automatically attaches the JWT token from localStorage, handles response status codes with typed errors, and exports `httpGet`/`httpPost`/`httpPut`/`httpDelete` convenience functions. Reuses `formatValidationErrors` from the existing error utility for 400 field errors.
+
+### 4. User Stories
+- As a developer, I call `httpGet('/api/sessions')` and get back parsed JSON or a typed `ApiError`/`RateLimitError`.
+- As a developer, I catch `ApiError` to access `error.status`, `error.errors` (validation map), `error.traceId`, and `error.data` (raw body).
+- As a developer, I catch `RateLimitError` to access `error.retryAfter` (seconds).
+
+### 5. Functions Summary
+- `ApiError`: Custom error class with `status`, `data`, `errors`, `traceId`.
+- `RateLimitError`: Custom error class with `retryAfter` and `status = 429`.
+- `baseRequest(method, path, options)`: Core fetch wrapper — builds URL, attaches JWT header, serializes JSON body, delegates to `handleResponse`.
+- `handleResponse(response)`: Parses JSON body, inspects status: 2xx → return data; 401 → clear localStorage + redirect `/login` + throw `ApiError`; 429 → throw `RateLimitError`; 400 → throw `ApiError` with `errors` map; 404 → throw `ApiError`; 5xx → throw `ApiError`.
+- `httpGet(path, options)`: GET shorthand.
+- `httpPost(path, body, options)`: POST shorthand.
+- `httpPut(path, body, options)`: PUT shorthand.
+- `httpDelete(path, options)`: DELETE shorthand.
+
+### 6. Integration
+Calls backend REST API via `fetch`. Handles 401 (auth expiry), 429 (rate limit), 400 (validation), 404 (not found), and 5xx (server error) statuses. Reuses `formatValidationErrors` from `utils/errorFormatter`.
+
+### 7. Imports Summary
+- **Internal:** `formatValidationErrors` from `../utils/errorFormatter`
+
+### 8. Additional Info
+- `API_BASE` is empty by default (relative URLs). Pass absolute URLs or override by editing `API_BASE`.
+- `FormData` bodies skip `Content-Type` auto-set (browser sets multipart boundary).
+- Non-JSON 2xx responses (e.g. empty body, blob) return `null` or throw on parse; designed for JSON APIs.
+- `utils/api.js` is left untouched — this client is opt-in for new code.
+
+### 9. API
+**Request:** All requests auto-attach `Authorization: Bearer <token>`. JSON objects get `Content-Type: application/json`. `FormData` passes through unmodified.
+
+**Response:** 2xx → parsed JSON (or `null` for empty). Errors → one of:
+- `ApiError` (400): `{ message, status: 400, errors: {field: msg}, data, traceId }`
+- `ApiError` (401): `{ message, status: 401, data, traceId }` + auto-redirect to `/login`
+- `RateLimitError` (429): `{ message, status: 429, retryAfter }`
+- `ApiError` (404): `{ message, status: 404, data, traceId }`
+- `ApiError` (5xx): `{ message, status, data, traceId }`
+

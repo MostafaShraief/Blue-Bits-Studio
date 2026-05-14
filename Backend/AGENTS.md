@@ -27,39 +27,6 @@ When generating code for this backend:
 
 Update this section constantly for **any** minor change you do in each file.
 
-how to do?:
-```
-You are an Explore Agent. Your task is to analyze the provided code file and generate a highly concise summary document.
-You MUST keep your summary for each file strictly under 500 tokens (approx 1500 words). Make it as short, direct, and useful as possible.
-
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-## 1. File Name and Directory
-[Filename and path]
-
-### 2. File Type
-[backend, frontend, library, testing, etc.]
-
-### 3. What the file does
-[Brief overview]
-
-### 4. User Stories
-- [Simple and short user story 1]
-- [Simple and short user story 2]
-
-### 5. Functions Summary
-- \`functionName\`: [What it does]
-
-### 6. Integration[Does it call backend APIs, interact with databases, or external services?]
-
-### 7. Imports Summary
-[Summary of internal and external imports]
-
-### 8. Additional Info
-[Any extra context, or "None"]
-```
-
-Also, you must update `Endpoint Reference` section if there is **any** change for any endpoint.
-
 ## 1. File Name and Directory
 `Backend/Program.cs`
 
@@ -67,7 +34,7 @@ Also, you must update `Endpoint Reference` section if there is **any** change fo
 Backend — ASP.NET Core Web API entry point (top-level statements)
 
 ### 3. What the file does
-Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, rate limiting via `RateLimitingExtensions`, FluentValidation), configures middleware pipeline (global exception handler, CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
+Bootstraps the API: delegates all service registration to `ServiceCollectionExtensions` via `AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`, configures middleware pipeline (global exception handler, CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
 
 ### 4. User Stories
 - As a user, I authenticate via JWT to access protected API endpoints.
@@ -80,7 +47,7 @@ Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS,
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
-- Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting via `AddRateLimiting()` (FixedWindow 5 req/s per IP, Swagger/health excluded), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
+- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, `IPromptCompilationService`), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
@@ -94,11 +61,11 @@ Top-level statements (no named functions). Key logic blocks:
 - **Static Files:** Serves physical files from `./uploads/` at `/uploads` URL path
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `Microsoft.AspNetCore.RateLimiting`, `System.Threading.RateLimiting`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`, `BlueBits.Api.Services`
+- **External:** `Serilog`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 
@@ -188,10 +155,6 @@ Interacts with a SQLite database via Entity Framework Core (`BlueBitsDbContext.M
 - Route prefix: `api/admin/materials`.
 - All methods are async.
 - Update only modifies `MaterialName` and `MaterialYear`, not all fields.
-You are an Explore Agent. Your task is to analyze the provided code file and generate a highly concise summary document.
-You MUST keep your summary for each file strictly under 500 tokens (approx 1500 words). Make it as short, direct, and useful as possible.
-
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 ## 1. File Name and Directory
 `Backend/Controllers/AdminPermissionsController.cs`
 
@@ -884,3 +847,33 @@ Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddlew
 
 ### 8. Additional Info
 Placed after Swagger but before all other middleware to catch every unhandled exception across the entire pipeline. Uses best-effort extraction for SystemCode/SessionId (may be "N/A" if not present in route/query). Trace ID uses `Activity.Current.Id` when available, falling back to `HttpContext.TraceIdentifier`. `ValidationException` errors are grouped by `PropertyName` to produce `{fieldName: [errorMessage, ...]}` maps matching common frontend validation patterns.
+## 1. File Name and Directory
+`Backend/Extensions/ServiceCollectionExtensions.cs`
+
+### 2. File Type
+Backend — ASP.NET Core extension methods for DI service registration
+
+### 3. What the file does
+Provides four extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, `IPromptCompilationService`), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
+
+### 4. User Stories
+- As a developer, I can call `builder.Services.AddInfrastructure()` to register CORS, compression, rate limiting, and background services in one line.
+- As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and data services.
+- As a developer, I can call `builder.Services.AddAuthLayer()` to configure JWT authentication and role policies.
+- As a developer, I can call `builder.Services.AddApiLayer()` to register controllers, FluentValidation, and Swagger.
+
+### 5. Functions Summary
+- `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, and `IPromptCompilationService` as scoped.
+- `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
+- `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
+
+### 6. Integration
+Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and existing project extensions (`AddRateLimiting` from `RateLimitingExtensions`, `AddSwaggerWithConfig` from `SwaggerExtensions`). Configures EF Core SQLite via `BlueBitsDbContext`.
+
+### 7. Imports Summary
+- **External:** `System.Security.Claims`, `System.Text`, `System.Text.Json.Serialization`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.ResponseCompression`, `Microsoft.IdentityModel.Tokens`, `Microsoft.EntityFrameworkCore`, `FluentValidation`, `FluentValidation.AspNetCore`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Services`
+
+### 8. Additional Info
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently.

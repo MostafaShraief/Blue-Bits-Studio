@@ -37,7 +37,7 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    public async Task HandleValidationExceptionAsync(HttpContext context, ValidationException ex)
+    private async Task HandleValidationExceptionAsync(HttpContext context, ValidationException ex)
     {
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
         var userId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "N/A";
@@ -66,7 +66,7 @@ public class ExceptionHandlingMiddleware
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 
-    public async Task HandleNotFoundExceptionAsync(HttpContext context, NotFoundException ex)
+    private async Task HandleNotFoundExceptionAsync(HttpContext context, NotFoundException ex)
     {
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
         var userId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "N/A";
@@ -90,7 +90,7 @@ public class ExceptionHandlingMiddleware
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 
-    public async Task HandleGenericExceptionAsync(HttpContext context, Exception ex)
+    private async Task HandleGenericExceptionAsync(HttpContext context, Exception ex)
     {
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
         var userId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "N/A";

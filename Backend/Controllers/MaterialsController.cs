@@ -1,32 +1,26 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[Produces("application/json")]
 public class MaterialsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
+    private readonly IMaterialService _materialService;
 
-    public MaterialsController(BlueBitsDbContext db)
+    public MaterialsController(IMaterialService materialService)
     {
-        _db = db;
+        _materialService = materialService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetMaterials()
     {
-        var materialNames = await _db.Materials
-            .Select(m => m.MaterialName)
-            .Distinct()
-            .OrderBy(n => n)
-            .ToListAsync();
-
+        var materialNames = await _materialService.GetDistinctMaterialNamesAsync();
         return Ok(materialNames);
     }
 }

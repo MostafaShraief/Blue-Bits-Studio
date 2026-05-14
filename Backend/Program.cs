@@ -7,9 +7,8 @@ using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
 using BlueBits.Api.Services;
 using Serilog;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using FluentValidation.AspNetCore;
+using BlueBits.Api.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -108,18 +107,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Swagger / OpenAPI
 builder.Services.AddSwaggerGen();
 
-// Rate Limiting
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("Fixed", opt =>
-    {
-        opt.PermitLimit = 100;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 5;
-    });
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-});
+// Rate Limiting (5 req/s per IP, Swagger/health excluded)
+builder.Services.AddRateLimiting();
 
 var app = builder.Build();
 

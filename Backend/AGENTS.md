@@ -66,7 +66,7 @@ Also, you must update `Endpoint Reference` section if there is **any** change fo
 Backend — ASP.NET Core Web API entry point (top-level statements)
 
 ### 3. What the file does
-Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, Rate Limiting, FluentValidation), configures middleware pipeline (CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
+Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS, compression, Swagger, rate limiting via `RateLimitingExtensions`, FluentValidation), configures middleware pipeline (CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
 
 ### 4. User Stories
 - As a user, I authenticate via JWT to access protected API endpoints.
@@ -79,7 +79,7 @@ Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS,
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: Serilog writes to Console and rolling file (`logs/bluebits-.log`)
-- Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting (FixedWindow 100/min), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
+- Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting via `AddRateLimiting()` (FixedWindow 5 req/s per IP, Swagger/health excluded), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
 - Middleware pipeline: CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
@@ -93,11 +93,40 @@ Top-level statements (no named functions). Key logic blocks:
 - **Static Files:** Serves physical files from `./uploads/` at `/uploads` URL path
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `Microsoft.AspNetCore.RateLimiting`, `System.Threading.RateLimiting`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Services`
+- **External:** `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.IdentityModel.Tokens`, `System.Security.Claims`, `System.Text`, `Microsoft.EntityFrameworkCore`, `Serilog`, `FluentValidation.AspNetCore`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Services`, `BlueBits.Api.Extensions`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup.
+Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+## 1. File Name and Directory
+`Backend/Extensions/RateLimitingExtensions.cs`
+
+### 2. File Type
+Backend — C# extension method class
+
+### 3. What the file does
+Configures ASP.NET Core rate limiting with a global `FixedWindowLimiter` partitioned by client IP (`RemoteIpAddress`): 5 requests per second per IP. Excludes Swagger (`/swagger`) and health (`/health`) endpoints from rate limiting. Returns HTTP 429 with `Retry-After: 1` header when the limit is exceeded.
+
+### 4. User Stories
+- As an API consumer, I am limited to 5 requests per second per IP to prevent abuse.
+- As a developer, I can access Swagger UI and health endpoints without being rate-limited.
+- As an API consumer, I receive a `Retry-After` header on 429 responses so I know when to retry.
+
+### 5. Functions Summary
+- `AddRateLimiting(this IServiceCollection)`: Registers `AddRateLimiter` with a global `PartitionedRateLimiter` keyed by `context.Connection.RemoteIpAddress`. Swagger/health paths get `GetNoLimiter`. All other paths get a `FixedWindowLimiter` (5/sec, queue limit 0). Sets rejection status to 429 and adds `Retry-After: 1` header via `OnRejected`.
+
+### 6. Integration
+Does not call databases or external services. Registers ASP.NET Core's built-in rate limiting middleware (`Microsoft.AspNetCore.RateLimiting`).
+
+### 7. Imports Summary
+- `Microsoft.AspNetCore.RateLimiting` — `PartitionedRateLimiter`, `RateLimitPartition`
+- `System.Threading.RateLimiting` — `FixedWindowRateLimiterOptions`, `QueueProcessingOrder`
+- `System.Net` — `IPAddress` (unused, reserved)
+- `Microsoft.AspNetCore.Http` — `HttpContext` (implicit via SDK)
+- `Microsoft.Extensions.DependencyInjection` — `IServiceCollection` (implicit via SDK)
+
+### 8. Additional Info
+Consumed by `Program.cs` via `builder.Services.AddRateLimiting()`. Uses a `string` partition key — the client's IP string or `"unknown"` if `RemoteIpAddress` is null. No queuing (`QueueLimit = 0`) — excess requests are immediately rejected.
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
 using BlueBits.Api.Repositories;
 using BlueBits.Api.Services;
+using BlueBits.Api.Services.Interfaces;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 
@@ -49,6 +50,8 @@ public static class ServiceCollectionExtensions
             options.UseSqlite($"Data Source={dbPath}"));
 
         services.AddScoped<IPromptCompilationService, PromptCompilationService>();
+        services.AddScoped<IPandocService, PandocService>();
+        services.AddScoped<IMergeService, MergeService>();
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
         services.AddScoped<IUserRepository, UserRepository>();

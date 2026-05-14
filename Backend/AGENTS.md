@@ -396,25 +396,24 @@ Directly interacts with the **SQLite database** via Entity Framework Core. All d
 Backend
 
 ### 3. What the file does
-Provides a POST `/execute` endpoint that merges multiple uploaded DOCX files into a single document using a Pandoc template (theoretical or practical). Strips cover pages from each input file, injects content via OpenXML AltChunk, applies template page layout consistently, and returns a download URL.
+Provides a POST `/execute` endpoint that merges multiple uploaded DOCX files into a single document. Delegates all OpenXML manipulation (cover stripping, AltChunk injection, page layout) to `IMergeService`. Returns a download URL.
 
 ### 4. User Stories
 - As a user, I can upload multiple DOCX files and merge them into one formatted document with proper margins and page breaks.
 - As a user, I can select a lecture type (theoretical/practical) to apply the correct Pandoc template.
 
 ### 5. Functions Summary
-- `MapMergeEndpoints`: Registers GET `/test` (health check) and POST `/execute` (document merge) endpoints on a route group.
+- `MapMergeEndpoints`: Registers GET `/test` (health check) and POST `/execute` (document merge) endpoints on a route group. Reads form data and delegates to `IMergeService`.
 
 ### 6. Integration
-No database calls. Interacts with the file system (uploads directory, Pandoc templates in `../Resources/PandocTemplates/`). Uses OpenXML SDK for DOCX manipulation.
+No database calls. Relies on `IMergeService` for all DOCX processing logic.
 
 ### 7. Imports Summary
-- **External**: `Microsoft.AspNetCore.Mvc`, `DocumentFormat.OpenXml`, `DocumentFormat.OpenXml.Packaging`, `DocumentFormat.OpenXml.Wordprocessing`
+- **Internal**: `BlueBits.Api.Services.Interfaces` (`IMergeService`, `MergeResult`)
 
 ### 8. Additional Info
 - Antiforgery is disabled on the POST endpoint.
-- Uses `AltChunk` for efficient document merging.
-- Template files: `Pandoc-Theo-Final-Step.dotx` (theoretical) / `Pandoc-Prac-Final-Step.dotx` (practical).
+- All merge logic moved to `MergeService`.
 ## 1. File Name and Directory
 `Backend/Endpoints/PandocEndpoints.cs`
 
@@ -422,32 +421,25 @@ No database calls. Interacts with the file system (uploads directory, Pandoc tem
 Backend (C# API Endpoint)
 
 ### 3. What the file does
-Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file using the **pandoc** CLI, then post-processes the document: inline math placeholders (`{{{...}}}`) are converted to Office MathML objects (with fraction support via `/`), and the result is merged into a final `.dotx` template after the cover page section break.
+Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file. Delegates all logic — Pandoc CLI invocation, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) — to `IPandocService`.
 
 ### 4. User Stories
 - As a user, I can submit markdown text and receive a fully formatted Word document based on a professional template.
 - As a user, I can embed LaTeX-style equations in `{{{...}}}` delimiters and have them rendered as editable Office Math objects in the output.
 
 ### 5. Functions Summary
-- `MapPandocEndpoints`: Registers the `POST /generate` route; invokes pandoc CLI, then calls post-processing and template merge.
-- `ProcessEquations`: Scans paragraphs for `{{{...}}}`, flattens runs into character arrays, replaces equation placeholders with `OfficeMath` elements (fractions via `/` split).
-- `CreateWordRuns`: Rebuilds `WRun` elements from a list of `CharFormat` objects, grouping consecutive characters with identical formatting.
-- `CreateMathRuns`: Creates `MRun` elements for math content, preserving character-level formatting.
-- `MergeWithTemplate`: Copies the final template, imports the generated document via `AltChunk`, and inserts it after the first section-break paragraph.
+- `MapPandocEndpoints`: Registers the `POST /generate` route; reads the `GenerateDocxRequest` and delegates to `IPandocService.GenerateDocxAsync`.
 
 ### 6. Integration
-Calls the **pandoc** external CLI tool. Does **not** call any backend APIs or query any database. Uses OpenXml to manipulate `.docx`/`.dotx` files directly.
+Relies on `IPandocService` for all Pandoc CLI and OpenXML processing.
 
 ### 7. Imports Summary
-- `System.Diagnostics` — for running the pandoc process.
-- `Microsoft.AspNetCore.Mvc` — for route attributes (though using minimal API pattern).
-- `DocumentFormat.OpenXml.*` — extensive use of Wordprocessing, Math, and Packaging namespaces for Office Open XML manipulation.
+- **Internal**: `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
 
 ### 8. Additional Info
 - Requires **pandoc** installed on the system PATH.
-- Template `.dotx` files must exist in `Resources/PandocTemplates/` (a `Pandoc-Theo.dotx` and its `-Final-Step.dotx` counterpart).
-- Output filename follows the convention `{MaterialName} ({Type}) - {LectureNumber}.docx`.
-- No authentication or RBAC checks are performed in this endpoint (assumes gateway/middleware handles it).
+- Template `.dotx` files must exist in `Resources/PandocTemplates/`.
+- All OpenXML/math processing moved to `PandocService`.
 ## 1. File Name and Directory
 `Backend/Models/File.cs`
 
@@ -875,10 +867,10 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 
 ### 7. Imports Summary
 - **External:** `System.Security.Claims`, `System.Text`, `System.Text.Json.Serialization`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.ResponseCompression`, `Microsoft.IdentityModel.Tokens`, `Microsoft.EntityFrameworkCore`, `FluentValidation`, `FluentValidation.AspNetCore`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`
+- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -1267,3 +1259,100 @@ Injected as `INoteRepository` (scoped). All CRUD operations delegate to `Generic
 
 ### 8. Additional Info
 Part of the 9-repository family. Notes are managed through the `SessionsController` during session creation (GeneralNote) and file upload (FileNote).
+`Backend/Services/Interfaces/IPandocService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines the `IPandocService` interface for Pandoc document generation. Contains `GenerateDocxAsync` which runs the pandoc CLI, processes equations (`{{{...}}}` → OfficeMath), and merges the result into a final template. Also defines the `PandocResult` record with `Success`, `FileUrl`, `Error`, and `Details` properties.
+
+### 4. User Stories
+- As a developer, I can inject `IPandocService` to generate formatted DOCX documents from markdown without coupling to OpenXML or CLI details.
+
+### 5. Functions Summary
+- `GenerateDocxAsync`: Takes markdown text, template name, material/type/lecture metadata, and content root path. Returns a `PandocResult`.
+
+### 6. Integration
+No database calls. Consumed by `PandocEndpoints`. Implemented by `PandocService`.
+
+### 7. Imports Summary
+- **External:** None (pure interface + record DTO)
+
+### 8. Additional Info
+Created as part of the service extraction refactor. All Pandoc/OpenXML logic lives in `PandocService`.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IMergeService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines the `IMergeService` interface for merging multiple DOCX files into a single formatted document. Contains `MergeDocxFilesAsync` which handles cover stripping, AltChunk injection, page layout normalization, and returns a `MergeResult` with `Url`, `FinalFileName`, and `Error` properties.
+
+### 4. User Stories
+- As a developer, I can inject `IMergeService` to merge multiple DOCX files without coupling to OpenXML manipulation details.
+
+### 5. Functions Summary
+- `MergeDocxFilesAsync`: Takes uploaded files, material name, lecture type, and content root path. Returns a `MergeResult`.
+
+### 6. Integration
+No database calls. Consumed by `MergeEndpoints`. Implemented by `MergeService`.
+
+### 7. Imports Summary
+- **External:** `Microsoft.AspNetCore.Http` (`IFormFileCollection`)
+
+### 8. Additional Info
+Created as part of the service extraction refactor. All merge OpenXML logic lives in `MergeService`.
+## 1. File Name and Directory
+`Backend/Services/PandocService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IPandocService`. Contains all Pandoc CLI invocation logic, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) extracted from `PandocEndpoints`. The private `CharFormat` helper class tracks per-character formatting during equation parsing.
+
+### 4. User Stories
+- As a developer, I can call `PandocService.GenerateDocxAsync` to convert markdown to a formatted `.docx` with math equations.
+
+### 5. Functions Summary
+- `GenerateDocxAsync`: Runs pandoc CLI, post-processes equations, merges with final template, returns result.
+- `ProcessEquations`: Scans paragraphs for `{{{...}}}`, flattens runs into character arrays, replaces equation placeholders with `OfficeMath` elements.
+- `CreateWordRuns`: Rebuilds `WRun` elements from `CharFormat` lists, grouping consecutive characters with identical formatting.
+- `CreateMathRuns`: Creates `MRun` elements for math content, preserving character-level formatting.
+- `MergeWithTemplate`: Copies the final template, imports via `AltChunk`, inserts after first section-break paragraph.
+
+### 6. Integration
+Calls the **pandoc** external CLI tool. Uses OpenXML SDK for DOCX manipulation. Does not call backend APIs or database.
+
+### 7. Imports Summary
+- **External:** `System.Diagnostics`, `DocumentFormat.OpenXml.*` (Wordprocessing, Math, Packaging)
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
+
+### 8. Additional Info
+Requires **pandoc** on system PATH. Template `.dotx` files in `Resources/PandocTemplates/`.
+## 1. File Name and Directory
+`Backend/Services/MergeService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IMergeService`. Contains all DOCX merge logic (cover stripping, AltChunk injection, page layout normalization) extracted from `MergeEndpoints`.
+
+### 4. User Stories
+- As a developer, I can call `MergeService.MergeDocxFilesAsync` to merge multiple DOCX files into one formatted document.
+
+### 5. Functions Summary
+- `MergeDocxFilesAsync`: Strips cover/back cover pages from each input file, injects content via AltChunk, preserves template page size/margin, applies page breaks between files, and normalizes all section properties.
+
+### 6. Integration
+Uses OpenXML SDK for DOCX manipulation. No database calls.
+
+### 7. Imports Summary
+- **External:** `DocumentFormat.OpenXml.*` (Wordprocessing, Packaging), `Microsoft.AspNetCore.Http` (`IFormFileCollection`)
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IMergeService`, `MergeResult`)
+
+### 8. Additional Info
+Template files: `Pandoc-Theo-Final-Step.dotx` (theoretical) / `Pandoc-Prac-Final-Step.dotx` (practical). All merge logic moved from `MergeEndpoints`.

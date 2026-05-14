@@ -793,35 +793,34 @@ Admin configuration panel with three management areas: toggle workflow activatio
 - As an admin, I can assign or remove roles (TechMember / ScientificMember) per workflow
 
 ### 5. Functions Summary
-- `loadData()`: Fetches workflows, prompts, and permissions in parallel via Promise.all
-- `handleToggleWorkflow(id, currentActive)`: Toggles workflow active state via API and updates local state optimistically
-- `handleSavePrompt(id)`: Saves edited prompt text and collapses the editor
-- `handleAddPermission()`: Creates a new role permission for a workflow, then reloads data
-- `handleDeletePermission(id)`: Deletes a permission after confirmation, then reloads data
-- `closePermissionModal()`: Closes the permission modal with a fade-out animation
-- `getWorkflowName(id)`: Looks up a workflow's adminNote by ID
-- `getRoleInfo(roleName)`: Returns role-specific styling, icon, and Arabic label
-- `formatDate(date)`: Formats a date using ar-SY locale
+- `useAdminWorkflows()`, `useAdminPrompts()`, `useAdminPermissions()`: Hooks providing items, loading/error states, validation errors, and CRUD methods (list, toggleActive, updateText, create, delete)
+- `handleToggleWorkflow`: Calls `workflows.toggleActive()`, then refreshes via `workflows.list()` for UI sync
+- `handleSavePrompt(id)`: Calls `prompts.updateText(id, promptText)`, collapses the editor on success; hook shows toast
+- `handleAddPermission()`: Calls `permissions.create()`, refreshes list on success; captures 400 validation errors into `permFieldErrors` for inline display
+- `handleDeletePermission(id)`: Confirms then calls `permissions.delete(id)`, refreshes list
+- `closePermissionModal()`: Closes modal with fade-out animation, clears field errors
+- `getFieldError(field)`: Looks up case-insensitive error for a field from `permFieldErrors`
 
 ### 6. Integration
-Calls backend admin REST API endpoints for workflows, prompts, and permissions CRUD.
+Delegates all API calls to hooks (`useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions`), which use `AdminApi` → `HttpClient` for JWT auth, rate-limit handling (429 toast), and error interception.
 
 ### 7. Imports Summary
 - `useState`, `useEffect`, `useMemo` (React)
-- `fetchAdminWorkflows`, `fetchAdminPrompts`, `fetchAdminPermissions`, `toggleAdminWorkflow`, `updateAdminPrompt`, `createAdminPermission`, `deleteAdminPermission` (../../utils/api)
-- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, RefreshCw, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog
+- `useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions` (`../../hooks/`)
+- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog
 
 ### 8. Additional Info
-Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern.
+Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern. Inline validation errors shown under the role select in permission modal and under the prompt textarea (via hook `validationErrors`). 429 rate-limit toasts handled automatically by HttpClient.
 
 ### 9. API
-- `fetchAdminWorkflows()` → GET workflows list
-- `fetchAdminPrompts()` → GET prompts list
-- `fetchAdminPermissions()` → GET permissions list
-- `toggleAdminWorkflow(id, active)` → POST toggle active state
-- `updateAdminPrompt(id, promptText)` → POST update prompt text
-- `createAdminPermission({ roleName, workflowId })` → POST create new permission
-- `deleteAdminPermission(id)` → DELETE remove a permission
+No direct API calls. Data flows through hooks:
+- `useAdminWorkflows.list()` → GET `/api/admin/workflows` (via AdminApi)
+- `useAdminWorkflows.toggleActive(id, isActive)` → PUT `/api/admin/workflows/{id}/toggle`
+- `useAdminPrompts.list()` → GET `/api/admin/prompts`
+- `useAdminPrompts.updateText(id, promptText)` → PUT `/api/admin/prompts/{id}`
+- `useAdminPermissions.list()` → GET `/api/admin/permissions`
+- `useAdminPermissions.create(data)` → POST `/api/admin/permissions`
+- `useAdminPermissions.delete(id)` → DELETE `/api/admin/permissions/{id}`
 
 ## 1. File Name and Directory
 `Frontend/src/pages/admin/UsersManager.jsx`

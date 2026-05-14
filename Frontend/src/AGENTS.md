@@ -1333,11 +1333,12 @@ No backend interaction. No request/response handling. Acts as a static error pag
 Frontend (TypeScript type definitions)
 
 ### 3. What the file does
-Defines TypeScript interfaces for authentication domain objects — the `User` model and the `AuthContextType` contract used by React context throughout the frontend.
+Defines TypeScript interfaces for authentication domain objects — `LoginResponse` (matches backend `LoginResponse` DTO), the `User` model, and the `AuthContextType` contract used by React context throughout the frontend.
 
 ### 4. User Stories
 - As a user, I can log in and have my identity (userId, username, role, permissions) available app-wide
 - As the app, I can enforce RBAC by checking `allowedWorkflows` from the authenticated user object
+- As a developer, I can type the raw API login response via `LoginResponse` (which uses `authorizedWorkflows` matching the backend)
 
 ### 5. Functions Summary
 None (pure type declarations, no runtime code)
@@ -1346,13 +1347,15 @@ None (pure type declarations, no runtime code)
 No direct API calls or database interaction. Types shape the response consumed from the backend auth endpoint (login).
 
 ### 7. Imports Summary
-No imports. Both interfaces are exported for external consumption.
+No imports. All interfaces are exported for external consumption.
 
 ### 8. Additional Info
-`allowedWorkflows` is a string array of `SystemCode` values (e.g. `LEC_EXT`, `PANDOC`) used by the UI to conditionally render tabs. `AuthContextType` is the contract fulfilled by the AuthProvider context wrapper.
+- `LoginResponse` matches the backend `LoginResponse` DTO exactly (`authorizedWorkflows` field name from JSON).
+- `allowedWorkflows` on `User` is a string array of `SystemCode` values (e.g. `LEC_EXT`, `PANDOC`) used by the UI to conditionally render tabs.
+- `AuthContextType` is the contract fulfilled by the AuthProvider context wrapper.
 
 ### 9. API
-Login endpoint is expected to return a JSON body matching the `User` interface (token, userId, username, firstName, lastName, role, allowedWorkflows). `AuthContextType.login` calls this endpoint and hydates context state with the response.
+Login endpoint is expected to return a JSON body matching the `LoginResponse` / `User` interface (token, userId, username, firstName, lastName, role, authorizedWorkflows). `AuthContextType.login` calls this endpoint and hydates context state with the response.
 
 ## 1. File Name and Directory
 `Frontend/src/types/models.d.ts`
@@ -1361,11 +1364,12 @@ Login endpoint is expected to return a JSON body matching the `User` interface (
 Frontend — TypeScript type definitions
 
 ### 3. What the file does
-Defines TypeScript interfaces for all domain models used across the frontend: `Material`, `Workflow`, `File`, `Note`, `SessionContent`, `Session`, and `SessionSummary`. These mirror backend DTOs and ensure type safety when handling API responses.
+Defines TypeScript interfaces for all domain models used across the frontend: `Material`, `Workflow`, `File`, `Note`, `SessionContent`, `Session`, `SessionSummary`, `SessionSummaryDto`, and `SessionDetail`. These mirror backend DTOs and ensure type safety when handling API responses.
 
 ### 4. User Stories
 - As a developer, I can type-check all API response data against these interfaces.
 - As a developer, I can navigate related session data (material, workflow, notes, files) via optional navigational properties on `Session`.
+- As a developer, I can type the paginated session list response via `SessionSummaryDto` and the full session detail response via `SessionDetail`.
 
 ### 5. Functions Summary
 None — this file contains only type definitions, no runtime code.
@@ -1378,12 +1382,48 @@ No imports. These are standalone interface declarations meant to be imported by 
 
 ### 8. Additional Info
 - `Session.compiledPrompt` is an optional string likely populated by a backend endpoint after prompt compilation.
+- `SessionSummaryDto` matches the backend `SessionSummaryDto` response DTO (`id`, `materialName`, `workflowType`, `createdAt`, `lectureNumber`), used for paginated session list responses.
+- `SessionDetail` matches the backend `SessionDetailResult` record, wrapping a `Session` with an optional `compiledPrompt`.
 - `File.fileType` is restricted to `'Image' | 'Docx' | 'Other'`.
 - `Note.noteType` is restricted to `'GeneralNote' | 'FileNote'`.
 - `isActive` on `Workflow` is typed as `number` (0/1) rather than `boolean`, matching SQLite convention.
 
 ### 9. API
 Frontend fetches data from REST endpoints (e.g., `GET /api/session/{id}`) and casts the JSON response to these interfaces. No request/response transformation is handled here — models are direct mappings of backend DTOs.
+
+## 1. File Name and Directory
+`Frontend/src/types/api.d.ts`
+
+### 2. File Type
+Frontend — TypeScript type definitions
+
+### 3. What the file does
+Defines TypeScript interfaces for API-specific response shapes: `ErrorResponse` (standard error envelope), `PandocResult` (Pandoc generation result), `MergeResult` (DOCX merge result), `ValidationErrors` (per-field validation error maps), and `PaginatedResponse<T>` (generic paginated list wrapper). These mirror backend DTOs and result records from `ExceptionHandlingMiddleware`, `IPandocService`, `IMergeService`, and `ISessionService`.
+
+### 4. User Stories
+- As a developer, I can type API error responses consistently across the app.
+- As a developer, I can type Pandoc DOCX generation and DOCX merge results.
+- As a developer, I can type paginated API list responses using the generic `PaginatedResponse<T>`.
+- As a developer, I can type per-field validation errors returned by the backend middleware.
+
+### 5. Functions Summary
+None — pure type declarations, no runtime code.
+
+### 6. Integration
+No direct API calls or database interaction. Types are consumed by the API utility layer (`utils/api.js`) and page components when processing backend responses.
+
+### 7. Imports Summary
+No imports. All types are exported for external consumption.
+
+### 8. Additional Info
+- `ErrorResponse` matches the backend `ErrorResponse` DTO (`error`, `statusCode`, `traceId`) returned by `ExceptionHandlingMiddleware` for non-validation errors.
+- `PandocResult` matches the backend `PandocResult` record (`success`, `fileUrl?`, `error?`, `details?`) from `IPandocService`.
+- `MergeResult` matches the backend `MergeResult` record (`url?`, `finalFileName?`, `error?`) from `IMergeService`.
+- `ValidationErrors` is a `Record<string, string[]>` matching the per-field error map returned by `ExceptionHandlingMiddleware` for FluentValidation failures.
+- `PaginatedResponse<T>` is generic over item type with `items`, `totalCount`, `page`, `limit`, `hasMore` — matching the pagination metadata from `SessionListResult` backend DTO.
+
+### 9. API
+These types shape the JSON responses from various backend endpoints. The actual parsing and transformation is handled by `utils/api.js` — these declarations provide static type guarantees at dev/build time.
 
 ## 1. File Name and Directory
 `Frontend/src/utils/api.js`

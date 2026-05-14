@@ -1,3 +1,13 @@
+export interface LoginResponse {
+    token: string;
+    userId: number;
+    username: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    authorizedWorkflows: string[];
+}
+
 export interface User {
     token: string;
     userId: number;

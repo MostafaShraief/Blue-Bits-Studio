@@ -13,14 +13,13 @@ using FluentValidation.AspNetCore;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
-    .WriteTo.File("logs/bluebits-.log", rollingInterval: RollingInterval.Day)
     .CreateBootstrapLogger();
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, config) =>
+    builder.Host.UseSerilog((context, services, config) =>
         config.ReadFrom.Configuration(context.Configuration));
 
     // Register controllers

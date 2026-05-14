@@ -79,7 +79,7 @@ Frontend/src/App.jsx
 Frontend — Root React component / Router entry point
 
 ### 3. What the file does
-Sets up the top-level app shell: wraps the app in AuthProvider, BrowserRouter, and TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404).
+Sets up the top-level app shell: wraps the app in AuthProvider, BrowserRouter, ToastProvider, and TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404). Renders the global `<Toast />` component outside Suspense so it is always mounted.
 
 ### 4. User Stories
 - As a user, I log in and land on the Dashboard, then access workflows I have permission for.
@@ -94,7 +94,7 @@ No direct API calls. Relies on `AuthContext` which communicates with backend aut
 
 ### 7. Imports Summary
 - **External:** `react-router` (BrowserRouter, Routes, Route, Navigate), `react` (Suspense, lazy)
-- **Internal:** `AuthContext`, `TourContext`, `Layout`, 3 route guards (`AdminRoute`, `AuthOnlyRoute`, `ProtectedRoute`), `PageLoader`, and 16 lazy-loaded page components (Dashboard, ExtractionWizard, CoordinationWizard, PandocWizard, DrawWizard, QuizHub, History, Tour, MergeWizard, Login, Unauthorized, NotFound, AdminUnauthorized, AdminUsers, AdminMaterials, AdminSystem).
+- **Internal:** `AuthContext`, `TourContext`, `ToastContext`, `Layout`, 3 route guards (`AdminRoute`, `AuthOnlyRoute`, `ProtectedRoute`), `PageLoader`, `Toast`, and 16 lazy-loaded page components (Dashboard, ExtractionWizard, CoordinationWizard, PandocWizard, DrawWizard, QuizHub, History, Tour, MergeWizard, Login, Unauthorized, NotFound, AdminUnauthorized, AdminUsers, AdminMaterials, AdminSystem).
 
 ### 8. Additional Info
 Every page is lazy-loaded via `React.lazy`. Route guard nesting: outer `ProtectedRoute` checks auth → `Layout` provides sidebar → individual `ProtectedRoute` with `requiredCode` prop enforces per-workflow SystemCode access. Extraction and Coordination use double-gate logic (guarded by ProtectedRoute, then validated inside the wizard component itself).
@@ -1440,7 +1440,9 @@ Centralized HTTP client for all backend communication. Wraps `fetch` with JWT au
 - As a user, I get automatically redirected to login when my token expires.
 
 ### 5. Functions Summary
-- `authFetch`: Core wrapper — attaches JWT `Authorization` header, handles 401 globally (clears token, redirects to `/login`), preserves existing headers.
+- `authFetch`: Core wrapper — attaches JWT `Authorization` header, handles 401 globally (clears token, redirects to `/login`), shows Arabic toast for 429 (rate limit), 403 (forbidden), and 500 (server error), preserves existing headers.
+- `showToastGlobal` (internal): Dispatches a `CustomEvent('app:showToast')` for the Toast system to pick up.
+- `formatRateLimitError` (internal): Formats retry-after seconds into an Arabic rate-limit message.
 - `fetchUserProfile`: GET `/api/auth/me` — returns current user profile with authorized workflows.
 - `fetchMaterials`: GET `/api/materials` — cached in-memory.
 - `compilePromptStateless`: POST `/api/prompts/compile` — compiles a prompt statelessly.
@@ -1465,13 +1467,14 @@ Centralized HTTP client for all backend communication. Wraps `fetch` with JWT au
 Calls the backend REST API exclusively. No direct database or external service calls from this file.
 
 ### 7. Imports Summary
-**Zero imports** — uses native `fetch`, `Headers`, `FormData`, `localStorage`, `window.location`.
+**No module imports** — uses native `fetch`, `Headers`, `FormData`, `localStorage`, `window.location`, `CustomEvent`.
 
 ### 8. Additional Info
 - In-memory cache (`apiCache` Map) for materials (indefinite) and stats (60s TTL).
 - Handles 400 errors with Arabic fallback messages (`'يجب اختيار مادة صالحة لمتابعة العمل.'`).
 - `createSession` extracts session ID from both `id` and `sessionId` response fields, plus falls back to `Location` header.
 - File uploads use `FormData` (no explicit `Content-Type` header — browser sets `multipart/form-data` automatically).
+- `authFetch` auto-dispatches Arabic toast notifications via `CustomEvent('app:showToast')` for 429 (warning), 403 (error), and 500 (error) status codes.
 
 ### 9. API
 **Request:** All calls go through `authFetch` which attaches `Authorization: Bearer <token>` from `localStorage`. JSON payloads get `Content-Type: application/json` automatically. File uploads use `FormData`.
@@ -1544,4 +1547,68 @@ Zero imports. Standalone utility with no dependencies.
 
 ### 9. API
 No direct API interaction. Designed to format errors from backend responses (429, 400 with validation errors, 4xx/5xx).
+
+## 1. File Name and Directory
+`Frontend/src/contexts/ToastContext.jsx`
+
+### 2. File Type
+Frontend (React Context Provider)
+
+### 3. What the file does
+Manages a global toast notification queue. Provides `showToast(message, type)` for React components and `showToastGlobal(message, type)` for dispatching toasts from non-React code (e.g., `api.js`). Toasts auto-dismiss after 5 seconds. Supports types: `success`, `error`, `warning`, `info`.
+
+### 4. User Stories
+- As a user, I see a styled toast notification when an API error (429, 403, 500) occurs.
+- As a developer, I call `showToast` from any component or `showToastGlobal` from utility code to trigger a notification.
+
+### 5. Functions Summary
+- `ToastProvider`: Context provider — wraps children with toast state, listens for global `app:showToast` custom events.
+- `useToast()`: Hook returning `{ toasts, showToast, removeToast }`.
+- `showToastGlobal(message, type)`: Dispatches a `CustomEvent('app:showToast')` on `window` for non-React callers.
+- `removeToast(id)`: Removes a toast by ID (supports manual dismissal).
+- `showToast(message, type)`: Adds a toast to the queue and schedules auto-removal after 5s.
+
+### 6. Integration
+No backend calls. Communicates with non-React code via `window` custom events (`app:showToast`). Consumed by `Toast.jsx` component and `utils/api.js`.
+
+### 7. Imports Summary
+- **External:** `react` (createContext, useContext, useState, useCallback, useEffect)
+
+### 8. Additional Info
+- Toast IDs are generated via `Date.now() + Math.random()` — sufficient for local state.
+- Uses `useCallback` for stable references to `showToast` and `removeToast`.
+- The global event listener is cleaned up on provider unmount.
+
+### 9. API
+- `event.detail.message` (string) — toast text
+- `event.detail.type` (string) — one of `success`, `error`, `warning`, `info`
+
+## 1. File Name and Directory
+`Frontend/src/components/Toast.jsx`
+
+### 2. File Type
+Frontend (React component)
+
+### 3. What the file does
+Renders all active toasts as a fixed overlay at the top of the viewport, using `createPortal` to `document.body`. Each toast shows a `lucide-react` icon (CheckCircle/error, XCircle/error, AlertTriangle/warning, Info/info), the message text, and a close button. Animated entrance via `animate-fade-slide-in`.
+
+### 4. User Stories
+- As a user, I see stacked toast notifications at the top of the screen with color-coded icons for success, error, warning, and info.
+- As a user, I can manually dismiss a toast by clicking its close button.
+
+### 5. Functions Summary
+- `Toast` (default export): Reads `toasts` from `ToastContext`, renders a portal container with individual toast cards.
+
+### 6. Integration
+No backend/database calls. Renders via portal at `document.body` to ensure z-index stacking above all content.
+
+### 7. Imports Summary
+- **External:** `react-dom` (createPortal), `lucide-react` (CheckCircle, XCircle, AlertTriangle, Info, X)
+- **Internal:** `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Arabic-first: button `aria-label` is "إغلاق", RTL-compatible logical positioning (`start-1/2 -translate-x-1/2`).
+- Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
+- Toasts stack vertically with a 0.5rem gap.
+- Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
 

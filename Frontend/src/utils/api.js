@@ -7,6 +7,24 @@ const apiCache = new Map();
 
 const STATS_CACHE_TTL = 60_000; // 60 seconds for stats cache
 
+function showToastGlobal(message, type = 'error') {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('app:showToast', { detail: { message, type } }),
+    );
+  }
+}
+
+function formatRateLimitError(retryAfter) {
+  const seconds = Math.ceil(Number(retryAfter) || 60);
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (minutes > 0) {
+    return `طلبات كثيرة جداً. الرجاء الانتظار ${minutes} دقيقة و ${secs} ثانية قبل المحاولة مرة أخرى.`;
+  }
+  return `طلبات كثيرة جداً. الرجاء الانتظار ${secs} ثوانٍ قبل المحاولة مرة أخرى.`;
+}
+
 /**
  * Helper to automatically attach JWT token to all API requests.
  * Preserves existing headers (like Content-Type) and correctly
@@ -42,6 +60,13 @@ export async function authFetch(url, options = {}) {
         if (!window.location.pathname.includes('/login')) {
             window.location.href = '/login';
         }
+    } else if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || '60';
+        showToastGlobal(formatRateLimitError(retryAfter), 'warning');
+    } else if (response.status === 403) {
+        showToastGlobal('ليس لديك صلاحية للوصول إلى هذا المورد.', 'error');
+    } else if (response.status === 500) {
+        showToastGlobal('خطأ في الخادم. الرجاء المحاولة لاحقاً.', 'error');
     }
 
     return response;

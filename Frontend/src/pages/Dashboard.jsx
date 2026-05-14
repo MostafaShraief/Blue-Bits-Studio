@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import {
     FileSearch,
     AlignRight,
@@ -10,15 +10,12 @@ import {
     Sparkles,
     Clock,
     ArrowLeft,
+    Users,
+    Settings2,
 } from 'lucide-react';
 import { fetchSessions, fetchStats } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * Centralized route mapping from backend SystemCode to frontend route.
- * Fixes broken routing where backend returns SystemCodes like 'LEC_EXT'
- * but frontend was checking for friendly names like 'lecture'.
- */
 const getSessionRoute = (session) => {
     const { workflowType, id } = session;
     switch (workflowType) {
@@ -29,11 +26,10 @@ const getSessionRoute = (session) => {
         case 'BANK_QS': return `/quiz?id=${id}`;
         case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
-        default: return '/'; // Fallback to dashboard instead of broken route
+        default: return '/';
     }
 };
 
-/** Labels for display by SystemCode */
 const SYSTEM_CODE_LABELS = {
     LEC_EXT: 'استخراج محاضرة',
     BANK_EXT: 'استخراج بنك',
@@ -44,71 +40,76 @@ const SYSTEM_CODE_LABELS = {
     DRAW: 'رسم',
 };
 
-const STAT_CARDS = [
-    { label: 'محاضرات', value: 'LEC_EXT', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    { label: 'بنوك أسئلة', value: 'BANK_EXT', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
-    { label: 'رسم', value: 'DRAW', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
-    { label: 'إجمالي الجلسات', value: 'total', icon: Sparkles, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-];
-
-const QUICK_ACTIONS = [
-    {
+const WORKFLOW_CONFIG = {
+    LEC_EXT: {
         to: '/extraction?type=lecture', label: 'محاضرة جديدة', icon: FileSearch,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
-        systemCode: 'LEC_EXT',
     },
-    {
+    BANK_EXT: {
         to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
         iconCls: 'text-cyan',
-        systemCode: 'BANK_EXT',
     },
-    {
+    PANDOC: {
         to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
-        systemCode: 'PANDOC',
     },
-    {
+    DRAW: {
         to: '/draw', label: 'رسم بالذكاء', icon: Palette,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
-        systemCode: 'DRAW',
     },
+};
+
+const STAT_CARD_CONFIG = {
+    LEC_EXT: { label: 'محاضرات', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
+    BANK_EXT: { label: 'بنوك أسئلة', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
+};
+
+const ADMIN_LINKS = [
+    { to: '/admin/users', label: 'إدارة المستخدمين', icon: Users, desc: 'إضافة وتعديل وحذف المستخدمين' },
+    { to: '/admin/materials', label: 'إدارة المواد', icon: BookOpen, desc: 'إدارة المواد الدراسية والسنوات' },
+    { to: '/admin/system', label: 'إعدادات النظام', icon: Settings2, desc: 'إعدادات سير العمل والصلاحيات' },
 ];
 
 export default function Dashboard() {
     const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0 });
     const [recent, setRecent] = useState([]);
     const { user, hasWorkflowAccess } = useAuth();
-    const navigate = useNavigate();
+    const isAdmin = user?.role === 'Admin';
+    const authorizedWorkflows = user?.allowedWorkflows || [];
 
-    // Redirect Admin users to admin panel
-    useEffect(() => {
-        if (user?.role === 'Admin') {
-            navigate('/admin/users', { replace: true });
-        }
-    }, [user, navigate]);
-
-    // Check if there are any accessible tours for the user's permissions
     const TOUR_SYSTEM_CODES = ['LEC_EXT', 'BANK_EXT', 'DRAW'];
     const hasAnyTourAccess = TOUR_SYSTEM_CODES.some(code => hasWorkflowAccess(code));
 
-    // Filter quick actions based on user's RBAC permissions
-    const authorizedActions = QUICK_ACTIONS.filter(action => {
-        if (!action.systemCode) return true;
-        return hasWorkflowAccess(action.systemCode);
-    });
+    const authorizedActions = authorizedWorkflows
+        .map(code => WORKFLOW_CONFIG[code])
+        .filter(Boolean);
+
+    const statCards = [
+        ...authorizedWorkflows
+            .map(code => {
+                const config = STAT_CARD_CONFIG[code];
+                if (!config) return null;
+                return { code, value: stats[code] || 0, ...config };
+            })
+            .filter(Boolean),
+        {
+            code: 'total', value: stats.total || 0, label: 'إجمالي الجلسات',
+            icon: Sparkles, bgClass: 'bg-primary/10', textClass: 'text-primary',
+        },
+    ];
 
     useEffect(() => {
         const load = async () => {
             const s = await fetchStats();
             setStats(s);
-            const data = await fetchSessions(1, 5); // Fetch first 5 for recent sessions
+            const data = await fetchSessions(1, 5);
             const allSessions = data.sessions ? data.sessions.slice(0, 5) : [];
-            // Filter recent sessions by user's workflow permissions
-            const authorizedSessions = allSessions.filter(s => 
+            const authorizedSessions = allSessions.filter(s =>
                 hasWorkflowAccess(s.workflowType)
             );
             setRecent(authorizedSessions);
@@ -126,7 +127,7 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Welcome Tour Banner - only show if user has access to at least one tour */}
+            {/* Welcome Tour Banner */}
             {hasAnyTourAccess && (
             <div className="bg-gradient-to-r from-primary to-blue-600 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl shadow-primary/20">
                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -147,31 +148,32 @@ export default function Dashboard() {
                         <ArrowLeft size={18} />
                     </Link>
                 </div>
-                {/* Decorative background elements */}
                 <div className="absolute -end-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             </div>
             )}
 
             {/* Stats */}
+            {statCards.length > 0 && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {STAT_CARDS.map(({ label, value, icon: Icon, bgClass, textClass }) => (
+                {statCards.map(({ code, label, icon: Icon, bgClass, textClass, value }) => (
                     <div
-                        key={label}
+                        key={code}
                         className="bg-surface-card border border-border rounded-2xl p-5 flex items-center gap-4 hover:shadow-lg hover:-translate-y-0.5 transition-default"
                     >
                         <div className={`w-12 h-12 rounded-xl ${bgClass} flex items-center justify-center`}>
                             <Icon size={22} className={textClass} strokeWidth={1.8} />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold text-text">{stats[value]}</p>
+                            <p className="text-2xl font-bold text-text">{value}</p>
                             <p className="text-xs text-text-secondary">{label}</p>
                         </div>
                     </div>
                 ))}
             </div>
+            )}
 
             {/* Quick Actions */}
-            {authorizedActions.length > 0 && (
+            {!isAdmin && authorizedActions.length > 0 && (
                 <section>
                     <h2 className="text-lg font-semibold text-text mb-4">إجراء سريع</h2>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -187,6 +189,30 @@ export default function Dashboard() {
                                     strokeWidth={1.5}
                                 />
                                 <span className="text-sm font-medium text-text">{label}</span>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Admin Management Links */}
+            {isAdmin && (
+                <section>
+                    <h2 className="text-lg font-semibold text-text mb-4">إدارة النظام</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {ADMIN_LINKS.map(({ to, label, icon: Icon, desc }) => (
+                            <Link
+                                key={to}
+                                to={to}
+                                className="flex items-center gap-4 bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:-translate-y-0.5 transition-default group"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                    <Icon size={22} className="text-primary" strokeWidth={1.8} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-text group-hover:text-primary transition-default">{label}</p>
+                                    <p className="text-xs text-text-muted mt-0.5">{desc}</p>
+                                </div>
                             </Link>
                         ))}
                     </div>

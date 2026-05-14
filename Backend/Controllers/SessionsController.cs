@@ -5,7 +5,7 @@ using System.Security.Claims;
 using BlueBits.Api.Data;
 using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Responses;
-using BlueBits.Api.Services;
+using BlueBits.Api.Services.Interfaces;
 using BlueBits.Api.DTOs.Requests;
 
 namespace BlueBits.Api.Controllers;
@@ -17,13 +17,13 @@ public class SessionsController : ControllerBase
 {
     private readonly BlueBitsDbContext _db;
     private readonly IWebHostEnvironment _env;
-    private readonly IPromptCompilationService _promptCompilationService;
+    private readonly IPromptService _promptService;
 
-    public SessionsController(BlueBitsDbContext db, IWebHostEnvironment env, IPromptCompilationService promptCompilationService)
+    public SessionsController(BlueBitsDbContext db, IWebHostEnvironment env, IPromptService promptService)
     {
         _db = db;
         _env = env;
-        _promptCompilationService = promptCompilationService;
+        _promptService = promptService;
     }
 
     [HttpGet]
@@ -99,7 +99,7 @@ public class SessionsController : ControllerBase
         // Default to the first prompt associated with this workflow, or fallback to workflow's system code
         string targetSystemCode = session.Workflow.Prompts.FirstOrDefault()?.SystemCode ?? session.Workflow.SystemCode;
 
-        var compiledPrompt = await _promptCompilationService.CompilePromptAsync(
+        var compiledPrompt = await _promptService.CompilePromptAsync(
             targetSystemCode,
             generalNotes,
             fileNotes

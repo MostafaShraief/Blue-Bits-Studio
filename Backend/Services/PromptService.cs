@@ -1,28 +1,32 @@
 using Microsoft.EntityFrameworkCore;
 using BlueBits.Api.Data;
+using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
 using System.Text;
 using System.Linq;
 
 namespace BlueBits.Api.Services;
 
-public interface IPromptCompilationService
-{
-    Task<string> CompilePromptAsync(string systemCode, string? generalNotes, List<string> fileNotes);
-}
-
-public class PromptCompilationService : IPromptCompilationService
+public class PromptService : IPromptService
 {
     private readonly BlueBitsDbContext _db;
 
-    public PromptCompilationService(BlueBitsDbContext db)
+    public PromptService(BlueBitsDbContext db)
     {
         _db = db;
     }
 
+    public async Task<Prompt?> GetPromptForSessionAsync(int sessionId, string systemCode)
+    {
+        var session = await _db.Sessions.FindAsync(sessionId);
+        if (session == null) return null;
+
+        return await _db.Prompts
+            .FirstOrDefaultAsync(p => p.WorkflowId == session.WorkflowId && (p.SystemCode == systemCode || p.Workflow.SystemCode == systemCode));
+    }
+
     public async Task<string> CompilePromptAsync(string systemCode, string? generalNotes, List<string> fileNotes)
     {
-        // We look up the prompt by the WORKFLOW's SystemCode, since usually one main prompt per workflow
-        // Or if the systemCode passed IS the Prompt's SystemCode, we check both just in case.
         var promptEntity = await _db.Prompts
             .Include(p => p.Workflow)
             .FirstOrDefaultAsync(p => p.Workflow.SystemCode == systemCode || p.SystemCode == systemCode);

@@ -1655,3 +1655,33 @@ No backend/database calls. Renders via portal at `document.body` to ensure z-ind
 - Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
 - Toasts stack vertically with a 0.5rem gap.
 - Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
+
+## 1. File Name and Directory
+`Frontend/src/api/PromptsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides two functions for prompt-related API calls using the HttpClient base client. `getPromptForSession` fetches a prompt for a given session and workflow. `compilePrompt` sends user notes to the backend and returns the compiled prompt text.
+
+### 4. User Stories
+- As a developer, I can call `getPromptForSession(sessionId, systemCode)` to fetch prompt text and name for a session.
+- As a developer, I can call `compilePrompt(systemCode, generalNotes, fileNotes)` to compile a prompt with user notes attached.
+
+### 5. Functions Summary
+- `getPromptForSession(sessionId, systemCode)`: Calls `httpGet` on `/api/prompts/{sessionId}/{systemCode}`, returns `{ promptText, promptName }`.
+- `compilePrompt(systemCode, generalNotes, fileNotes)`: Calls `httpPost` on `/api/prompts/compile` with `{ systemCode, GeneralNotes, FileNotes }`, returns `{ compiledPrompt }`.
+
+### 6. Integration
+Calls the backend REST API via HttpClient. No direct database or external service calls.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+Uses the HttpClient client (which auto-attaches JWT and handles errors). Designed as an opt-in replacement for the older `compilePromptStateless` and `fetchPrompt` in `utils/api.js`.
+
+### 9. API
+- **GET** `/api/prompts/{sessionId}/{systemCode}` — Returns `{ promptText, promptName }`.
+- **POST** `/api/prompts/compile` — Body: `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.

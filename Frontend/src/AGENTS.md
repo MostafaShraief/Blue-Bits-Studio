@@ -1782,3 +1782,57 @@ Calls backend REST API through the shared `HttpClient` (`./HttpClient.js`). All 
 | POST | `/api/sessions` | `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }` | Create session |
 | POST | `/api/sessions/save` | `{ sessionId, contentBody }` | Save session content |
 | POST | `/api/sessions/{id}/files` | `FormData` (files + notes) | Upload files via multipart |
+
+## 1. File Name and Directory
+`Frontend/src/api/PandocApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a `PandocApi` object with a single `generate` method that converts Markdown text to a formatted `.docx` file via the backend Pandoc endpoint. Uses `HttpClient` for authenticated requests with automatic error handling.
+
+### 4. User Stories
+- As a user, I can submit markdown text and receive a file URL to a formatted Word document.
+
+### 5. Functions Summary
+- `PandocApi.generate(markdownText, templateName, materialName, type, lectureNumber)`: POSTs to `/api/pandoc/generate` with the payload, returns `{ fileUrl }`.
+
+### 6. Integration
+Calls the backend Pandoc endpoint (`POST /api/pandoc/generate`). Depends on `HttpClient.js` for JWT auth and error handling.
+
+### 7. Imports Summary
+- **Internal:** `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+JSON payload matches the backend `GenerateDocxRequest` DTO. `type` maps to the lecture type field expected by the backend.
+
+### 9. API
+**POST** `/api/pandoc/generate` — body: `{ markdownText, templateName, materialName, type, lectureNumber }` → response: `{ fileUrl: string }`
+
+## 1. File Name and Directory
+`Frontend/src/api/MergeApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a `MergeApi` object with an `execute` method that uploads multiple DOCX files and merges them into one document via the backend Merge endpoint. Sends `multipart/form-data` via `HttpClient`.
+
+### 4. User Stories
+- As a user, I can upload multiple DOCX files and get back a download URL for the merged document.
+
+### 5. Functions Summary
+- `MergeApi.execute(files, materialName, lectureType)`: Builds a `FormData` with the file list and metadata, POSTs to `/api/merge/execute`, returns `{ url, finalFileName }`.
+
+### 6. Integration
+Calls the backend Merge endpoint (`POST /api/merge/execute`). Depends on `HttpClient.js` for JWT auth and error handling.
+
+### 7. Imports Summary
+- **Internal:** `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+FormData is built without explicit `Content-Type` headers — the browser sets the multipart boundary automatically. Files are appended under the `files` field name expected by the backend.
+
+### 9. API
+**POST** `/api/merge/execute` — body: `FormData` with `files[]` (FileList), `materialName` (string), `lectureType` (string) → response: `{ url: string, finalFileName: string }`

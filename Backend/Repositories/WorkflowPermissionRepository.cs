@@ -18,4 +18,11 @@ public class WorkflowPermissionRepository : GenericRepository<WorkflowPermission
         return await _context.WorkflowPermissions
             .AnyAsync(p => p.RoleName == role && p.WorkflowId == workflowId);
     }
+
+    public async Task<IEnumerable<WorkflowPermission>> GetAllWithWorkflowAsync()
+    {
+        return await _context.WorkflowPermissions
+            .Include(p => p.Workflow)
+            .ToListAsync();
+    }
 }

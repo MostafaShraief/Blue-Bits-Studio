@@ -64,6 +64,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFileRepository, FileRepository>();
         services.AddScoped<INoteRepository, NoteRepository>();
 
+        services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddScoped<IAdminMaterialService, AdminMaterialService>();
+        services.AddScoped<IAdminPermissionService, AdminPermissionService>();
+        services.AddScoped<IAdminPromptService, AdminPromptService>();
+        services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
+
         return services;
     }
 

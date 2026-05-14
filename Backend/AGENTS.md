@@ -860,7 +860,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService` as scoped, and `IRepository<>` / `GenericRepository<>` as scoped open generics.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptCompilationService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -872,7 +872,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -880,7 +880,7 @@ Centralizes all DI registration logic that was previously inline in `Program.cs`
 Backend — Request DTOs (C# classes)
 
 ### 3. What the file does
-Contains 10 request DTO classes in the `BlueBits.Api.DTOs.Requests` namespace. These are the canonical definitions consumed by all controllers and endpoints. Previously, each DTO was defined inline in its respective controller/endpoint file; now extracted for centralized reuse.
+Contains 12 request DTO classes in the `BlueBits.Api.DTOs.Requests` namespace. These are the canonical definitions consumed by all controllers and endpoints. Previously, each DTO was defined inline in its respective controller/endpoint file; now extracted for centralized reuse.
 
 Files:
 - `LoginRequest.cs` — Username + Password (from `AuthController.cs`)
@@ -893,6 +893,8 @@ Files:
 - `ToggleWorkflowRequest.cs` — IsActive toggle (from `AdminWorkflowsController.cs`)
 - `UpdatePromptRequest.cs` — PromptText update (from `AdminPromptsController.cs`)
 - `GenerateDocxRequest.cs` — DOCX generation parameters (from `PandocEndpoints.cs`)
+- `CreateMaterialRequest.cs` — Material creation with name and year (extracted for `AdminMaterialsController` service layer)
+- `UpdateMaterialRequest.cs` — Material update with name and year (extracted for `AdminMaterialsController` service layer)
 
 ### 4. User Stories
 - As a developer, I can reference all request DTOs from a single namespace `BlueBits.Api.DTOs.Requests` for reuse and discoverability.
@@ -1405,3 +1407,260 @@ Each validator imports:
 - Telegram username validation strips the `@` prefix (if present) before checking format, accepting both `@username` and `username` forms. The actual normalization (adding `@` prefix) remains in the controller's `CreateUser`/`UpdateUser` methods. 
 - `ToggleWorkflowRequestValidator` has no rules because the DTO contains only a `bool IsActive` property.
 - The `CompilePromptRequest` property `systemCode` intentionally uses camelCase (matching JSON serialization conventions of the original inline DTO).
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAdminUserService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines `IAdminUserService` contract for admin user management. Extracts CRUD operations from `AdminController`: `GetAllAsync`, `CreateAsync(CreateUserRequest)`, `UpdateAsync(int, UpdateUserRequest)`, `DeleteAsync(int)`.
+
+### 4. User Stories
+- As a developer, I can inject `IAdminUserService` for admin user operations without coupling to EF Core or repositories.
+
+### 5. Functions Summary
+- `GetAllAsync()`: Returns all users.
+- `CreateAsync(CreateUserRequest)`: Creates a user with duplicate Telegram+Role checking.
+- `UpdateAsync(int, UpdateUserRequest)`: Updates user fields (password optional) with uniqueness check excluding current user.
+- `DeleteAsync(int)`: Deletes a user by ID.
+
+### 6. Integration
+Consumed by `AdminController`. Implemented by `AdminUserService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Models`
+
+### 8. Additional Info
+Created as part of admin service extraction. All Telegram normalization and duplicate-checking logic moved from controller to `AdminUserService`.
+## 1. File Name and Directory
+`Backend/Services/AdminUserService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAdminUserService` by delegating to `IUserRepository`. Handles Telegram @-prefix normalization, duplicate Telegram+Role validation, and full user CRUD. Uses `NotFoundException` for missing-resource errors and `InvalidOperationException` for duplicate conflicts.
+
+### 4. User Stories
+- As an Admin, I can manage users through a service layer that enforces Telegram uniqueness rules.
+- As a developer, the service uses `IUserRepository.ExistsByTelegramAndRoleAsync` for duplicate detection.
+
+### 5. Functions Summary
+- `GetAllAsync`: Delegates to `_userRepository.GetAllAsync()`.
+- `CreateAsync`: Normalizes Telegram @-prefix, checks duplicates, creates `User` entity, saves.
+- `UpdateAsync`: Loads user (throws `NotFoundException` if null), checks Telegram uniqueness excluding self, updates fields.
+- `DeleteAsync`: Loads user (throws `NotFoundException` if null), deletes, saves.
+
+### 6. Integration
+Injected as `IAdminUserService` (scoped). Depends on `IUserRepository` and `ILogger<AdminUserService>`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Exceptions`, `BlueBits.Api.Models`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+Uses `InvalidOperationException` for duplicate Telegram+Role conflicts (mapped to 400 or 409 by the controller).
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAdminMaterialService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines `IAdminMaterialService` contract for admin material management. Full CRUD with new `CreateMaterialRequest` / `UpdateMaterialRequest` DTOs: `GetAllAsync`, `GetByIdAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`.
+
+### 4. User Stories
+- As a developer, I can inject `IAdminMaterialService` for admin material operations without coupling to EF Core or repositories.
+
+### 5. Functions Summary
+- `GetAllAsync()`: Returns all materials.
+- `GetByIdAsync(int id)`: Returns a single material or null.
+- `CreateAsync(CreateMaterialRequest)`: Creates a new material.
+- `UpdateAsync(int, UpdateMaterialRequest)`: Updates material name and year.
+- `DeleteAsync(int)`: Deletes a material by ID.
+
+### 6. Integration
+Consumed by `AdminMaterialsController`. Implemented by `AdminMaterialService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Models`
+
+### 8. Additional Info
+Created as part of admin service extraction. DTOs `CreateMaterialRequest` / `UpdateMaterialRequest` replace direct `Material` model binding in the controller.
+## 1. File Name and Directory
+`Backend/Services/AdminMaterialService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAdminMaterialService` by delegating to `IMaterialRepository`. Provides full CRUD for materials with `NotFoundException` for missing resources.
+
+### 4. User Stories
+- As an Admin, I can manage materials through a service layer.
+- As a developer, all data access goes through `IMaterialRepository`.
+
+### 5. Functions Summary
+- `GetAllAsync`: Delegates to `_materialRepository.GetAllAsync()`.
+- `GetByIdAsync`: Returns material or null.
+- `CreateAsync`: Maps DTO to `Material` entity, adds, saves.
+- `UpdateAsync`: Loads material, updates name/year, saves.
+- `DeleteAsync`: Loads material (throws `NotFoundException` if null), deletes, saves.
+
+### 6. Integration
+Injected as `IAdminMaterialService` (scoped). Depends on `IMaterialRepository`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Exceptions`, `BlueBits.Api.Models`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+Created as part of admin service extraction.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAdminPermissionService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines `IAdminPermissionService` contract for RBAC permission management: `GetAllAsync` (with Workflow include), `CreateAsync(CreatePermissionRequest)`, `DeleteAsync(int)`.
+
+### 4. User Stories
+- As a developer, I can inject `IAdminPermissionService` for admin permission operations.
+
+### 5. Functions Summary
+- `GetAllAsync()`: Returns all workflow permissions with Workflow navigation property loaded.
+- `CreateAsync(CreatePermissionRequest)`: Creates a permission after role validation and duplicate check.
+- `DeleteAsync(int)`: Deletes a permission by ID.
+
+### 6. Integration
+Consumed by `AdminPermissionsController`. Implemented by `AdminPermissionService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Models`
+
+### 8. Additional Info
+`GetAllAsync` uses `IWorkflowPermissionRepository.GetAllWithWorkflowAsync` to eagerly load the related Workflow entity.
+## 1. File Name and Directory
+`Backend/Services/AdminPermissionService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAdminPermissionService` by delegating to `IWorkflowPermissionRepository`. Validates role names, checks for duplicate mappings, uses `NotFoundException` for missing permissions.
+
+### 4. User Stories
+- As an Admin, I can manage role-to-workflow permissions through a service layer.
+- As a developer, the service enforces role name validation (`TechMember` / `ScientificMember` only).
+
+### 5. Functions Summary
+- `GetAllAsync`: Returns all permissions with Workflow via `GetAllWithWorkflowAsync`.
+- `CreateAsync`: Validates role, checks duplicates, creates permission, saves.
+- `DeleteAsync`: Loads permission (throws `NotFoundException` if null), deletes, saves.
+
+### 6. Integration
+Injected as `IAdminPermissionService` (scoped). Depends on `IWorkflowPermissionRepository`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Exceptions`, `BlueBits.Api.Models`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+Role name validation and duplicate checking moved from `AdminPermissionsController` into this service.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAdminPromptService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines `IAdminPromptService` contract for admin prompt management: `GetAllAsync`, `UpdatePromptTextAsync(int, UpdatePromptRequest)`.
+
+### 4. User Stories
+- As a developer, I can inject `IAdminPromptService` for admin prompt operations.
+
+### 5. Functions Summary
+- `GetAllAsync()`: Returns all prompts.
+- `UpdatePromptTextAsync(int, UpdatePromptRequest)`: Updates a prompt's text by ID.
+
+### 6. Integration
+Consumed by `AdminPromptsController`. Implemented by `AdminPromptService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Models`
+
+### 8. Additional Info
+No delete endpoint — admins cannot delete prompts, in line with backend design rules.
+## 1. File Name and Directory
+`Backend/Services/AdminPromptService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAdminPromptService` by delegating to `IPromptRepository`. Provides prompt listing and text updates with `NotFoundException` for missing prompts.
+
+### 4. User Stories
+- As an Admin, I can view and update prompt text through a service layer.
+- As a developer, all data access goes through `IPromptRepository`.
+
+### 5. Functions Summary
+- `GetAllAsync`: Delegates to `_promptRepository.GetAllAsync()`.
+- `UpdatePromptTextAsync`: Loads prompt (throws `NotFoundException` if null), updates `PromptText`, saves.
+
+### 6. Integration
+Injected as `IAdminPromptService` (scoped). Depends on `IPromptRepository`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Exceptions`, `BlueBits.Api.Models`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+Created as part of admin service extraction.
+## 1. File Name and Directory
+`Backend/Services/Interfaces/IAdminWorkflowService.cs`
+
+### 2. File Type
+Backend — Service interface
+
+### 3. What the file does
+Defines `IAdminWorkflowService` contract for admin workflow management: `GetAllAsync`, `ToggleActiveAsync(int, ToggleWorkflowRequest)`.
+
+### 4. User Stories
+- As a developer, I can inject `IAdminWorkflowService` for admin workflow operations.
+
+### 5. Functions Summary
+- `GetAllAsync()`: Returns all workflows.
+- `ToggleActiveAsync(int, ToggleWorkflowRequest)`: Toggles a workflow's `IsActive` flag.
+
+### 6. Integration
+Consumed by `AdminWorkflowsController`. Implemented by `AdminWorkflowService`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Models`
+
+### 8. Additional Info
+Created as part of admin service extraction.
+## 1. File Name and Directory
+`Backend/Services/AdminWorkflowService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `IAdminWorkflowService` by delegating to `IWorkflowRepository`. Provides workflow listing and active toggle with `NotFoundException` for missing workflows.
+
+### 4. User Stories
+- As an Admin, I can list and toggle workflows through a service layer.
+- As a developer, all data access goes through `IWorkflowRepository`.
+
+### 5. Functions Summary
+- `GetAllAsync`: Delegates to `_workflowRepository.GetAllAsync()`.
+- `ToggleActiveAsync`: Loads workflow (throws `NotFoundException` if null), sets `IsActive` from request, saves.
+
+### 6. Integration
+Injected as `IAdminWorkflowService` (scoped). Depends on `IWorkflowRepository`.
+
+### 7. Imports Summary
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.Exceptions`, `BlueBits.Api.Models`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+Created as part of admin service extraction.

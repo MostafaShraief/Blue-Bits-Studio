@@ -739,19 +739,20 @@ None
 Frontend (React admin page component)
 
 ### 3. What the file does
-Admin CRUD interface for managing academic materials (subjects). Displays a sortable/filterable table of materials with a modal form for creating/editing, and delete with confirmation.
+Admin CRUD interface for managing academic materials (subjects). Displays a sortable/filterable table of materials with a modal form for creating/editing, and delete with confirmation. Uses `useAdminMaterials` hook for all API calls, state management, toast notifications, and validation error handling.
 
 ### 4. User Stories
 - As an admin, I can view all materials, filter by academic year, and sort by name or year.
 - As an admin, I can add, edit, or delete a material with a name and academic year.
+- As an admin, I see per-field validation errors inline in the modal form when the backend rejects invalid input.
+- As an admin, I see toast notifications for success, errors, and rate-limiting (429).
 
 ### 5. Functions Summary
-- `loadMaterials()`: Fetches all materials from API and updates state.
-- `handleSubmit()`: Creates or updates a material via API, then reloads list.
-- `handleEdit(material)`: Pre-fills modal form with material data for editing.
-- `handleDelete(id)`: Confirms then deletes a material via API.
+- `handleSubmit()`: Calls `create()` or `update()` from `useAdminMaterials` hook, closes modal on success.
+- `handleEdit(material)`: Pre-fills modal form with material data for editing, clears validation errors.
+- `handleDelete(id)`: Confirms then calls `remove()` from the hook.
 - `resetForm()`: Clears form state and resets editing ID.
-- `openCreateModal()`: Resets form and opens modal for new material.
+- `openCreateModal()`: Clears validation errors, resets form, opens modal for new material.
 - `closeModal()`: Closes modal with a brief closing animation.
 - `getYearLabel(year)`: Maps year number to Arabic label.
 - `getYearBadge(year)`: Renders a colored badge for the academic year.
@@ -761,22 +762,17 @@ Admin CRUD interface for managing academic materials (subjects). Displays a sort
 - `resetFilters()`: Clears year filter and sort config.
 
 ### 6. Integration
-Calls backend REST API via `fetchAdminMaterials`, `createAdminMaterial`, `updateAdminMaterial`, `deleteAdminMaterial` at `/api/admin/materials`.
+Calls backend REST API via `useAdminMaterials` hook → `AdminApi.materials.*` → `HttpClient` (JWT auth, rate-limit/error interception).
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect, useMemo), `lucide-react` (BookOpen, Plus, Pencil, Trash2, Loader2, AlertCircle, X, Sparkles, Eye, EyeOff, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, GraduationCap, Hash)
-- **Internal:** `../../utils/api` (fetchAdminMaterials, createAdminMaterial, updateAdminMaterial, deleteAdminMaterial)
+- **External:** `react` (useState, useEffect, useMemo), `lucide-react` (BookOpen, Plus, Pencil, Trash2, Loader2, AlertCircle, X, Sparkles, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, GraduationCap)
+- **Internal:** `../../hooks/useAdminMaterials` (useAdminMaterials hook)
 
 ### 8. Additional Info
-Arabic RTL UI with dark mode support, animated modal (fade/scale in/out), loading spinner, error alerts, and empty-state sparkles illustration.
+Arabic RTL UI with dark mode support, animated modal (fade/scale in/out), loading spinner, error alerts, per-field validation errors, empty-state sparkles illustration, submit button loading state via `isSaving` from hook. 429 rate-limit errors show an Arabic toast via `HttpClient` interception.
 
 ### 9. API
-| Method | Endpoint | Request Body | Response |
-|--------|----------|-------------|----------|
-| GET | `/api/admin/materials` | — | Array of `{ materialId, materialName, materialYear, ... }` |
-| POST | `/api/admin/materials` | `{ materialName, materialYear }` | Created material object |
-| PUT | `/api/admin/materials/:id` | `{ materialName, materialYear }` | Updated material object |
-| DELETE | `/api/admin/materials/:id` | — | (no content / success) |
+Delegates to `useAdminMaterials` hook → `AdminApi.materials.*` (AdminApi.js) → `HttpClient`. Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`. Per-field validation errors (400) displayed inline. 429 errors shown as toasts.
 
 ## 1. File Name and Directory
 Frontend/src/pages/admin/SystemConfig.jsx
@@ -1997,6 +1993,7 @@ Provides a reusable hook for admin materials CRUD. Wraps `AdminApi.materials.*` 
 - `create(data)`: Creates a material via `admin.materials.create(data)`, shows success toast, re-fetches list, maps validation errors on failure.
 - `update(id, data)`: Updates a material via `admin.materials.update(id, data)`, shows success toast, re-fetches list, maps validation errors on failure.
 - `remove(id)`: Deletes a material via `admin.materials.delete(id)`, shows success toast, re-fetches list on success.
+- `clearValidationErrors()`: Resets `validationErrors` state to `null`.
 
 ### 6. Integration
 Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for success/error notifications.
@@ -2007,6 +2004,7 @@ Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth,
 
 ### 8. Additional Info
 - `validationErrors` is set from `err.errors` (flattened via `formatValidationErrors`) on 400 validation failures — useful for per-field inline error display.
+- `clearValidationErrors()` resets validation errors (useful when opening modals or resetting forms).
 - List errors show a toast and set `error` state for programmatic handling.
 - Mutations re-throw after handling so callers can chain `.catch()` if needed.
 - No auto-fetch on mount — caller must invoke `fetchAll()` explicitly.
@@ -2015,6 +2013,7 @@ Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth,
 - **Internal:** Delegates all HTTP to `admin.materials.*` (AdminApi.js). Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`.
 - **Toast:** Calls `showToast(message, type)` from `ToastContext`.
 - **Validation Errors:** Maps `err.errors` via `formatValidationErrors` into `{ field: message }` shape.
+- **Return:** `{ materials, isLoading, isSaving, error, validationErrors, fetchAll, create, update, remove, clearValidationErrors }`
 
 ## 1. File Name and Directory
 `Frontend/src/hooks/useAdminPermissions.js`

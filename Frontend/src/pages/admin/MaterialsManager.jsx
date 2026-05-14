@@ -1,10 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-    fetchAdminMaterials,
-    createAdminMaterial,
-    updateAdminMaterial,
-    deleteAdminMaterial
-} from '../../utils/api';
+import { useAdminMaterials } from '../../hooks/useAdminMaterials';
 import {
     BookOpen,
     Plus,
@@ -14,58 +9,57 @@ import {
     AlertCircle,
     X,
     Sparkles,
-    Eye,
-    EyeOff,
     Calendar,
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
     Filter,
     GraduationCap,
-    Hash
 } from 'lucide-react';
 
 export default function MaterialsManager() {
-    const [materials, setMaterials] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const {
+        materials,
+        isLoading,
+        isSaving,
+        error,
+        validationErrors,
+        fetchAll,
+        create,
+        update,
+        remove,
+        clearValidationErrors,
+    } = useAdminMaterials();
+
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [isClosing, setIsClosing] = useState(false);
     
-    // Filters
     const [yearFilter, setYearFilter] = useState('');
     
-    // Sorting
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     
-    // Available years from data
     const availableYears = useMemo(() => {
         const years = new Set(materials.map(m => m.materialYear).filter(Boolean));
         return Array.from(years).sort((a, b) => a - b);
     }, [materials]);
     
-    // Filtered and sorted materials
     const filteredMaterials = useMemo(() => {
         let result = [...materials];
         
-        // Filter by year
         if (yearFilter) {
             const yearNum = parseInt(yearFilter, 10);
             result = result.filter(m => m.materialYear === yearNum);
         }
         
-        // Sort
         if (sortConfig.key) {
             result.sort((a, b) => {
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
                 
-                // Handle null/undefined
                 if (aVal == null) aVal = '';
                 if (bVal == null) bVal = '';
                 
-                // String comparison for text fields
                 if (typeof aVal === 'string') {
                     aVal = aVal.toLowerCase();
                     bVal = bVal.toLowerCase();
@@ -86,24 +80,11 @@ export default function MaterialsManager() {
     });
 
     useEffect(() => {
-        loadMaterials();
-    }, []);
-
-    const loadMaterials = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchAdminMaterials();
-            setMaterials(data);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchAll();
+    }, [fetchAll]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
 
         const payload = {
             materialName: formData.materialName,
@@ -112,20 +93,20 @@ export default function MaterialsManager() {
 
         try {
             if (editingId) {
-                await updateAdminMaterial(editingId, payload);
+                await update(editingId, payload);
             } else {
-                await createAdminMaterial(payload);
+                await create(payload);
             }
 
             setShowModal(false);
             resetForm();
-            loadMaterials();
         } catch (err) {
-            setError(err.message);
+            // Toast and validationErrors handled by the hook
         }
     };
 
     const handleEdit = (material) => {
+        clearValidationErrors();
         setFormData({
             materialName: material.materialName,
             materialYear: material.materialYear
@@ -138,10 +119,9 @@ export default function MaterialsManager() {
         if (!confirm('هل أنت متأكد من حذف هذه المادة؟')) return;
 
         try {
-            await deleteAdminMaterial(id);
-            loadMaterials();
+            await remove(id);
         } catch (err) {
-            alert(err.message);
+            // Toast handled by the hook
         }
     };
 
@@ -154,6 +134,7 @@ export default function MaterialsManager() {
     };
 
     const openCreateModal = () => {
+        clearValidationErrors();
         resetForm();
         setIsClosing(false);
         setShowModal(true);
@@ -208,7 +189,6 @@ export default function MaterialsManager() {
     const handleSort = (key) => {
         setSortConfig(prev => {
             if (prev.key === key) {
-                // Cycle: asc -> desc -> null (no sort)
                 if (prev.direction === 'asc') return { key, direction: 'desc' };
                 if (prev.direction === 'desc') return { key: null, direction: 'asc' };
                 return { key, direction: 'asc' };
@@ -229,7 +209,7 @@ export default function MaterialsManager() {
         setSortConfig({ key: null, direction: 'asc' });
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="animate-spin text-primary" size={32} />
@@ -264,7 +244,6 @@ export default function MaterialsManager() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-card border border-border rounded-xl">
-                {/* Left side: Counter + Filters */}
                 <div className="flex flex-wrap items-center gap-3">
                     <span className="px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-lg">
                         عرض {filteredMaterials.length} من {materials.length} مادة
@@ -275,7 +254,6 @@ export default function MaterialsManager() {
                         <span>تصفية:</span>
                     </div>
                     
-                    {/* Year Filter */}
                     <div className="flex items-center gap-2">
                         <label className="text-sm text-text-muted">السنة:</label>
                         <select
@@ -290,7 +268,6 @@ export default function MaterialsManager() {
                         </select>
                     </div>
 
-                    {/* Reset Filters */}
                     {yearFilter && (
                         <button
                             onClick={resetFilters}
@@ -410,11 +387,14 @@ export default function MaterialsManager() {
                                         type="text"
                                         value={formData.materialName}
                                         onChange={(e) => setFormData({...formData, materialName: e.target.value})}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors?.materialName ? 'border-danger' : 'border-border'}`}
                                         placeholder="مثال: هندسة البرمجيات"
                                         required
                                     />
                                 </div>
+                                {validationErrors?.materialName && (
+                                    <p className="text-xs text-danger mt-1">{validationErrors.materialName}</p>
+                                )}
                             </div>
 
                             <div>
@@ -426,7 +406,7 @@ export default function MaterialsManager() {
                                     <select
                                         value={formData.materialYear}
                                         onChange={(e) => setFormData({...formData, materialYear: parseInt(e.target.value)})}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors?.materialYear ? 'border-danger' : 'border-border'}`}
                                     >
                                         <option value={1}>السنة الأولى</option>
                                         <option value={2}>السنة الثانية</option>
@@ -435,21 +415,33 @@ export default function MaterialsManager() {
                                         <option value={5}>السنة الخامسة</option>
                                     </select>
                                 </div>
+                                {validationErrors?.materialYear && (
+                                    <p className="text-xs text-danger mt-1">{validationErrors.materialYear}</p>
+                                )}
                             </div>
 
                             <div className="flex gap-3 pt-2">
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
+                                    disabled={isSaving}
+                                    className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all disabled:opacity-50"
                                 >
                                     إلغاء
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                                    disabled={isSaving}
+                                    className="flex-1 px-4 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {editingId ? 'تحديث' : 'إضافة'}
+                                    {isSaving ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <Loader2 size={16} className="animate-spin" />
+                                            {editingId ? 'جاري التحديث...' : 'جاري الإضافة...'}
+                                        </span>
+                                    ) : (
+                                        editingId ? 'تحديث' : 'إضافة'
+                                    )}
                                 </button>
                             </div>
                         </form>

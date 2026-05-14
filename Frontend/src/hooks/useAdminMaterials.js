@@ -65,6 +65,10 @@ export function useAdminMaterials() {
     }
   }, [showToast, fetchAll]);
 
+  const clearValidationErrors = useCallback(() => {
+    setValidationErrors(null);
+  }, []);
+
   const remove = useCallback(async (id) => {
     setIsSaving(true);
     try {
@@ -89,5 +93,6 @@ export function useAdminMaterials() {
     create,
     update,
     remove,
+    clearValidationErrors,
   };
 }

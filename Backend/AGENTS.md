@@ -97,7 +97,7 @@ Central reference point for the `SystemCode` pattern described in `Backend/AGENT
 Backend — C# .NET Web API Controller
 
 ### 3. What the file does
-Provides Admin-only CRUD endpoints for managing users. Admins can list, create, update, and delete users. Uses `CreateUserRequest` / `UpdateUserRequest` DTOs with validation. Enforces unique `TelegramUsername + UserRole` combinations and auto-prepends `@` to Telegram usernames.
+Thin Admin-only CRUD controller for user management. Delegates all business logic (Telegram @-prefix normalization, duplicate Telegram+Role checks, NotFound handling) to `IAdminUserService`. Decorated with Swagger `[ProducesResponseType]` attributes for API documentation.
 
 ### 4. User Stories
 - As an Admin, I can view all registered users in the system.
@@ -106,23 +106,24 @@ Provides Admin-only CRUD endpoints for managing users. Admins can list, create, 
 - As an Admin, I can delete a user from the system.
 
 ### 5. Functions Summary
-- `GetUsers()`: Returns all users from the database.
-- `CreateUser(CreateUserRequest)`: Validates input, checks Telegram+Role uniqueness, creates a user.
-- `UpdateUser(int, UpdateUserRequest)`: Validates input, checks uniqueness excluding current user, updates fields (password/join date optional).
-- `DeleteUser(int)`: Finds and removes a user by ID.
+- `GetUsers()`: Delegates to `IAdminUserService.GetAllAsync()`, returns all users.
+- `CreateUser(CreateUserRequest)`: Delegates to `IAdminUserService.CreateAsync()`, returns 201 Created with location header.
+- `UpdateUser(int, UpdateUserRequest)`: Delegates to `IAdminUserService.UpdateAsync()`, returns the updated user.
+- `DeleteUser(int)`: Delegates to `IAdminUserService.DeleteAsync()`, returns 204 No Content.
 
 ### 6. Integration
-Interacts directly with `BlueBitsDbContext` (SQLite via EF Core). No external APIs or services.
+Depends solely on `IAdminUserService` (injected via DI). No direct database access. NotFound/duplicate errors propagate through global `ExceptionHandlingMiddleware`.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`, `EntityFrameworkCore`, `Logging`
-- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (User entity), `BlueBits.Api.DTOs.Requests` (CreateUserRequest, UpdateUserRequest)
+- **External:** `Microsoft.AspNetCore.Authorization`, `Mvc`
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IAdminUserService`), `BlueBits.Api.DTOs.Requests` (`CreateUserRequest`, `UpdateUserRequest`), `BlueBits.Api.Models` (`User`)
 
 ### 8. Additional Info
 - Controller is restricted to `[Authorize(Roles = "Admin")]`.
-- DTOs (`CreateUserRequest`, `UpdateUserRequest`) are imported from `BlueBits.Api.DTOs.Requests` namespace — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
-- Validation moved from DataAnnotations to FluentValidation (`CreateUserRequestValidator`, `UpdateUserRequestValidator`).
-- Telegram username duplication check is role-scoped (same Telegram + same role = conflict; same Telegram + different role = allowed).
+- DTOs (`CreateUserRequest`, `UpdateUserRequest`) are imported from `BlueBits.Api.DTOs.Requests` namespace.
+- Validation handled by FluentValidation validators (`CreateUserRequestValidator`, `UpdateUserRequestValidator`) before reaching the controller.
+- All business logic (Telegram @-prefix normalization, duplicate Telegram+Role enforcement) moved to `AdminUserService`.
+- Swagger decorators: `[Produces("application/json")]`, `[ProducesResponseType]` for 200/201/204/404/409 on each endpoint.
 ## 1. File Name and Directory
 `Backend/Controllers/AdminMaterialsController.cs`
 

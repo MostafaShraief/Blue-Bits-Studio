@@ -1,146 +1,56 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
 using BlueBits.Api.DTOs.Requests;
-using Microsoft.Extensions.Logging;
+using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
+
+namespace BlueBits.Api.Controllers;
 
 [Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/admin/users")]
+[Produces("application/json")]
 public class AdminController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
-    private readonly ILogger<AdminController> _logger;
+    private readonly IAdminUserService _adminUserService;
 
-    public AdminController(BlueBitsDbContext db, ILogger<AdminController> logger)
+    public AdminController(IAdminUserService adminUserService)
     {
-        _db = db;
-        _logger = logger;
+        _adminUserService = adminUserService;
     }
 
-    // --- USER MANAGEMENT ---
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<User>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUsers()
     {
-        return Ok(await _db.Users.ToListAsync());
+        return Ok(await _adminUserService.GetAllAsync());
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest dto)
+    [ProducesResponseType(typeof(User), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername)
-        if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
-        {
-            // Add @ prefix if not present
-            if (!dto.TelegramUsername.StartsWith("@"))
-            {
-                dto.TelegramUsername = "@" + dto.TelegramUsername;
-            }
-
-            var exists = await _db.Users.AnyAsync(u =>
-                u.TelegramUsername == dto.TelegramUsername &&
-                u.UserRole == dto.UserRole);
-            if (exists)
-            {
-                _logger.LogWarning("CreateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
-                    dto.TelegramUsername, dto.UserRole);
-                return Conflict(new { message = "DUPLICATE_TELEGRAM_ROLE",
-                    detail = $"Telegram username '{dto.TelegramUsername}' is already registered with role '{dto.UserRole}'" });
-            }
-        }
-
-        var user = new User
-        {
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            Username = dto.Username,
-            Password = dto.Password,
-            UserRole = dto.UserRole,
-            BatchNumber = dto.BatchNumber,
-            TelegramUsername = dto.TelegramUsername,
-            TeamJoinDate = dto.TeamJoinDate,
-            CreatedAt = DateTime.UtcNow.ToString("O")
-        };
-
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+        var user = await _adminUserService.CreateAsync(request);
         return Created($"/api/admin/users/{user.UserId}", user);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest dto)
+    [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        var user = await _db.Users.FindAsync(id);
-        if (user == null) return NotFound();
-
-        // Log incoming payload for debugging
-        _logger.LogInformation("UpdateUser {Id}: BatchNumber={BatchNumber}, Password={HasPassword}", 
-            id, dto.BatchNumber, !string.IsNullOrEmpty(dto.Password));
-
-        // Check for duplicate TelegramUsername + UserRole combination (allow null TelegramUsername, exclude current user)
-        if (!string.IsNullOrWhiteSpace(dto.TelegramUsername))
-        {
-            // Add @ prefix if not present
-            if (!dto.TelegramUsername.StartsWith("@"))
-            {
-                dto.TelegramUsername = "@" + dto.TelegramUsername;
-            }
-
-            var exists = await _db.Users.AnyAsync(u =>
-                u.TelegramUsername == dto.TelegramUsername &&
-                u.UserRole == dto.UserRole &&
-                u.UserId != id);
-            if (exists)
-            {
-                _logger.LogWarning("UpdateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
-                    dto.TelegramUsername, dto.UserRole);
-                return Conflict(new { message = "DUPLICATE_TELEGRAM_ROLE",
-                    detail = $"Telegram username '{dto.TelegramUsername}' is already registered with role '{dto.UserRole}'" });
-            }
-        }
-
-        user.FirstName = dto.FirstName;
-        user.LastName = dto.LastName;
-        user.UserRole = dto.UserRole;
-        user.BatchNumber = dto.BatchNumber;
-        user.TelegramUsername = dto.TelegramUsername;
-        
-        // Only update TeamJoinDate if provided
-        if (!string.IsNullOrWhiteSpace(dto.TeamJoinDate))
-        {
-            user.TeamJoinDate = dto.TeamJoinDate;
-        }
-        
-        // Only update password if provided
-        if (!string.IsNullOrWhiteSpace(dto.Password))
-        {
-            user.Password = dto.Password;
-        }
-
-        await _db.SaveChangesAsync();
+        var user = await _adminUserService.UpdateAsync(id, request);
         return Ok(user);
     }
 
     [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteUser(int id)
     {
-        var user = await _db.Users.FindAsync(id);
-        if (user == null) return NotFound();
-
-        _db.Users.Remove(user);
-        await _db.SaveChangesAsync();
+        await _adminUserService.DeleteAsync(id);
         return NoContent();
     }
 }

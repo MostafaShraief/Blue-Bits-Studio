@@ -31,6 +31,10 @@ public class ExceptionHandlingMiddleware
         {
             await HandleNotFoundExceptionAsync(context, ex);
         }
+        catch (ForbiddenException ex)
+        {
+            await HandleForbiddenExceptionAsync(context, ex);
+        }
         catch (Exception ex)
         {
             await HandleGenericExceptionAsync(context, ex);
@@ -86,6 +90,30 @@ public class ExceptionHandlingMiddleware
         };
 
         context.Response.StatusCode = StatusCodes.Status404NotFound;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+    }
+
+    private async Task HandleForbiddenExceptionAsync(HttpContext context, ForbiddenException ex)
+    {
+        var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+        var userId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "N/A";
+        var systemCode = ExtractSystemCode(context);
+        var sessionId = ExtractSessionId(context);
+        var path = context.Request.Path;
+
+        _logger.LogWarning(ex,
+            "Forbidden - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
+            userId, systemCode, sessionId, path);
+
+        var response = new
+        {
+            error = ex.Message,
+            statusCode = StatusCodes.Status403Forbidden,
+            traceId
+        };
+
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }

@@ -331,7 +331,7 @@ ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]
 Backend (C# .NET Web API Controller)
 
 ### 3. What the file does
-Manages the academic session lifecycle — listing, creating, viewing, saving content, and uploading files for user sessions. Enforces RBAC: users only see/manage their own sessions and only for workflows their role is permitted to access. Admins are blocked from session operations entirely.
+Thin controller that delegates all session business logic to `ISessionService`. Extracts userId and role from JWT claims, calls the appropriate service method, and maps results to HTTP responses (Ok, Created, Unauthorized). No RBAC or data access logic remains in the controller.
 
 ### 4. User Stories
 - As a user, I can view a paginated list of my sessions filtered by my role's workflow permissions
@@ -341,28 +341,25 @@ Manages the academic session lifecycle — listing, creating, viewing, saving co
 - As a user, I can upload files with per-file notes to my session
 
 ### 5. Functions Summary
-- `GetSessions`: Returns paginated session summaries for the current user, filtered by `WorkflowPermissions`
-- `GetSession`: Returns full session details with includes (User, Material, Workflow, Prompts, Notes, Files, SessionContents) plus a compiled prompt via `IPromptService`
-- `CreateSession`: Validates material + workflow existence and role permission, creates a `Session` with optional `GeneralNote`
-- `SaveSessionContent`: Upserts `SessionContent.ContentBody` for a given session (quiz/Pandoc output)
-- `UploadFiles`: Saves uploaded files to disk (`uploads/sessions/{id}/`), creates `File` entities and optional `FileNote` records
+- `GetSessions`: Extracts userId/role, delegates to `ISessionService.GetSessionsAsync`, returns Ok with paginated result
+- `GetSession`: Extracts userId/role, delegates to `ISessionService.GetSessionAsync`, maps Session entity to anonymous response with compiled prompt
+- `CreateSession`: Extracts userId/role, delegates to `ISessionService.CreateSessionAsync`, returns 201 Created
+- `SaveSessionContent`: Extracts userId, delegates to `ISessionService.SaveSessionContentAsync`, returns Ok
+- `UploadFiles`: Extracts userId/role, delegates to `ISessionService.UploadFilesAsync`, returns Ok
 
 ### 6. Integration
-- **Database**: All CRUD via `BlueBitsDbContext` (EF Core, SQLite)
-- **Service**: `IPromptService.CompilePromptAsync` for dynamic prompt compilation
-- **File System**: Saves uploaded files to `{ContentRootPath}/uploads/sessions/{id}/`
+- **Service**: `ISessionService` for all session operations (RBAC, CRUD, file I/O, prompt compilation)
 
 ### 7. Imports Summary
-- **ASP.NET Core**: `Authorization`, `Mvc`, `EntityFrameworkCore`, `IWebHostEnvironment`
+- **ASP.NET Core**: `Authorization`, `Mvc`
 - **System**: `Security.Claims`
-- **Internal**: `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Models` (entities/DTOs), `BlueBits.Api.Services.Interfaces` (IPromptService), `BlueBits.Api.DTOs.Responses` (`SessionSummaryDto`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`)
+- **Internal**: `BlueBits.Api.Services.Interfaces` (`ISessionService`), `BlueBits.Api.DTOs.Requests` (`CreateSessionRequest`, `SaveSessionContentRequest`), `BlueBits.Api.Exceptions`
 
 ### 8. Additional Info
-- DTOs (`CreateSessionRequest`, `SaveSessionContentRequest`) are imported from `BlueBits.Api.DTOs.Requests` — previously defined inline, now extracted to `Backend/DTOs/Requests/`.
-- `SessionSummaryDto` DTO is extracted to `BlueBits.Api.DTOs.Responses`
-- Admin role is **blocked** from `GetSessions`, `CreateSession`, and `UploadFiles`
-- File notes are linked to files via `FileId` with type `"FileNote"`; general notes use `"GeneralNote"`
-- Session content uses upsert logic (first `SessionContent` record)
+- All RBAC logic moved to `SessionService` (`Backend/Services/SessionService.cs`)
+- Admin blocks, ownership verification, and workflow permission checks are handled by `SessionService` which throws `ForbiddenException` (handled by `ExceptionHandlingMiddleware` → 403)
+- Entity-not-found cases throw `NotFoundException` (handled by middleware → 404)
+- `SaveSessionContentRequest` and `CreateSessionRequest` validated by FluentValidation before reaching controller
 ## 1. File Name and Directory
 `Backend/Data/BlueBitsDbContext.cs`
 
@@ -750,6 +747,68 @@ Reads from the `Sessions` and `Prompts` tables via Entity Framework Core (`BlueB
 ### 8. Additional Info
 Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier. Replaces the old `PromptCompilationService`.
 ## 1. File Name and Directory
+`Backend/Services/Interfaces/ISessionService.cs`
+
+### 2. File Type
+Backend — Service interface + result record DTOs
+
+### 3. What the file does
+Defines the `ISessionService` interface contract for all session operations: listing, viewing, creating, saving content, and uploading files. Also defines three result record DTOs (`SessionListResult`, `SessionDetailResult`, `CreateSessionResult`) used as return types for the interface methods.
+
+### 4. User Stories
+- As a developer, I can inject `ISessionService` to perform all session operations (RBAC, CRUD, file I/O, prompt compilation) without coupling to `BlueBitsDbContext`, `IWebHostEnvironment`, or `IPromptCompilationService` directly.
+
+### 5. Functions Summary
+- `GetSessionsAsync(int userId, string role, int page, int limit)` → `SessionListResult`: Returns paginated session summaries filtered by ownership and workflow permissions.
+- `GetSessionAsync(int sessionId, int userId, string role)` → `SessionDetailResult`: Returns full session with all navigation properties and compiled prompt.
+- `CreateSessionAsync(int userId, string role, CreateSessionRequest req)` → `CreateSessionResult`: Validates material/workflow, checks permissions, creates session.
+- `SaveSessionContentAsync(int userId, int? sessionId, SaveSessionContentRequest req)`: Upserts session content body.
+- `UploadFilesAsync(int sessionId, int userId, string role, IFormCollection form)`: Saves uploaded files to disk and creates File/Note records.
+
+### 6. Integration
+No direct database calls — this is a pure interface. Consumed by `SessionsController`. Implemented by `SessionService`.
+
+### 7. Imports Summary
+- **External:** `Microsoft.AspNetCore.Http` (`IFormCollection`)
+- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.DTOs.Responses`, `BlueBits.Api.Models` (`Session`)
+
+### 8. Additional Info
+Result records follow the same pattern as `PandocResult` / `MergeResult` (defined alongside their interface). `SessionListResult` includes pagination metadata (`TotalCount`, `Page`, `Limit`, `HasMore`). `SessionDetailResult` wraps the `Session` entity and compiled prompt string.
+## 1. File Name and Directory
+`Backend/Services/SessionService.cs`
+
+### 2. File Type
+Backend — Service implementation
+
+### 3. What the file does
+Implements `ISessionService` by orchestrating all 5 session operations extracted from `SessionsController`. Contains RBAC checks (Admin blocks, ownership verification, workflow permission validation), file I/O (saves physical files to `uploads/sessions/{id}/`), prompt compilation via `IPromptCompilationService`, and upsert logic for session content. Throws `ForbiddenException` for authorization failures and `NotFoundException` for missing entities.
+
+### 4. User Stories
+- As a developer, all session business logic is centralized in one service, making the controller a thin HTTP adapter.
+- As a user, RBAC is enforced at the service layer: Admins are blocked, users can only access their own sessions, and roles must have workflow permissions.
+
+### 5. Functions Summary
+- `GetSessionsAsync`: Blocks Admin → throws `ForbiddenException`. Queries sessions by userId filtered through `WorkflowPermissions` join. Returns paginated `SessionListResult` with Material/Workflow names.
+- `GetSessionAsync`: Loads session with all includes (User, Material, Workflow, Prompts, Notes, Files, SessionContents). Throws `NotFoundException` if missing, `ForbiddenException` if not owned or no workflow permission. Compiles prompt via `IPromptCompilationService`.
+- `CreateSessionAsync`: Blocks Admin → throws `ForbiddenException`. Validates material exists (throws `NotFoundException`), workflow is active and role has permission (throws `ForbiddenException`). Creates session with optional GeneralNote.
+- `SaveSessionContentAsync`: Throws `NotFoundException` if session missing or sessionId null. Throws `ForbiddenException` if not owned. Upserts first `SessionContent` record.
+- `UploadFilesAsync`: Blocks Admin → throws `ForbiddenException`. Throws `NotFoundException` if session missing. Throws `ForbiddenException` if not owned. Saves files to disk, creates `File` entities with type detection (Image/Docx/Other), creates optional `FileNote` records per file.
+
+### 6. Integration
+- **Database:** All CRUD via `BlueBitsDbContext` (EF Core, SQLite)
+- **Service:** `IPromptCompilationService.CompilePromptAsync` for dynamic prompt compilation
+- **File System:** `IWebHostEnvironment.ContentRootPath` to resolve `uploads/sessions/{id}/` directory
+
+### 7. Imports Summary
+- **External:** `Microsoft.EntityFrameworkCore`, `Microsoft.AspNetCore.Http`, `IWebHostEnvironment`
+- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Exceptions` (`NotFoundException`, `ForbiddenException`), `BlueBits.Api.Models` (Session, Note, File as `File = BlueBits.Api.Models.File`), `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.DTOs.Responses`, `BlueBits.Api.Services.Interfaces`
+
+### 8. Additional Info
+- Uses `using File = BlueBits.Api.Models.File` to resolve naming conflict with `System.IO.File`
+- Follows the same pattern as `PromptCompilationService` — injects `BlueBitsDbContext` directly rather than using repositories
+- All error cases throw exceptions (`NotFoundException` → 404, `ForbiddenException` → 403) caught by `ExceptionHandlingMiddleware`
+- Registered as scoped in `ServiceCollectionExtensions.AddPersistence()`
+## 1. File Name and Directory
 `Backend/Extensions/SwaggerExtensions.cs`
 
 ### 2. File Type
@@ -834,37 +893,62 @@ None — pure `System.Exception` subclass in `BlueBits.Api.Exceptions` namespace
 ### 8. Additional Info
 Part of the global exception handling strategy. Replaces ad-hoc `return NotFound()` calls with a throwable exception that the middleware formats consistently.
 ## 1. File Name and Directory
+`Backend/Exceptions/ForbiddenException.cs`
+
+### 2. File Type
+Backend — Custom exception class
+
+### 3. What the file does
+Defines a `ForbiddenException` thrown when a user attempts an operation they are not authorized to perform (e.g., Admin accessing sessions, user accessing another user's session, role missing workflow permission). Caught and handled by `ExceptionHandlingMiddleware` returning 403.
+
+### 4. User Stories
+- As a service/controller, I can throw `ForbiddenException` to signal an unauthorized operation and have the global middleware return a standardized 403 JSON response.
+
+### 5. Functions Summary
+- `ForbiddenException(string message)`: Plain message constructor.
+
+### 6. Integration
+Consumed by the `ExceptionHandlingMiddleware` and any backend service/controller that needs to signal a forbidden condition.
+
+### 7. Imports Summary
+None — pure `System.Exception` subclass in `BlueBits.Api.Exceptions` namespace.
+
+### 8. Additional Info
+Part of the global exception handling strategy. Thrown by `SessionService` when Admin users attempt session operations, when a user tries to access another user's session, or when a role lacks workflow permissions. Replaces ad-hoc `return Forbid()` calls with a throwable exception that the middleware formats consistently.
+## 1. File Name and Directory
 `Backend/Middleware/ExceptionHandlingMiddleware.cs`
 
 ### 2. File Type
 Backend — ASP.NET Core middleware
 
 ### 3. What the file does
-Global exception handling middleware that catches all unhandled exceptions, logs UserID/SystemCode/SessionId/request path via Serilog, and returns a standardized JSON error envelope `{error, statusCode, traceId}`. Handles three exception categories: FluentValidation `ValidationException` → 400 with per-field error details, `NotFoundException` → 404, and all other unhandled exceptions → 500.
+Global exception handling middleware that catches all unhandled exceptions, logs UserID/SystemCode/SessionId/request path via Serilog, and returns a standardized JSON error envelope `{error, statusCode, traceId}`. Handles four exception categories: FluentValidation `ValidationException` → 400 with per-field error details, `NotFoundException` → 404, `ForbiddenException` → 403, and all other unhandled exceptions → 500.
 
 ### 4. User Stories
 - As a developer, all unhandled exceptions produce a consistent JSON error response instead of HTML or raw 500s.
 - As a developer, FluentValidation failures return field-level error maps for frontend form validation.
 - As a developer, `NotFoundException` throws from anywhere produce a clean 404 response.
+- As a developer, `ForbiddenException` throws from services produce a clean 403 response.
 - As an operator, all errors are logged with diagnostic context (UserID, SystemCode, SessionId, request path) for debugging.
 
 ### 5. Functions Summary
 - `InvokeAsync(HttpContext)`: Wraps the next middleware in try/catch dispatching to per-type handlers.
 - `HandleValidationExceptionAsync`: 400 with grouped `{field: [errors]}` map.
 - `HandleNotFoundExceptionAsync`: 404 with exception message as error.
+- `HandleForbiddenExceptionAsync`: 403 with exception message as error.
 - `HandleGenericExceptionAsync`: 500 with generic "An unexpected error occurred" message.
 - `ExtractSystemCode`: Best-effort extraction from route values `systemCode`, then query params `systemCode`/`workflowSystemCode`.
 - `ExtractSessionId`: Best-effort extraction from route values `id`/`sessionId`, then query param `sessionId`.
 
 ### 6. Integration
-Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddleware>()`. Logs through standard `ILogger<ExceptionHandlingMiddleware>`. Consumes `FluentValidation.ValidationException` and `BlueBits.Api.Exceptions.NotFoundException`.
+Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddleware>()`. Logs through standard `ILogger<ExceptionHandlingMiddleware>`. Consumes `FluentValidation.ValidationException`, `BlueBits.Api.Exceptions.NotFoundException`, and `BlueBits.Api.Exceptions.ForbiddenException`.
 
 ### 7. Imports Summary
 - `System.Diagnostics` — `Activity.Current` for trace ID
 - `System.Security.Claims` — `ClaimTypes.NameIdentifier` for user ID extraction
 - `System.Text.Json` — `JsonSerializer` for writing JSON responses
 - `FluentValidation` — `ValidationException` for validation error handling
-- `BlueBits.Api.Exceptions` — `NotFoundException`
+- `BlueBits.Api.Exceptions` — `NotFoundException`, `ForbiddenException`
 
 ### 8. Additional Info
 Placed after Swagger but before all other middleware to catch every unhandled exception across the entire pipeline. Uses best-effort extraction for SystemCode/SessionId (may be "N/A" if not present in route/query). Trace ID uses `Activity.Current.Id` when available, falling back to `HttpContext.TraceIdentifier`. `ValidationException` errors are grouped by `PropertyName` to produce `{fieldName: [errorMessage, ...]}` maps matching common frontend validation patterns.
@@ -885,7 +969,7 @@ Provides four extension methods on `IServiceCollection` that cleanly separate se
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -897,7 +981,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPandocService` and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IPromptService`, `ISessionService`, `IPandocService`, and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 

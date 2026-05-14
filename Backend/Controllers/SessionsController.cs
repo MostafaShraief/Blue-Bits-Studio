@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using BlueBits.Api.Data;
-using BlueBits.Api.Models;
-using BlueBits.Api.DTOs.Responses;
-using BlueBits.Api.Services.Interfaces;
 using BlueBits.Api.DTOs.Requests;
+using BlueBits.Api.Services.Interfaces;
+using BlueBits.Api.Exceptions;
 
 namespace BlueBits.Api.Controllers;
 
@@ -15,15 +12,11 @@ namespace BlueBits.Api.Controllers;
 [Route("api/[controller]")]
 public class SessionsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
-    private readonly IWebHostEnvironment _env;
-    private readonly IPromptService _promptService;
+    private readonly ISessionService _sessionService;
 
-    public SessionsController(BlueBitsDbContext db, IWebHostEnvironment env, IPromptService promptService)
+    public SessionsController(ISessionService sessionService)
     {
-        _db = db;
-        _env = env;
-        _promptService = promptService;
+        _sessionService = sessionService;
     }
 
     [HttpGet]
@@ -33,37 +26,11 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
-        // Block Admins from accessing session list
-        if (User.IsInRole("Admin")) return Forbid();
+        if (string.IsNullOrEmpty(role))
+            return Unauthorized();
 
-        // Filter sessions by user's role and workflow permissions
-        var query = _db.Sessions
-            .Where(s => s.UserId == userId)
-            .Where(s => _db.WorkflowPermissions
-                .Any(p => p.RoleName == role && p.WorkflowId == s.WorkflowId))
-            .AsQueryable();
-
-        // Get total count for pagination info
-        var totalCount = await query.CountAsync();
-
-        var sessions = await query
-            .Include(s => s.Material)
-            .Include(s => s.Workflow)
-            .OrderByDescending(s => s.CreatedAt)
-            .Skip((page - 1) * limit)
-            .Take(limit)
-            .Select(s => new SessionSummaryDto
-            {
-                Id = s.SessionId,
-                MaterialName = s.Material != null ? s.Material.MaterialName : "Unknown",
-                WorkflowType = s.Workflow.SystemCode,
-                CreatedAt = s.CreatedAt,
-                LectureNumber = s.LectureNumber
-            })
-            .ToListAsync();
-
-        // Return both sessions and pagination metadata
-        return Ok(new { sessions, totalCount, page, limit, hasMore = (page * limit) < totalCount });
+        var result = await _sessionService.GetSessionsAsync(userId, role, page, limit);
+        return Ok(new { sessions = result.Sessions, result.TotalCount, result.Page, result.Limit, result.HasMore });
     }
 
     [HttpGet("{id}")]
@@ -73,58 +40,31 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
-        var session = await _db.Sessions
-            .Include(s => s.User)
-            .Include(s => s.Material)
-            .Include(s => s.Workflow)
-            .Include(s => s.Workflow.Prompts)
-            .Include(s => s.Notes)
-            .Include(s => s.Files.OrderBy(f => f.OrderIndex))
-            .Include(s => s.SessionContents)
-            .FirstOrDefaultAsync(s => s.SessionId == id);
+        if (string.IsNullOrEmpty(role))
+            return Unauthorized();
 
-        if (session == null) return NotFound();
-        
-        // Verify ownership AND workflow permission
-        if (session.UserId != userId) return Forbid();
-        
-        // Check if user's role has permission for this session's workflow
-        var hasPermission = await _db.WorkflowPermissions
-            .AnyAsync(p => p.RoleName == role && p.WorkflowId == session.WorkflowId);
-        if (!hasPermission) return StatusCode(403, new { message = "ليس لديك إذن للوصول إلى هذا النوع من الجلسات" });
+        var result = await _sessionService.GetSessionAsync(id, userId, role);
 
-        var generalNotes = session.Notes.FirstOrDefault(n => n.NoteType == "GeneralNote")?.NoteText;
-        var fileNotes = session.Notes.Where(n => n.NoteType == "FileNote").OrderBy(n => n.FileId).Select(n => n.NoteText).ToList();
-
-        // Default to the first prompt associated with this workflow, or fallback to workflow's system code
-        string targetSystemCode = session.Workflow.Prompts.FirstOrDefault()?.SystemCode ?? session.Workflow.SystemCode;
-
-        var compiledPrompt = await _promptService.CompilePromptAsync(
-            targetSystemCode,
-            generalNotes,
-            fileNotes
-        );
-
-        var result = new
+        var response = new
         {
-            id = session.SessionId,
-            sessionId = session.SessionId,
-            session.UserId,
-            session.MaterialId,
-            session.WorkflowId,
-            lectureNumber = session.LectureNumber,
-            lectureType = session.LectureType,
-            createdAt = session.CreatedAt,
-            session.User,
-            session.Material,
-            session.Workflow,
-            session.Files,
-            session.Notes,
-            session.SessionContents,
-            compiledPrompt = compiledPrompt
+            id = result.Session.SessionId,
+            sessionId = result.Session.SessionId,
+            result.Session.UserId,
+            result.Session.MaterialId,
+            result.Session.WorkflowId,
+            lectureNumber = result.Session.LectureNumber,
+            lectureType = result.Session.LectureType,
+            createdAt = result.Session.CreatedAt,
+            result.Session.User,
+            result.Session.Material,
+            result.Session.Workflow,
+            result.Session.Files,
+            result.Session.Notes,
+            result.Session.SessionContents,
+            compiledPrompt = result.CompiledPrompt
         };
 
-        return Ok(result);
+        return Ok(response);
     }
 
     [HttpPost]
@@ -133,49 +73,13 @@ public class SessionsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var role = User.FindFirstValue(ClaimTypes.Role);
 
-        // Block Admins from creating sessions
-        if (User.IsInRole("Admin")) return Forbid();
-
         if (string.IsNullOrEmpty(userIdStr) || string.IsNullOrEmpty(role))
             return Unauthorized();
-            
+
         int userId = int.Parse(userIdStr);
 
-        // Validate MaterialId is provided and exists
-        if (string.IsNullOrWhiteSpace(req.MaterialName))
-            return BadRequest(new { message = "يجب اختيار مادة صالحة لمتابعة العمل." });
-
-        var material = await _db.Materials
-            .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
-        if (material == null)
-            return BadRequest(new { message = "يجب اختيار مادة صالحة لمتابعة العمل." });
-
-        var workflow = await _db.Workflows
-            .Include(w => w.Permissions)
-            .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
-
-        if (workflow == null || workflow.IsActive == 0)
-            return BadRequest(new { message = "Invalid or inactive workflow." });
-
-        if (!workflow.Permissions.Any(p => p.RoleName == role))
-            return Forbid();
-
-        var session = new Session
-        {
-            UserId = userId,
-            MaterialId = material.MaterialId,
-            WorkflowId = workflow.WorkflowId,
-            LectureNumber = req.LectureNumber,
-            LectureType = req.LectureType
-        };
-
-        if (!string.IsNullOrEmpty(req.GeneralNotes))
-            session.Notes.Add(new Note { NoteText = req.GeneralNotes, NoteType = "GeneralNote" });
-
-        _db.Sessions.Add(session);
-        await _db.SaveChangesAsync();
-
-        return Created($"/api/sessions/{session.SessionId}", new { session.SessionId, session.WorkflowId });
+        var result = await _sessionService.CreateSessionAsync(userId, role, req);
+        return Created($"/api/sessions/{result.SessionId}", new { result.SessionId, result.WorkflowId });
     }
 
     [HttpPost("save")]
@@ -183,39 +87,9 @@ public class SessionsController : ControllerBase
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
-        
-        if (sessionId == null || sessionId == 0)
-            return BadRequest(new { message = "Session ID is required" });
-        
-        // Find existing session
-        var session = await _db.Sessions
-            .Include(s => s.SessionContents)
-            .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
-        if (session == null)
-            return NotFound(new { message = "Session not found" });
-            
-        if (session.UserId != userId)
-            return Forbid();
-
-        // Check if SessionContent exists - update or insert
-        var existingContent = session.SessionContents.FirstOrDefault();
-        if (existingContent != null)
-        {
-            existingContent.ContentBody = req.ContentBody;
-        }
-        else
-        {
-            _db.SessionContents.Add(new SessionContent
-            {
-                SessionId = sessionId.Value,
-                ContentBody = req.ContentBody
-            });
-        }
-
-        await _db.SaveChangesAsync();
-        
-        return Ok(new { sessionId = sessionId.Value, message = "Content saved successfully" });
+        await _sessionService.SaveSessionContentAsync(userId, sessionId, req);
+        return Ok(new { sessionId = sessionId, message = "Content saved successfully" });
     }
 
     [HttpPost("{id}/files")]
@@ -224,74 +98,11 @@ public class SessionsController : ControllerBase
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
         var role = User.FindFirstValue(ClaimTypes.Role);
-        
-        // Block Admins from uploading files
-        if (User.IsInRole("Admin")) return Forbid();
-        
-        var session = await _db.Sessions
-            .Include(s => s.Files)
-            .Include(s => s.Notes)
-            .FirstOrDefaultAsync(s => s.SessionId == id);
 
-        if (session == null) return NotFound();
-        if (session.UserId != userId) return Forbid();
+        if (string.IsNullOrEmpty(role))
+            return Unauthorized();
 
-        var files = form.Files.GetFiles("files");
-        var notes = form["notes"];
-
-        if (files == null || files.Count == 0) return BadRequest("No files uploaded.");
-
-        var uploadDir = Path.Combine(_env.ContentRootPath, "uploads", "sessions", id.ToString());
-        if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-
-        int index = session.Files.Count;
-
-        for (int i = 0; i < files.Count; i++)
-        {
-            var file = files[i];
-            var extension = Path.GetExtension(file.FileName);
-            if (string.IsNullOrEmpty(extension)) extension = ".png";
-            
-            var fileName = $"file-{index}{extension}";
-            var localFilePath = Path.Combine(uploadDir, fileName);
-
-            using (var stream = new FileStream(localFilePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            var isImage = new[] { ".png", ".jpg", ".jpeg", ".gif", ".webp" }.Contains(extension.ToLower());
-            var isDocx = extension.ToLower() == ".docx";
-            var fileType = isImage ? "Image" : (isDocx ? "Docx" : "Other");
-
-            var fileEntity = new Models.File
-            {
-                SessionId = id,
-                // Store relative path (relative to uploads directory) for correct URL resolution
-                LocalFilePath = $"sessions/{id}/{fileName}",
-                FileType = fileType,
-                OrderIndex = index
-            };
-
-            _db.Files.Add(fileEntity);
-            await _db.SaveChangesAsync();
-
-            if (notes.Count > i && !string.IsNullOrWhiteSpace(notes[i]))
-            {
-                _db.Notes.Add(new Note
-                {
-                    SessionId = id,
-                    NoteText = notes[i]!,
-                    NoteType = "FileNote",
-                    FileId = fileEntity.FileId
-                });
-            }
-
-            index++;
-        }
-
-        await _db.SaveChangesAsync();
+        await _sessionService.UploadFilesAsync(id, userId, role, form);
         return Ok();
     }
 }
-

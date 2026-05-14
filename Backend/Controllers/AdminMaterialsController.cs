@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BlueBits.Api.Data;
+using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Models;
+using BlueBits.Api.Services.Interfaces;
 
 namespace BlueBits.Api.Controllers;
 
@@ -11,62 +11,46 @@ namespace BlueBits.Api.Controllers;
 [Route("api/admin/materials")]
 public class AdminMaterialsController : ControllerBase
 {
-    private readonly BlueBitsDbContext _db;
+    private readonly IAdminMaterialService _materialService;
 
-    public AdminMaterialsController(BlueBitsDbContext db)
+    public AdminMaterialsController(IAdminMaterialService materialService)
     {
-        _db = db;
+        _materialService = materialService;
     }
 
-    // GET: /api/admin/materials
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        return Ok(await _db.Materials.ToListAsync());
+        var materials = await _materialService.GetAllAsync();
+        return Ok(materials);
     }
 
-    // GET: /api/admin/materials/{id}
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var material = await _db.Materials.FindAsync(id);
+        var material = await _materialService.GetByIdAsync(id);
         if (material == null) return NotFound();
         return Ok(material);
     }
 
-    // POST: /api/admin/materials
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Material material)
+    public async Task<IActionResult> Create([FromBody] CreateMaterialRequest request)
     {
-        _db.Materials.Add(material);
-        await _db.SaveChangesAsync();
+        var material = await _materialService.CreateAsync(request);
         return Created($"/api/admin/materials/{material.MaterialId}", material);
     }
 
-    // PUT: /api/admin/materials/{id}
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Material updated)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateMaterialRequest request)
     {
-        var material = await _db.Materials.FindAsync(id);
-        if (material == null) return NotFound();
-
-        material.MaterialName = updated.MaterialName;
-        material.MaterialYear = updated.MaterialYear;
-        await _db.SaveChangesAsync();
-
+        var material = await _materialService.UpdateAsync(id, request);
         return Ok(material);
     }
 
-    // DELETE: /api/admin/materials/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var material = await _db.Materials.FindAsync(id);
-        if (material == null) return NotFound();
-
-        _db.Materials.Remove(material);
-        await _db.SaveChangesAsync();
-
+        await _materialService.DeleteAsync(id);
         return NoContent();
     }
 }

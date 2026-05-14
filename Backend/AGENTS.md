@@ -47,7 +47,7 @@ Bootstraps the API: delegates all service registration to `ServiceCollectionExte
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
-- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, `IPromptService`), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
+- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
@@ -65,7 +65,7 @@ Top-level statements (no named functions). Key logic blocks:
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddApplicationServices`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 
@@ -130,32 +130,32 @@ Interacts directly with `BlueBitsDbContext` (SQLite via EF Core). No external AP
 Backend (C# .NET Web API Controller)
 
 ### 3. What the file does
-Provides full CRUD (Create, Read, Update, Delete) for the `Material` entity through RESTful endpoints, restricted to users with the `Admin` role.
+Thin Admin-only controller that delegates all material CRUD operations to `IAdminMaterialService`. Uses `CreateMaterialRequest` / `UpdateMaterialRequest` DTOs instead of the raw `Material` entity. Missing-resource errors for `Update` and `Delete` propagate as `NotFoundException` through `ExceptionHandlingMiddleware` (404). The controller is purely an HTTP adapter — no business logic or data access.
 
 ### 4. User Stories
 - As an Admin, I can list all materials to manage them.
 - As an Admin, I can view, create, update, or delete a specific material.
 
 ### 5. Functions Summary
-- `GetAll()`: Returns all materials.
-- `GetById(int id)`: Returns a single material by ID, or 404.
-- `Create(Material material)`: Creates a new material, returns 201 with location header.
-- `Update(int id, Material updated)`: Updates `MaterialName` and `MaterialYear`, returns the updated material.
-- `Delete(int id)`: Deletes a material, returns 204 No Content.
+- `GetAll()`: Delegates to `_materialService.GetAllAsync()`, returns all materials.
+- `GetById(int id)`: Delegates to `_materialService.GetByIdAsync(id)`, returns a single material or 404.
+- `Create(CreateMaterialRequest)`: Delegates to `_materialService.CreateAsync(request)`, returns 201 with location header.
+- `Update(int id, UpdateMaterialRequest)`: Delegates to `_materialService.UpdateAsync(id, request)`, returns the updated material. Throws `NotFoundException` via middleware if material not found.
+- `Delete(int id)`: Delegates to `_materialService.DeleteAsync(id)`, returns 204 No Content. Throws `NotFoundException` via middleware if material not found.
 
 ### 6. Integration
-Interacts with a SQLite database via Entity Framework Core (`BlueBitsDbContext.Materials` DbSet).
+Depends solely on `IAdminMaterialService` (injected via DI). No direct database access.
 
 ### 7. Imports Summary
 - **ASP.NET Core:** `Authorize`, `ApiController`, `Route`, `HttpGet/Post/Put/Delete`, `FromBody`, `IActionResult`, `ControllerBase`
-- **EF Core:** `ToListAsync`, `FindAsync`, `SaveChangesAsync`
-- **Internal:** `BlueBitsDbContext` (Data), `Material` (Models)
+- **Internal:** `BlueBits.Api.DTOs.Requests` (`CreateMaterialRequest`, `UpdateMaterialRequest`), `BlueBits.Api.Models` (`Material`), `BlueBits.Api.Services.Interfaces` (`IAdminMaterialService`)
 
 ### 8. Additional Info
 - Entire controller decorated with `[Authorize(Roles = "Admin")]` — no non-admin access.
 - Route prefix: `api/admin/materials`.
 - All methods are async.
-- Update only modifies `MaterialName` and `MaterialYear`, not all fields.
+- Service layer (`AdminMaterialService`) throws `NotFoundException` on Update/Delete for missing entities, handled globally by `ExceptionHandlingMiddleware`.
+- Request validation handled by FluentValidation (auto-discovered validators from assembly).
 ## 1. File Name and Directory
 `Backend/Controllers/AdminPermissionsController.cs`
 
@@ -958,17 +958,19 @@ Placed after Swagger but before all other middleware to catch every unhandled ex
 Backend — ASP.NET Core extension methods for DI service registration
 
 ### 3. What the file does
-Provides four extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, `IPromptService`), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
+Provides five extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
 
 ### 4. User Stories
 - As a developer, I can call `builder.Services.AddInfrastructure()` to register CORS, compression, rate limiting, and background services in one line.
-- As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and data services.
+- As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and repositories.
+- As a developer, I can call `builder.Services.AddApplicationServices()` to register all 11 business and admin service implementations.
 - As a developer, I can call `builder.Services.AddAuthLayer()` to configure JWT authentication and role policies.
 - As a developer, I can call `builder.Services.AddApiLayer()` to register controllers, FluentValidation, and Swagger.
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting()`, and `OrphanFileCleanupService` as a hosted service.
-- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService` as scoped services, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped. Registers 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`) as scoped.
+- `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
+- `AddApplicationServices(IServiceCollection)`: Registers 11 scoped application services — 6 business services (`IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService`, `IMaterialService`) and 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`).
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -980,7 +982,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Registers `IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, and `IMergeService` as scoped services, all 9 specific repositories alongside the open generic `IRepository<>`, and 5 admin service interfaces/implementations, in `AddPersistence`.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Business and admin services were extracted from `AddPersistence` into a dedicated `AddApplicationServices` method (11 total). `AddPersistence` now handles only EF Core DbContext and repositories.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -1001,8 +1003,8 @@ Files:
 - `ToggleWorkflowRequest.cs` — IsActive toggle (from `AdminWorkflowsController.cs`)
 - `UpdatePromptRequest.cs` — PromptText update (from `AdminPromptsController.cs`)
 - `GenerateDocxRequest.cs` — DOCX generation parameters (from `PandocEndpoints.cs`)
-- `CreateMaterialRequest.cs` — Material creation with name and year (extracted for `AdminMaterialsController` service layer)
-- `UpdateMaterialRequest.cs` — Material update with name and year (extracted for `AdminMaterialsController` service layer)
+- `CreateMaterialRequest.cs` — Material creation with name and year (consumed by refactored `AdminMaterialsController` via `IAdminMaterialService`)
+- `UpdateMaterialRequest.cs` — Material update with name and year (consumed by refactored `AdminMaterialsController` via `IAdminMaterialService`)
 
 ### 4. User Stories
 - As a developer, I can reference all request DTOs from a single namespace `BlueBits.Api.DTOs.Requests` for reuse and discoverability.

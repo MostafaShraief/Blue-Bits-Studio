@@ -78,7 +78,7 @@ Bootstraps the API: registers services (Serilog, JWT auth, EF Core SQLite, CORS,
 
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
-- Bootstrap logger: Serilog writes to Console and rolling file (`logs/bluebits-.log`)
+- Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
 - Service registration: Controllers, JWT auth, DbContext, CORS, compression, Swagger, Rate Limiting via `AddRateLimiting()` (FixedWindow 5 req/s per IP, Swagger/health excluded), FluentValidation auto-validation, `IPromptCompilationService`, `OrphanFileCleanupService`
 - Middleware pipeline: CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
 - `db.Database.EnsureCreated()`: Auto-creates SQLite DB
@@ -89,7 +89,7 @@ Top-level statements (no named functions). Key logic blocks:
 - **Database:** SQLite via EF Core (`BlueBitsDbContext`)
 - **Auth:** JWT bearer tokens (Issuer, Audience, SymmetricKey from config)
 - **Background Service:** `OrphanFileCleanupService` for nightly file cleanup
-- **Logging:** Serilog (Console + rolling File sinks)
+- **Logging:** Serilog sink configuration from `appsettings.json` — Console (AnsiConsoleTheme colored) + rolling File (`Logs/bluebits-.log`, JSON format)
 - **Static Files:** Serves physical files from `./uploads/` at `/uploads` URL path
 
 ### 7. Imports Summary
@@ -97,7 +97,7 @@ Top-level statements (no named functions). Key logic blocks:
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Services`, `BlueBits.Api.Extensions`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+Uses C# 10 top-level statements. `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger replaces the previous `Microsoft.AspNetCore.OpenApi` / `MapOpenApi` setup. Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
 ## 1. File Name and Directory
 `Backend/Extensions/RateLimitingExtensions.cs`
 
@@ -127,6 +127,30 @@ Does not call databases or external services. Registers ASP.NET Core's built-in 
 
 ### 8. Additional Info
 Consumed by `Program.cs` via `builder.Services.AddRateLimiting()`. Uses a `string` partition key — the client's IP string or `"unknown"` if `RemoteIpAddress` is null. No queuing (`QueueLimit = 0`) — excess requests are immediately rejected.
+## 1. File Name and Directory
+`Backend/Extensions/LoggingExtensions.cs`
+
+### 2. File Type
+Backend — C# static extension class
+
+### 3. What the file does
+Provides a `UseSerilogLogging` extension method on `IHostBuilder` that initializes the Serilog bootstrap logger (minimal Console sink) and wires up `builder.Host.UseSerilog()` to read the full sink configuration (colored Console + JSON rolling file) from `appsettings.json`.
+
+### 4. User Stories
+- As a developer, I call `builder.Host.UseSerilogLogging(builder)` in Program.cs to centralize Serilog bootstrap setup.
+- As a developer, Serilog sink configuration is driven by `appsettings.json` rather than hardcoded in Program.cs.
+
+### 5. Functions Summary
+- `UseSerilogLogging`: Creates a console-only bootstrap logger, then configures `UseSerilog` via `ReadFrom.Configuration()`.
+
+### 6. Integration
+Does not call APIs or databases. Integrates with the ASP.NET Core host builder and Serilog pipeline.
+
+### 7. Imports Summary
+- `Serilog` — for `LoggerConfiguration`, `UseSerilog`
+
+### 8. Additional Info
+The bootstrap logger is deliberately minimal (console only) to capture startup errors before `appsettings.json` configuration is loaded. After `UseSerilog` runs, Serilog replaces the bootstrap logger with the full configuration from `appsettings.json`.
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 

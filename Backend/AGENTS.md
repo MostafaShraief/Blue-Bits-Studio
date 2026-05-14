@@ -34,7 +34,7 @@ Update this section constantly for **any** minor change you do in each file.
 Backend — ASP.NET Core Web API entry point (top-level statements)
 
 ### 3. What the file does
-Bootstraps the API: delegates all service registration to `ServiceCollectionExtensions` via `AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`, configures middleware pipeline (global exception handler, CORS, compression, rate limiter, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation on startup, and serves uploaded files from `/uploads`.
+Bootstraps the API: delegates all service registration to `ServiceCollectionExtensions` via `AddInfrastructure`, `AddPersistence`, `AddAuthLayer`, `AddApiLayer`, configures middleware pipeline (global exception handler, rate limiter, CORS, compression, auth, static files), maps controllers and minimal API endpoints (Pandoc, Merge), ensures DB creation via `EnsureDatabaseCreated`, and serves uploaded files via `ServeUploadedFiles`.
 
 ### 4. User Stories
 - As a user, I authenticate via JWT to access protected API endpoints.
@@ -48,8 +48,9 @@ Bootstraps the API: delegates all service registration to `ServiceCollectionExte
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
 - Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
-- Middleware pipeline: ExceptionHandler → CORS → ResponseCompression → RateLimiter → Auth → StaticFiles → Controllers → Minimal endpoints
-- `db.Database.EnsureCreated()`: Auto-creates SQLite DB
+- Middleware pipeline: ExceptionHandler → RateLimiter → CORS → ResponseCompression → Auth → StaticFiles → Controllers → Minimal endpoints
+- DB initialization: extracted to `ApplicationBuilderExtensions.EnsureDatabaseCreated` (`db.Database.EnsureCreated()`)
+- Static files: extracted to `ApplicationBuilderExtensions.ServeUploadedFiles` (serves `./uploads/` at `/uploads`)
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
 - `MapPandocEndpoints` / `MapMergeEndpoints`: Minimal API groups secured with `WorkflowPolicy`
 
@@ -62,10 +63,10 @@ Top-level statements (no named functions). Key logic blocks:
 
 ### 7. Imports Summary
 - **External:** `Serilog`
-- **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`
+- **Internal:** `BlueBits.Api.Endpoints`, `BlueBits.Api.Extensions`, `BlueBits.Api.Middleware`
 
 ### 8. Additional Info
-Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddApplicationServices`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header).
+Uses C# 10 top-level statements. Service registration is fully delegated to `ServiceCollectionExtensions` (`AddInfrastructure`, `AddPersistence`, `AddApplicationServices`, `AddAuthLayer`, `AddApiLayer`). `WorkflowPolicy` blocks Admin but allows all other roles dynamically — new roles work automatically without code changes. HTTPS redirection is commented out for dev convenience. `ClockSkew` is set to zero for tighter JWT security. Swagger configuration is delegated to `Extensions/SwaggerExtensions.cs` (`AddSwaggerWithConfig` / `UseSwaggerWithUI`). Bootstrap logger (Console-only) enables early startup error logging before full config is loaded; `builder.Host.UseSerilog()` then reads the complete sink setup from `appsettings.json`. Rate limiting is delegated to `RateLimitingExtensions.AddRateLimiting()` (5 req/s per IP, Swagger/health excluded, 429 with `Retry-After` header). DB initialization and static file serving are extracted to `ApplicationBuilderExtensions` (`EnsureDatabaseCreated`, `ServeUploadedFiles`) — Program.cs contains no inline service registration, DB access, or static file configuration. Middleware pipeline order: ExceptionHandling → RateLimiter → CORS → ResponseCompression → Auth → StaticFiles → Controllers → Minimal endpoints.
 ## 1. File Name and Directory
 `Backend/Constants/AppConstants.cs`
 

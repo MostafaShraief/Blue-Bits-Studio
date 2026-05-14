@@ -1,4 +1,3 @@
-using BlueBits.Api.Data;
 using BlueBits.Api.Endpoints;
 using BlueBits.Api.Extensions;
 using BlueBits.Api.Middleware;
@@ -23,46 +22,17 @@ try
 
     var app = builder.Build();
 
-    // Configure Swagger UI at /swagger
     app.UseSwaggerWithUI();
-
-    // Global exception handling middleware — must be early in pipeline
     app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-    // Ensure database is created and migrations applied
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<BlueBitsDbContext>();
-        db.Database.EnsureCreated();
-    }
-
-    // app.UseHttpsRedirection();
-    // Commented to allow HTTP connections from frontend dev server
-
-    app.UseCors("AllowFrontend");
-
-    app.UseResponseCompression();
-
+    app.EnsureDatabaseCreated();
     app.UseRateLimiter();
-
+    app.UseCors("AllowFrontend");
+    app.UseResponseCompression();
     app.UseAuthentication();
     app.UseAuthorization();
-
-    // Serve static files for uploaded images
-    var uploadPath = Path.Join(app.Environment.ContentRootPath, "uploads");
-    if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
-
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
-        RequestPath = "/uploads"
-    });
-
+    app.ServeUploadedFiles();
     app.MapControllers();
-
-    // Map Minimal Endpoints and Secure Them with WorkflowPolicy (excludes Admin)
     app.MapGroup("/api/pandoc").MapPandocEndpoints().RequireAuthorization("WorkflowPolicy");
-
     app.MapGroup("/api/merge").MapMergeEndpoints().RequireAuthorization("WorkflowPolicy");
 
     app.Run();

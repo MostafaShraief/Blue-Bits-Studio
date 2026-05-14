@@ -1208,20 +1208,20 @@ Three-step wizard that lets users prepare a session, paste/upload Markdown conte
 ### 5. Functions Summary
 - `handleFileOpen`: Reads a selected `.md` file and sets its content as markdown text.
 - `handleDrop`: Handles drag-and-drop of `.md` files into the textarea.
-- `handleGenerate`: Creates a session, saves markdown content, calls Pandoc generation API, and provides download link.
-- `goNext`/`goBack`: Stepper navigation between wizard steps.
+- `handleGenerate`: Creates a session via `SessionsApi`, saves markdown content, calls `PandocApi.generate`, and provides download link. Handles 429 with warning toast and 400 errors with per-field validation display.
+- `clearFieldError`: Removes a single field error from `fieldErrors` state on user input.
 
 ### 6. Integration
-Calls backend REST APIs via `createSession`, `saveSessionContent`, `fetchSession`, and `generatePandoc` to create sessions, store markdown, and generate Word documents.
+Calls backend REST APIs via `SessionsApi` (createSession, getSession, saveSessionContent) and `PandocApi` (generate). Both use `HttpClient` for JWT auth, 429 rate-limit detection (throws `RateLimitError`), and 400 FluentValidation error binding (throws `ApiError.errors`).
 
 ### 7. Imports Summary
-External: `react-router` (useSearchParams), `react` (useEffect, useState, useRef), `lucide-react` (icons). Internal: `WizardStepper`, `PasteButton`, `MaterialAutocomplete`, `SettingsContext`, `utils/api`.
+External: `react-router` (useSearchParams), `react` (useEffect, useState, useRef), `lucide-react` (icons). Internal: `useWizard` (step management), `useToast` (notifications), `PandocApi`, `SessionsApi`, `SettingsContext`, `HttpClient` (ApiError, RateLimitError), `errorFormatter` (formatRateLimitError).
 
 ### 8. Additional Info
-Arabic-first UI with RTL layout. Uses `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported.
+Arabic-first UI with RTL layout. Uses `useWizard` for step navigation and `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported. 429 responses show a warning toast with formatted Arabic retry-after message. 400 FluentValidation errors are normalized to lowercase keys and rendered inline under each input field, cleared on user interaction.
 
 ### 9. API
-**Create Session:** `POST /api/sessions` with `{ materialName, lectureNumber, lectureType, workflowSystemCode: 'PANDOC' }` → returns `{ sessionId }`. **Save Content:** `POST /api/session-contents` with `{ sessionId, contentBody }`. **Generate:** `POST /api/pandoc/generate` with `{ markdownText, templateName, materialName, lectureNumber, lectureType }` → returns `{ fileUrl }`. **Fetch Session:** `GET /api/sessions?id=...` → returns session data with `sessionContents[0].contentBody`.
+**Create Session:** `POST /api/sessions` (via `SessionsApi.createSession`) with `{ materialName, lectureNumber, lectureType, workflowSystemCode: 'PANDOC' }` → returns `{ id, sessionId }`. **Save Content:** `POST /api/sessions/save` (via `SessionsApi.saveSessionContent`) with `{ sessionId, contentBody }`. **Generate:** `POST /api/pandoc/generate` (via `PandocApi.generate`) with `{ markdownText, templateName, materialName, type, lectureNumber }` → returns `{ fileUrl }`. **Fetch Session:** `GET /api/sessions/{id}` (via `SessionsApi.getSession`) → returns session data with `sessionContents[0].contentBody`. **429:** `HttpClient` throws `RateLimitError` → caught and shown as warning toast via `formatRateLimitError`. **400:** `HttpClient` throws `ApiError` with `errors` map (flattened via `formatValidationErrors`) → normalized to lowercase and rendered per-field.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/QuizHub.jsx`

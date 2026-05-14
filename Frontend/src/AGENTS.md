@@ -1512,3 +1512,36 @@ Sessions are stored as JSON under `localStorage['bluebits_sessions']`. All read 
 ### 9. API
 No HTTP requests. All data flows to/from `localStorage` synchronously via `JSON.parse`/`JSON.stringify`.
 
+## 1. File Name and Directory
+`Frontend/src/utils/errorFormatter.js`
+
+### 2. File Type
+Frontend — Arabic error formatting utility
+
+### 3. What the file does
+Provides three helper functions to format API errors into human-readable Arabic messages and structured validation error maps. Designed to be used by the API utility layer and UI components for consistent error presentation.
+
+### 4. User Stories
+- As a user, I see clear Arabic messages when rate-limited, with the exact wait time.
+- As a developer, I call `formatValidationErrors(raw)` to flatten backend validation errors into `{field: message}` for per-field display.
+- As a user, I see context-aware Arabic fallback messages for common HTTP errors (404, 403, 409, 500, 503).
+
+### 5. Functions Summary
+- `formatRateLimitError(retryAfter)`: Converts seconds to Arabic "طلبات كثيرة جداً..." message with minutes/seconds.
+- `formatValidationErrors(raw)`: Flattens `Record<string, string[]>` into `Record<string, string>` taking the first message per field.
+- `formatGeneralError(apiError)`: Returns Arabic message based on HTTP status or falls back to `apiError.message`. Default: "حدث خطأ غير متوقع."
+
+### 6. Integration
+No backend calls. Pure utility — consumes error objects thrown by `utils/api.js` or caught in UI components.
+
+### 7. Imports Summary
+Zero imports. Standalone utility with no dependencies.
+
+### 8. Additional Info
+- `formatRateLimitError` defaults to 60 seconds if `retryAfter` is falsy/non-numeric.
+- `formatValidationErrors` returns `{}` for null/non-object input.
+- `formatGeneralError` checks both `status` and message text to detect error type resiliently.
+
+### 9. API
+No direct API interaction. Designed to format errors from backend responses (429, 400 with validation errors, 4xx/5xx).
+

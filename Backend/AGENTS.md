@@ -327,7 +327,7 @@ Depends on `IPromptService` for prompt retrieval and compilation logic.
 ASP.NET Core attributes (`[Authorize]`, `[ApiController]`, `[Route]`, `[HttpGet]`, `[HttpPost]`), `System.Security.Claims`, and internal project services (`BlueBits.Api.Services.Interfaces`, `BlueBits.Api.DTOs.Requests`).
 
 ### 8. Additional Info
-`CompilePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`. Admins are forbidden from both endpoints (`return Forbid()`).
+`CompilePromptRequest` is imported from `BlueBits.Api.DTOs.Requests` — previously an inline DTO, now extracted to `Backend/DTOs/Requests/`. Admins are forbidden from both endpoints (`return Forbid()`). Both endpoints have Swagger XML doc comments (`<summary>`, `<param>`, `<response>`) for OpenAPI documentation.
 ## 1. File Name and Directory
 `Backend/Controllers/SessionsController.cs`
 

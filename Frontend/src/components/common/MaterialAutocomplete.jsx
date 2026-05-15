@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { fetchMaterials } from '../../utils/api';
+import { getDistinctNames } from '../../api/MaterialsApi';
 
 export default function MaterialAutocomplete({ value, onChange, label = 'اسم المادة', required = true, onValidChange }) {
     const [materials, setMaterials] = useState([]);
@@ -26,7 +26,7 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
     const hasInput = value && value.trim().length > 0;
 
     useEffect(() => {
-        fetchMaterials().then(data => {
+        getDistinctNames().then(data => {
             setMaterials(data || []);
             setFiltered(data || []);
         });

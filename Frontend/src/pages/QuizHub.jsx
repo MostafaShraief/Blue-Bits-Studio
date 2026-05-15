@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { saveQuizSession, fetchSession, createSession, compilePromptStateless } from '../utils/api';
+import { getSession, createSession, saveSessionContent } from '../api/SessionsApi';
+import { compilePrompt } from '../api/PromptsApi';
 import { useSettings } from '../contexts/SettingsContext';
 
 const STEPS = ['إعداد الجلسة', 'محرر JSON'];
@@ -66,7 +67,7 @@ export default function QuizHub() {
 
   const loadSession = async (id) => {
     try {
-      const session = await fetchSession(id);
+      const session = await getSession(id);
       const sessionContent = session.sessionContents?.[0];
       if (sessionContent?.contentBody) {
         const quizArray = typeof sessionContent.contentBody === 'string' 
@@ -115,23 +116,30 @@ export default function QuizHub() {
 
     if (!materialName.trim()) {
         alert('الرجاء إدخال اسم المادة قبل الحفظ.');
-        setStep(0); // go back to metadata
+        setStep(0);
         return;
     }
 
     setIsSaving(true);
     try {
-      const result = await saveQuizSession({
-        id: sessionId || undefined,
-        materialName: materialName,
-        lectureNumber: Number(lectureNumber),
-        lectureType: lectureType,
-        workflowSystemCode: 'BANK_QS',
-        generalNotes: '',
-        quizData: formQuizData,
-      });
-      
-      setSessionId(result.id);
+      let currentSessionId = sessionId;
+
+      if (!currentSessionId) {
+        const created = await createSession({
+          materialName,
+          lectureNumber: Number(lectureNumber),
+          lectureType,
+          workflowSystemCode: 'BANK_QS',
+          generalNotes: '',
+        });
+        currentSessionId = created.id || created.sessionId;
+      }
+
+      if (currentSessionId && formQuizData.length > 0) {
+        await saveSessionContent(currentSessionId, { contentBody: JSON.stringify(formQuizData) });
+      }
+
+      setSessionId(currentSessionId);
       setHasUnsavedChanges(false);
       setSaveStatus(sessionId ? 'updated' : 'saved');
       setTimeout(() => setSaveStatus(null), 2000);
@@ -178,11 +186,7 @@ export default function QuizHub() {
     
     setIsLoadingPrompt(true);
     try {
-      const res = await compilePromptStateless({
-          systemCode: 'BANK_QS',
-          generalNotes: '',
-          fileNotes: []
-      });
+      const res = await compilePrompt('BANK_QS', '', []);
       setPromptText(res?.compiledPrompt || '');
       setStep(1); // Go directly to JSON Editor
     } catch (e) {

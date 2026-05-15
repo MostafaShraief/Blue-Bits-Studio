@@ -9,7 +9,7 @@ import {
     XCircle,
     ChevronDown
 } from 'lucide-react';
-import { fetchMaterials } from '../utils/api';
+import { getDistinctNames } from '../api/MaterialsApi';
 
 // Custom Material Selector for Settings Modal
 function MaterialSelector({ value, onChange }) {
@@ -23,7 +23,7 @@ function MaterialSelector({ value, onChange }) {
     const listRef = useRef(null);
 
     useEffect(() => {
-        fetchMaterials().then(data => {
+        getDistinctNames().then(data => {
             // Sort materials alphabetically ascending (case-insensitive)
             const sorted = (data || []).sort((a, b) => 
                 a.toLowerCase().localeCompare(b.toLowerCase(), 'ar')

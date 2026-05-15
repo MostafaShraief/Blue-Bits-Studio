@@ -13,7 +13,7 @@ import {
     Users,
     Settings2,
 } from 'lucide-react';
-import { fetchSessions, fetchStats } from '../utils/api';
+import { getSessions } from '../api/SessionsApi';
 import { useAuth } from '../contexts/AuthContext';
 
 const getSessionRoute = (session) => {
@@ -105,14 +105,28 @@ export default function Dashboard() {
 
     useEffect(() => {
         const load = async () => {
-            const s = await fetchStats();
-            setStats(s);
-            const data = await fetchSessions(1, 5);
-            const allSessions = data.sessions ? data.sessions.slice(0, 5) : [];
-            const authorizedSessions = allSessions.filter(s =>
-                hasWorkflowAccess(s.workflowType)
-            );
-            setRecent(authorizedSessions);
+            try {
+                const statsData = await getSessions(1, 1000);
+                const sessions = statsData.sessions || [];
+                setStats({
+                    total: sessions.length,
+                    LEC_EXT: sessions.filter((s) => s.workflowType === 'LEC_EXT').length,
+                    BANK_EXT: sessions.filter((s) => s.workflowType === 'BANK_EXT').length,
+                    BANK_QS: sessions.filter((s) => s.workflowType === 'BANK_QS').length,
+                    DRAW: sessions.filter((s) => s.workflowType === 'DRAW').length,
+                    PANDOC: sessions.filter((s) => s.workflowType === 'PANDOC').length,
+                    LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD' || s.workflowType === 'BANK_COORD').length,
+                });
+
+                const recentData = await getSessions(1, 5);
+                const allSessions = recentData.sessions ? recentData.sessions.slice(0, 5) : [];
+                const authorizedSessions = allSessions.filter(s =>
+                    hasWorkflowAccess(s.workflowType)
+                );
+                setRecent(authorizedSessions);
+            } catch (e) {
+                console.error('Failed to load dashboard data:', e);
+            }
         };
         load();
     }, [hasWorkflowAccess]);

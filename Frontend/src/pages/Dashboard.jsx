@@ -106,8 +106,8 @@ export default function Dashboard() {
     useEffect(() => {
         const load = async () => {
             try {
-                const statsData = await getSessions(1, 1000);
-                const sessions = statsData.sessions || [];
+                const data = await getSessions(1, 1000);
+                const sessions = data.sessions || [];
                 setStats({
                     total: sessions.length,
                     LEC_EXT: sessions.filter((s) => s.workflowType === 'LEC_EXT').length,
@@ -118,11 +118,9 @@ export default function Dashboard() {
                     LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD' || s.workflowType === 'BANK_COORD').length,
                 });
 
-                const recentData = await getSessions(1, 5);
-                const allSessions = recentData.sessions ? recentData.sessions.slice(0, 5) : [];
-                const authorizedSessions = allSessions.filter(s =>
-                    hasWorkflowAccess(s.workflowType)
-                );
+                const authorizedSessions = sessions
+                    .slice(0, 5)
+                    .filter(s => hasWorkflowAccess(s.workflowType));
                 setRecent(authorizedSessions);
             } catch (e) {
                 console.error('Failed to load dashboard data:', e);

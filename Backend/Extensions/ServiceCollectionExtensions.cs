@@ -36,7 +36,7 @@ public static class ServiceCollectionExtensions
             options.Providers.Add<GzipCompressionProvider>();
         });
 
-        services.AddRateLimiting();
+        services.AddRateLimiting(configuration);
 
         services.AddHostedService<OrphanFileCleanupService>();
 

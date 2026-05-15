@@ -79,7 +79,7 @@ Frontend/src/App.jsx
 Frontend — Root React component / Router entry point
 
 ### 3. What the file does
-Sets up the top-level app shell: wraps the app in AuthProvider, BrowserRouter, ToastProvider, and TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404). Renders the global `<Toast />` component outside Suspense so it is always mounted.
+Sets up the top-level app shell with provider order: ToastProvider > AuthProvider > BrowserRouter > TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404). Renders the global `<Toast />` component outside Suspense so it is always mounted.
 
 ### 4. User Stories
 - As a user, I log in and land on the Dashboard, then access workflows I have permission for.
@@ -567,7 +567,7 @@ N/A — no backend communication
 Frontend (React Context Provider)
 
 ### 3. What the file does
-Manages authentication state — login, logout, session auto-restore via `AuthApi.getCurrentUser()` on mount, and workflow-level RBAC authorization checks. Uses `AuthApi` (which wraps HttpClient) for all backend communication and `showToastGlobal` for error display.
+Manages authentication state — login, logout, session auto-restore via `AuthApi.getCurrentUser()` on mount, and workflow-level RBAC authorization checks. Uses `AuthApi` (which wraps HttpClient) for all backend communication and `useToast()` for error display.
 
 ### 4. User Stories
 - As a user, I can log in with my username/password and have my session persisted across page reloads via auto-restore.
@@ -576,23 +576,23 @@ Manages authentication state — login, logout, session auto-restore via `AuthAp
 ### 5. Functions Summary
 - `mapUser(data)`: Maps `LoginResponse` (backend shape with `authorizedWorkflows`) to frontend `User` shape (`allowedWorkflows`).
 - `AuthProvider`: Context provider wrapping children with auth state (`user`, `login`, `logout`, `loading`, `hasWorkflowAccess`)
-- `login(username, password)`: Calls `AuthApi.login()` to POST credentials, stores JWT + mapped user profile in localStorage. Shows error toast on failure via `showToastGlobal`.
+- `login(username, password)`: Calls `AuthApi.login()` to POST credentials, stores JWT + mapped user profile in localStorage. Shows error toast on failure via `useToast()`.
 - `logout()`: Clears user state and localStorage
 - `hasWorkflowAccess(systemCode)`: Returns `true` if user is Admin or their `allowedWorkflows` includes the given SystemCode
 - `useAuth()`: Hook to consume `AuthContext`
 
 ### 6. Integration
-Calls backend via `AuthApi` (`HttpClient`): `POST /api/auth/login` and `GET /api/auth/me`. Uses `showToastGlobal` from ToastContext for error toasts.
+Calls backend via `AuthApi` (`HttpClient`): `POST /api/auth/login` and `GET /api/auth/me`. Uses `useToast()` from ToastContext for error toasts.
 
 ### 7. Imports Summary
 - **External:** React hooks (`createContext`, `useState`, `useEffect`, `useCallback`, `useContext`)
-- **Internal:** `login, getCurrentUser` from `../api/AuthApi`; `showToastGlobal` from `./ToastContext`
+- **Internal:** `login, getCurrentUser` from `../api/AuthApi`; `useToast` from `./ToastContext`
 
 ### 8. Additional Info
 - Session is persisted in localStorage under keys `bluebits_user` and `token`.
 - On mount, no hydration from localStorage — calls `getCurrentUser()` directly to verify token and fetch fresh profile.
 - `loading` stays `true` until `getCurrentUser()` resolves (or token is absent) to prevent UI flicker.
-- AuthProvider wraps ToastProvider in the component tree, so `useToast()` cannot be called here — `showToastGlobal` (CustomEvent on window) is used instead.
+- ToastProvider wraps AuthProvider in the component tree, so `useToast()` (Context API hook) is used directly for toast display instead of the legacy `showToastGlobal` (CustomEvent).
 
 ### 9. API
 | Endpoint | Method | Request Body | Response Body |

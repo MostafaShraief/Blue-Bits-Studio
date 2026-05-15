@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { login as authApiLogin, getCurrentUser } from '../api/AuthApi';
-import { showToastGlobal } from './ToastContext';
+import { useToast } from './ToastContext';
 
 export const AuthContext = createContext();
 
@@ -18,6 +18,7 @@ function mapUser(data) {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
 
     // Auto-restore session via getCurrentUser() on mount
     useEffect(() => {
@@ -56,7 +57,7 @@ export function AuthProvider({ children }) {
             return userData;
         } catch (err) {
             const message = err.message || 'فشل تسجيل الدخول';
-            showToastGlobal(message, 'error');
+            showToast(message, 'error');
             throw err;
         }
     };

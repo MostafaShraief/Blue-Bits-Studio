@@ -30,9 +30,9 @@ const AdminSystem = lazy(() => import('./pages/admin/SystemConfig'));
 
 export default function App() {
     return (
-        <AuthProvider>
-            <BrowserRouter>
-                <ToastProvider>
+        <ToastProvider>
+            <AuthProvider>
+                <BrowserRouter>
                     <TourProvider>
                         <Suspense fallback={<PageLoader />}>
                             <Routes>
@@ -97,8 +97,8 @@ export default function App() {
                         </Suspense>
                     </TourProvider>
                     <Toast />
-                </ToastProvider>
-            </BrowserRouter>
-        </AuthProvider>
+                </BrowserRouter>
+            </AuthProvider>
+        </ToastProvider>
     );
 }

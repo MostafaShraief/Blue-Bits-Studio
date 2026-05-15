@@ -79,7 +79,7 @@ Frontend/src/App.jsx
 Frontend — Root React component / Router entry point
 
 ### 3. What the file does
-Sets up the top-level app shell: wraps the app in AuthProvider, BrowserRouter, and TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404).
+Sets up the top-level app shell with provider order: ToastProvider > AuthProvider > BrowserRouter > TourProvider; lazy-loads all page components; defines nested Routes with cascade guards (ProtectedRoute → Layout → optional ProtectedRoute per workflow; AdminRoute for admin pages; AuthOnlyRoute for 404). Renders the global `<Toast />` component outside Suspense so it is always mounted.
 
 ### 4. User Stories
 - As a user, I log in and land on the Dashboard, then access workflows I have permission for.
@@ -94,7 +94,7 @@ No direct API calls. Relies on `AuthContext` which communicates with backend aut
 
 ### 7. Imports Summary
 - **External:** `react-router` (BrowserRouter, Routes, Route, Navigate), `react` (Suspense, lazy)
-- **Internal:** `AuthContext`, `TourContext`, `Layout`, 3 route guards (`AdminRoute`, `AuthOnlyRoute`, `ProtectedRoute`), `PageLoader`, and 16 lazy-loaded page components (Dashboard, ExtractionWizard, CoordinationWizard, PandocWizard, DrawWizard, QuizHub, History, Tour, MergeWizard, Login, Unauthorized, NotFound, AdminUnauthorized, AdminUsers, AdminMaterials, AdminSystem).
+- **Internal:** `AuthContext`, `TourContext`, `ToastContext`, `Layout`, 3 route guards (`AdminRoute`, `AuthOnlyRoute`, `ProtectedRoute`), `PageLoader`, `Toast`, and 16 lazy-loaded page components (Dashboard, ExtractionWizard, CoordinationWizard, PandocWizard, DrawWizard, QuizHub, History, Tour, MergeWizard, Login, Unauthorized, NotFound, AdminUnauthorized, AdminUsers, AdminMaterials, AdminSystem).
 
 ### 8. Additional Info
 Every page is lazy-loaded via `React.lazy`. Route guard nesting: outer `ProtectedRoute` checks auth → `Layout` provides sidebar → individual `ProtectedRoute` with `requiredCode` prop enforces per-workflow SystemCode access. Extraction and Coordination use double-gate logic (guarded by ProtectedRoute, then validated inside the wizard component itself).
@@ -182,11 +182,11 @@ A controlled autocomplete input for selecting a material from a server-fetched l
 - `MaterialAutocomplete({ value, onChange, label, required, onValidChange })`: Main component — renders label, input with validation icons, dropdown list, and error messages. Manages open/close state, click-outside dismissal, and material fetching on mount.
 
 ### 6. Integration
-Calls `fetchMaterials()` from `utils/api` on mount — this hits `GET /api/materials` (with client-side caching). No database or external service calls.
+Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/materials` (with client-side caching). No database or external service calls.
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useEffect, useRef, useMemo, useCallback)
-- **Internal:** `fetchMaterials` from `../../utils/api`
+- **Internal:** `getDistinctNames` from `../../api/MaterialsApi`
 
 ### 8. Additional Info
 Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive).
@@ -456,11 +456,11 @@ Settings modal component with dark mode toggle, auto-save toggle (hidden for adm
 - `SettingsModal`: Main modal composing all settings toggles, material selector, and logout flow
 
 ### 6. Integration
-Calls backend API via `fetchMaterials()` from `../utils/api` → `GET /api/materials` (cached)
+Calls backend API via `getDistinctNames()` from `../api/MaterialsApi` → `GET /api/materials` (cached)
 
 ### 7. Imports Summary
 - **External**: `react` (useState, useEffect, useRef), `react-dom` (createPortal), `lucide-react` (Moon, Sun, Save, LogOut, X, XCircle, ChevronDown)
-- **Internal**: `fetchMaterials` from `../utils/api`
+- **Internal**: `getDistinctNames` from `../api/MaterialsApi`
 
 ### 8. Additional Info
 - Arabic-first: labels, placeholders, and confirmation text are in Arabic
@@ -567,37 +567,38 @@ N/A — no backend communication
 Frontend (React Context Provider)
 
 ### 3. What the file does
-Manages authentication state — login, logout, session hydration from localStorage, profile sync with backend, and workflow-level RBAC authorization checks.
+Manages authentication state — login, logout, session auto-restore via `AuthApi.getCurrentUser()` on mount, and workflow-level RBAC authorization checks. Uses `AuthApi` (which wraps HttpClient) for all backend communication and `useToast()` for error display.
 
 ### 4. User Stories
-- As a user, I can log in with my username/password and have my session persisted across page reloads.
+- As a user, I can log in with my username/password and have my session persisted across page reloads via auto-restore.
 - As an admin, I automatically bypass all workflow permission checks and see all tools.
 
 ### 5. Functions Summary
+- `mapUser(data)`: Maps `LoginResponse` (backend shape with `authorizedWorkflows`) to frontend `User` shape (`allowedWorkflows`).
 - `AuthProvider`: Context provider wrapping children with auth state (`user`, `login`, `logout`, `loading`, `hasWorkflowAccess`)
-- `login(username, password)`: POSTs credentials to `/api/auth/login`, stores JWT + user profile in localStorage
+- `login(username, password)`: Calls `AuthApi.login()` to POST credentials, stores JWT + mapped user profile in localStorage. Shows error toast on failure via `useToast()`.
 - `logout()`: Clears user state and localStorage
 - `hasWorkflowAccess(systemCode)`: Returns `true` if user is Admin or their `allowedWorkflows` includes the given SystemCode
 - `useAuth()`: Hook to consume `AuthContext`
 
 ### 6. Integration
-Calls backend API: `POST /api/auth/login` and `fetchUserProfile()` (GET /api/auth/profile via utils/api).
+Calls backend via `AuthApi` (`HttpClient`): `POST /api/auth/login` and `GET /api/auth/me`. Uses `useToast()` from ToastContext for error toasts.
 
 ### 7. Imports Summary
 - **External:** React hooks (`createContext`, `useState`, `useEffect`, `useCallback`, `useContext`)
-- **Internal:** `fetchUserProfile` from `../utils/api`
+- **Internal:** `login, getCurrentUser` from `../api/AuthApi`; `useToast` from `./ToastContext`
 
 ### 8. Additional Info
 - Session is persisted in localStorage under keys `bluebits_user` and `token`.
-- On mount, it hydrates from localStorage then syncs with backend for up-to-date permissions.
-- Sync failure (expired/invalid token) clears session and redirects to `/login`.
-- `loading` stays `true` until profile sync completes to prevent UI flicker.
+- On mount, no hydration from localStorage — calls `getCurrentUser()` directly to verify token and fetch fresh profile.
+- `loading` stays `true` until `getCurrentUser()` resolves (or token is absent) to prevent UI flicker.
+- ToastProvider wraps AuthProvider in the component tree, so `useToast()` (Context API hook) is used directly for toast display instead of the legacy `showToastGlobal` (CustomEvent).
 
 ### 9. API
 | Endpoint | Method | Request Body | Response Body |
 |---|---|---|---|
 | `/api/auth/login` | POST | `{ username, password }` | `{ token, userId, username, firstName, lastName, role, authorizedWorkflows }` |
-| `/api/auth/profile` | GET (via `fetchUserProfile`) | JWT in Authorization header | `{ userId, username, firstName, lastName, role, authorizedWorkflows }` |
+| `/api/auth/me` | GET | JWT in Authorization header (auto via HttpClient) | `{ token, userId, username, firstName, lastName, role, authorizedWorkflows }` |
 
 # SettingsContext.jsx
 
@@ -738,19 +739,20 @@ None
 Frontend (React admin page component)
 
 ### 3. What the file does
-Admin CRUD interface for managing academic materials (subjects). Displays a sortable/filterable table of materials with a modal form for creating/editing, and delete with confirmation.
+Admin CRUD interface for managing academic materials (subjects). Displays a sortable/filterable table of materials with a modal form for creating/editing, and delete with confirmation. Uses `useAdminMaterials` hook for all API calls, state management, toast notifications, and validation error handling.
 
 ### 4. User Stories
 - As an admin, I can view all materials, filter by academic year, and sort by name or year.
 - As an admin, I can add, edit, or delete a material with a name and academic year.
+- As an admin, I see per-field validation errors inline in the modal form when the backend rejects invalid input.
+- As an admin, I see toast notifications for success, errors, and rate-limiting (429).
 
 ### 5. Functions Summary
-- `loadMaterials()`: Fetches all materials from API and updates state.
-- `handleSubmit()`: Creates or updates a material via API, then reloads list.
-- `handleEdit(material)`: Pre-fills modal form with material data for editing.
-- `handleDelete(id)`: Confirms then deletes a material via API.
+- `handleSubmit()`: Calls `create()` or `update()` from `useAdminMaterials` hook, closes modal on success.
+- `handleEdit(material)`: Pre-fills modal form with material data for editing, clears validation errors.
+- `handleDelete(id)`: Confirms then calls `remove()` from the hook.
 - `resetForm()`: Clears form state and resets editing ID.
-- `openCreateModal()`: Resets form and opens modal for new material.
+- `openCreateModal()`: Clears validation errors, resets form, opens modal for new material.
 - `closeModal()`: Closes modal with a brief closing animation.
 - `getYearLabel(year)`: Maps year number to Arabic label.
 - `getYearBadge(year)`: Renders a colored badge for the academic year.
@@ -760,22 +762,17 @@ Admin CRUD interface for managing academic materials (subjects). Displays a sort
 - `resetFilters()`: Clears year filter and sort config.
 
 ### 6. Integration
-Calls backend REST API via `fetchAdminMaterials`, `createAdminMaterial`, `updateAdminMaterial`, `deleteAdminMaterial` at `/api/admin/materials`.
+Calls backend REST API via `useAdminMaterials` hook → `AdminApi.materials.*` → `HttpClient` (JWT auth, rate-limit/error interception).
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect, useMemo), `lucide-react` (BookOpen, Plus, Pencil, Trash2, Loader2, AlertCircle, X, Sparkles, Eye, EyeOff, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, GraduationCap, Hash)
-- **Internal:** `../../utils/api` (fetchAdminMaterials, createAdminMaterial, updateAdminMaterial, deleteAdminMaterial)
+- **External:** `react` (useState, useEffect, useMemo), `lucide-react` (BookOpen, Plus, Pencil, Trash2, Loader2, AlertCircle, X, Sparkles, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, GraduationCap)
+- **Internal:** `../../hooks/useAdminMaterials` (useAdminMaterials hook)
 
 ### 8. Additional Info
-Arabic RTL UI with dark mode support, animated modal (fade/scale in/out), loading spinner, error alerts, and empty-state sparkles illustration.
+Arabic RTL UI with dark mode support, animated modal (fade/scale in/out), loading spinner, error alerts, per-field validation errors, empty-state sparkles illustration, submit button loading state via `isSaving` from hook. 429 rate-limit errors show an Arabic toast via `HttpClient` interception.
 
 ### 9. API
-| Method | Endpoint | Request Body | Response |
-|--------|----------|-------------|----------|
-| GET | `/api/admin/materials` | — | Array of `{ materialId, materialName, materialYear, ... }` |
-| POST | `/api/admin/materials` | `{ materialName, materialYear }` | Created material object |
-| PUT | `/api/admin/materials/:id` | `{ materialName, materialYear }` | Updated material object |
-| DELETE | `/api/admin/materials/:id` | — | (no content / success) |
+Delegates to `useAdminMaterials` hook → `AdminApi.materials.*` (AdminApi.js) → `HttpClient`. Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`. Per-field validation errors (400) displayed inline. 429 errors shown as toasts.
 
 ## 1. File Name and Directory
 Frontend/src/pages/admin/SystemConfig.jsx
@@ -792,35 +789,34 @@ Admin configuration panel with three management areas: toggle workflow activatio
 - As an admin, I can assign or remove roles (TechMember / ScientificMember) per workflow
 
 ### 5. Functions Summary
-- `loadData()`: Fetches workflows, prompts, and permissions in parallel via Promise.all
-- `handleToggleWorkflow(id, currentActive)`: Toggles workflow active state via API and updates local state optimistically
-- `handleSavePrompt(id)`: Saves edited prompt text and collapses the editor
-- `handleAddPermission()`: Creates a new role permission for a workflow, then reloads data
-- `handleDeletePermission(id)`: Deletes a permission after confirmation, then reloads data
-- `closePermissionModal()`: Closes the permission modal with a fade-out animation
-- `getWorkflowName(id)`: Looks up a workflow's adminNote by ID
-- `getRoleInfo(roleName)`: Returns role-specific styling, icon, and Arabic label
-- `formatDate(date)`: Formats a date using ar-SY locale
+- `useAdminWorkflows()`, `useAdminPrompts()`, `useAdminPermissions()`: Hooks providing items, loading/error states, validation errors, and CRUD methods (list, toggleActive, updateText, create, delete)
+- `handleToggleWorkflow`: Calls `workflows.toggleActive()`, then refreshes via `workflows.list()` for UI sync
+- `handleSavePrompt(id)`: Calls `prompts.updateText(id, promptText)`, collapses the editor on success; hook shows toast
+- `handleAddPermission()`: Calls `permissions.create()`, refreshes list on success; captures 400 validation errors into `permFieldErrors` for inline display
+- `handleDeletePermission(id)`: Confirms then calls `permissions.delete(id)`, refreshes list
+- `closePermissionModal()`: Closes modal with fade-out animation, clears field errors
+- `getFieldError(field)`: Looks up case-insensitive error for a field from `permFieldErrors`
 
 ### 6. Integration
-Calls backend admin REST API endpoints for workflows, prompts, and permissions CRUD.
+Delegates all API calls to hooks (`useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions`), which use `AdminApi` → `HttpClient` for JWT auth, rate-limit handling (429 toast), and error interception.
 
 ### 7. Imports Summary
 - `useState`, `useEffect`, `useMemo` (React)
-- `fetchAdminWorkflows`, `fetchAdminPrompts`, `fetchAdminPermissions`, `toggleAdminWorkflow`, `updateAdminPrompt`, `createAdminPermission`, `deleteAdminPermission` (../../utils/api)
-- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, RefreshCw, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog
+- `useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions` (`../../hooks/`)
+- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog
 
 ### 8. Additional Info
-Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern.
+Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern. Inline validation errors shown under the role select in permission modal and under the prompt textarea (via hook `validationErrors`). 429 rate-limit toasts handled automatically by HttpClient.
 
 ### 9. API
-- `fetchAdminWorkflows()` → GET workflows list
-- `fetchAdminPrompts()` → GET prompts list
-- `fetchAdminPermissions()` → GET permissions list
-- `toggleAdminWorkflow(id, active)` → POST toggle active state
-- `updateAdminPrompt(id, promptText)` → POST update prompt text
-- `createAdminPermission({ roleName, workflowId })` → POST create new permission
-- `deleteAdminPermission(id)` → DELETE remove a permission
+No direct API calls. Data flows through hooks:
+- `useAdminWorkflows.list()` → GET `/api/admin/workflows` (via AdminApi)
+- `useAdminWorkflows.toggleActive(id, isActive)` → PUT `/api/admin/workflows/{id}/toggle`
+- `useAdminPrompts.list()` → GET `/api/admin/prompts`
+- `useAdminPrompts.updateText(id, promptText)` → PUT `/api/admin/prompts/{id}`
+- `useAdminPermissions.list()` → GET `/api/admin/permissions`
+- `useAdminPermissions.create(data)` → POST `/api/admin/permissions`
+- `useAdminPermissions.delete(id)` → DELETE `/api/admin/permissions/{id}`
 
 ## 1. File Name and Directory
 `Frontend/src/pages/admin/UsersManager.jsx`
@@ -829,42 +825,50 @@ Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for add
 Frontend (React component)
 
 ### 3. What the file does
-Admin CRUD page for managing users. Displays a sortable/filterable table of users with role badges, batch info, Telegram copy, and dates. Provides a modal form for creating/editing users with field validation.
+Admin CRUD page for managing users. Uses `useAdminUsers` hook for all data fetching and mutation. Displays a sortable/filterable table of users with role badges, batch info, Telegram copy, and dates. Provides a modal form for creating/editing users with client-side input guards and server-side per-field validation errors. Delete confirmation modal instead of `window.confirm()`. 429 rate-limit errors surface via toast (handled by HttpClient → hook's error handler).
 
 ### 4. User Stories
 - As an Admin, I can view all users in a table, filter by role/batch, and sort by name, role, batch, or dates.
-- As an Admin, I can create, edit, or delete users via a modal form with input validation.
+- As an Admin, I can create, edit, or delete users via a modal form with inline field-level validation errors from the backend.
+- As an Admin, I get a clear Arabic toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `loadUsers`: Fetches all users from backend and sets state
-- `handleSubmit`: Validates inputs and calls create/update API
-- `handleEdit`: Populates modal with user data for editing
-- `handleDelete`: Confirms and deletes a user via API
-- `resetForm`: Clears form state and resets editing ID
-- `openCreateModal` / `closeModal`: Controls modal visibility with animation
-- `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only)
-- `getRoleBadge`: Renders colored role badge with icon
-- `formatDate`: Formats dates to Arabic locale
-- `handleCopyTelegram`: Copies Telegram username to clipboard
-- `handleSort` / `getSortIcon`: Cycles sort state (asc → desc → none)
-- `resetFilters`: Clears all filter and sort settings
+- `useAdminUsers()`: Hook providing users, form state, modal state, CRUD actions, and validation errors.
+- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. On 400 errors, hook sets `validationErrors` for per-field display.
+- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode.
+- `closeModal()`: Hook method with 200ms closing animation.
+- `handleDelete(id)`: Sets `deleteConfirmId` to show confirm dialog; `confirmDelete`/`cancelDelete` complete the flow.
+- `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only) via `onBeforeInput`.
+- `getRoleBadge`: Renders colored role badge with icon.
+- `formatDate`: Formats dates to Arabic locale.
+- `handleCopyTelegram`: Copies Telegram username to clipboard.
+- `handleSort` / `getSortIcon`: Cycles sort state (asc → desc → none).
+- `resetFilters`: Clears all filter and sort settings.
 
 ### 6. Integration
-Calls backend admin REST API via `authFetch`: `fetchAdminUsers`, `createAdminUser`, `updateAdminUser`, `deleteAdminUser`.
+Delegates all HTTP to `useAdminUsers` hook → `AdminApi` (HttpClient). HttpClient handles 429 (RateLimitError with toast via hook's catch), 400 (validation errors mapped to fields), and 401 (auto-logout redirect). The old `utils/api` functions are no longer used.
 
 ### 7. Imports Summary
-- React hooks: `useState`, `useEffect`, `useMemo`
-- Internal: `../../utils/api` (admin user CRUD functions)
-- External: `lucide-react` icons (Users, Plus, Pencil, Trash2, etc.)
+- React hooks: `useState`, `useMemo`
+- Internal: `useAdminUsers` from `../../hooks/useAdminUsers`
+- External: `lucide-react` icons (Users, Pencil, Trash2, Loader2, etc.)
 
 ### 8. Additional Info
-Arabic-first RTL UI. Telegram + role combination must be unique (handles 409 conflict). Protected `userId === 1` from deletion. Uses `onBeforeInput` for clean keyboard validation without blocking Ctrl combinations.
+- Arabic-first RTL UI.
+- Protected `userId === 1` from deletion.
+- Uses `onBeforeInput` for clean keyboard validation without blocking Ctrl combinations.
+- Client-side validation errors show under fields with auto-dismiss (2.5s); server-side `validationErrors` persist until modal closes.
+- Delete uses a modal confirmation dialog instead of `window.confirm()`.
+- 429 rate-limit toasts are auto-handled by HttpClient → hook's error handler (`showToast(err.message, 'error')`).
 
 ### 9. API
+All API calls go through `AdminApi` (HttpClient):
 - `GET /api/admin/users` → returns array of user objects
 - `POST /api/admin/users` → creates user; body: `{ firstName, lastName, username, password, userRole, batchNumber, telegramUsername?, teamJoinDate? }`
 - `PUT /api/admin/users/{id}` → updates user; body: same as create without `username`
 - `DELETE /api/admin/users/{id}` → deletes user
+- 400 responses with `errors` map → `validationErrors` state for per-field inline display.
+- 429 responses → `RateLimitError` thrown by HttpClient, caught by hook's `handleSubmit` → error toast.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/Admin-Unauthorized.jsx`
@@ -901,38 +905,42 @@ No API interaction.
 Frontend (React component)
 
 ### 3. What the file does
-A 3-step wizard (`إعداد الجلسة`, `إدراج النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, then preview/copy the compiled prompt for use in Google AI Studio.
+A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, compile a prompt, then preview/copy it — all in one combined second step. Uses `useWizard` hook for step management and session lifecycle. Replaced legacy `utils/api.js` with `SessionsApi` + `PromptsApi`.
 
 ### 4. User Stories
 - As a coordinator, I want to select a material, lecture number, and type (Theoretical/Practical), so the system knows the context.
-- As a coordinator, I want to paste reviewed Markdown and get a compiled prompt, so I can send it to Google AI Studio for formatting.
+- As a coordinator, I want to paste reviewed Markdown and compile a prompt, so I can send it to Google AI Studio for formatting.
 - As a coordinator, I want to save my session or copy the prompt, so I can resume later or use it immediately.
+- As a coordinator, I want to see per-field validation errors under inputs when the backend rejects my session data.
+- As a coordinator, I want a toast notification when I hit a rate limit (429) instead of a confusing error.
 
 ### 5. Functions Summary
 - `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
 - `handleNextStep0`: Validates metadata fields (material, lecture number/type, workflow) before advancing to step 1.
-- `goNext`: Creates a session, compiles prompt (auto-save path: fetch from DB; else stateless), then advances to step 2.
-- `goBack`: Decrements step (min 0).
+- `handleCompile`: Creates a session via `wizard.createSession`, then compiles the prompt (auto-save path: fetch compiled prompt from saved session via `getSession`; else stateless via `compilePrompt`). Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
-- `handleSave`: Refetches session to mark it as saved.
+- `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
+- `clearFieldError`: Removes a specific field error on input change (avoids stale validation markup).
 
 ### 6. Integration
-Calls three backend APIs: `createSession` (POST), `fetchSession` (GET), `compilePromptStateless` (POST).
+Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useCallback, useEffect, useContext), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
-- **Internal:** `WizardStepper`, `PromptPreview`, `MaterialAutocomplete`, `AuthContext`, `useSettings`, `api` utils (createSession, fetchSession, compilePromptStateless).
+- **Internal:** `WizardStepper`, `PromptPreview`, `MaterialAutocomplete`, `useWizard`, `useToast`, `AuthContext`, `useSettings`, `SessionsApi.getSession`, `PromptsApi.compilePrompt`, `HttpClient.RateLimitError`.
 
 ### 8. Additional Info
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
 - Supports session restore via `?id=` and `?type=bank|lecture` query params.
+- 429 errors trigger warning toast via `RateLimitError` from HttpClient.
+- FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
 ### 9. API
-- **createSession (POST):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Receives `{ sessionId, id }`.
-- **fetchSession (GET):** Fetches session by ID. Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
-- **compilePromptStateless (POST):** Sends `{ systemCode, generalNotes, fileNotes }`. Receives `{ compiledPrompt }`.
+- **`useWizard.createSession` → SessionsApi.createSession (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
+- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
+- **PromptsApi.compilePrompt (POST /api/prompts/compile):** Sends `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
 Frontend/src/pages/Dashboard.jsx
@@ -941,26 +949,26 @@ Frontend/src/pages/Dashboard.jsx
 Frontend — Main dashboard page component
 
 ### 3. What the file does
-Renders the app's landing page after login: shows a welcome tour banner, stat cards (lectures, question banks, drawings, total sessions), RBAC-filtered quick-action buttons, and the 5 most recent user sessions with RBAC filtering.
+Renders the app's landing page after login: shows a welcome tour banner, dynamic stat cards built from `authorizedWorkflows` array (via config lookup), dynamically generated quick-action buttons from `authorizedWorkflows`, admin management links for Admin users, and the 5 most recent user sessions with RBAC filtering.
 
 ### 4. User Stories
-- As a user, I see aggregate stats and quick-action links for workflows I have permission to use.
+- As a user, I see aggregate stats and quick-action links dynamically rendered based only on my `authorizedWorkflows` from AuthContext.
 - As a user, I can click a recent session to resume where I left off.
-- As an Admin user, I am automatically redirected to `/admin/users`.
+- As an Admin user, I see management links (users, materials, system) on the dashboard instead of workflow quick actions.
 
 ### 5. Functions Summary
 - `getSessionRoute`: Maps backend `workflowType` SystemCode (e.g. `LEC_EXT`) to a frontend route with session ID.
-- `Dashboard`: Main component — fetches stats & recent sessions, filters by RBAC via `hasWorkflowAccess`, renders the full dashboard UI.
+- `Dashboard`: Main component — fetches stats & recent sessions, filters by RBAC via `hasWorkflowAccess`, builds stat cards and quick actions dynamically from `user.allowedWorkflows` (mapped from backend `authorizedWorkflows`).
 
 ### 6. Integration
-Calls backend via `fetchStats()` and `fetchSessions(1, 5)` from `../utils/api`. Uses `useAuth()` context for RBAC checks and user role detection.
+Calls backend via `getSessions()` from `../api/SessionsApi` for stats and recent sessions. Uses `useAuth()` context for RBAC checks and user role detection. Stat cards and quick actions are derived from `user.allowedWorkflows` (the frontend mapping of `authorizedWorkflows`).
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect), `react-router` (Link, useNavigate), `lucide-react` (7 icons)
-- **Internal:** `../utils/api` (fetchSessions, fetchStats), `../contexts/AuthContext` (useAuth)
+- **External:** `react` (useState, useEffect), `react-router` (Link), `lucide-react` (10 icons: FileSearch, AlignRight, FileOutput, Palette, BookOpen, FlaskConical, Sparkles, Clock, ArrowLeft, Users, Settings2)
+- **Internal:** `getSessions` from `../api/SessionsApi`, `../contexts/AuthContext` (useAuth)
 
 ### 8. Additional Info
-Arabic-first UI with RTL layout. Admin users are immediately redirected away. Quick actions and recent sessions list are filtered client-side using `hasWorkflowAccess()` from AuthContext. Stat card values default to 0 for missing keys. Tour banner is conditionally rendered only if user has access to any of `LEC_EXT`, `BANK_EXT`, or `DRAW`.
+Arabic-first UI with RTL layout. Admin users are no longer redirected — they see admin management links on the dashboard. Quick actions (`WORKFLOW_CONFIG`) and stat cards (`STAT_CARD_CONFIG`) are generated by mapping `authorizedWorkflows` SystemCodes through lookup objects. Unknown SystemCodes are silently filtered out. Tour banner is conditionally rendered only if user has access to any of `LEC_EXT`, `BANK_EXT`, or `DRAW`. `getSessionRoute` mapping is unchanged — still uses the same SystemCode → route switch.
 
 ### 9. API
 - **GET stats:** `fetchStats()` → returns `{ total, LEC_EXT, BANK_EXT, BANK_QS, DRAW, PANDOC, LEC_COORD }` — numeric counts per workflow type.
@@ -973,41 +981,46 @@ Arabic-first UI with RTL layout. Admin users are immediately redirected away. Qu
 Frontend
 
 ### 3. What the file does
-A 3-step wizard (`إعداد الجلسة` → `المدخلات` → `المعاينة والنسخ`) for creating AI prompts that generate Python drawing code. Users configure session metadata, upload reference images + description, then preview/copy the compiled prompt.
+A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompts that generate Python drawing code. Combines session metadata + image upload + description into one unified input step, then previews/copies the compiled prompt. Uses `useWizard` hook for step/session management, `SessionsApi` for CRUD, `PromptsApi.compilePrompt` for stateless compilation.
 
 ### 4. User Stories
-- As a user, I can create a drawing session by selecting a material, lecture number, and lecture type.
-- As a user, I can upload up to 3 reference images, write a description, and generate an AI prompt for Python chart code.
+- As a user, I can create a drawing session by selecting a material, lecture number, lecture type, uploading reference images, and writing a description — all in one step.
 - As a user, I can preview the compiled prompt and copy it to Google AI Studio.
+- As a user, I see inline Arabic validation errors under form fields when the backend rejects data.
+- As a user, I see a warning toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `DrawWizard()`: Main component rendering the 3-step wizard flow.
+- `DrawWizard()`: Main component rendering the 2-step wizard flow.
 - `addImage(file)`: Adds an image (max 3) to the images state.
 - `removeImage(index)`: Removes an image by index and revokes its object URL.
 - `updateImageNote(index, text)`: Updates the note for an image at given index.
-- `goNext()`: Validates step 0 (session data), then creates a session + compiles prompt, advances to step 2.
-- `goBack()`: Resets step to 0.
-- `handleSave()`: Saves the session via `fetchSession` (no-op if already saved).
+- `handleNext()`: Validates all fields, creates a session via `SessionsApi.createSession`, uploads files via `SessionsApi.uploadFiles`, compiles prompt (auto-save: fetch from DB; otherwise via `PromptsApi.compilePrompt`), then advances to step 1.
+- `handleSave()`: Re-fetches session to confirm persistence, sets saved state.
+- `clearFieldError(field)`: Clears a single field validation error on input change.
 
 ### 6. Integration
-Calls backend REST APIs: `createSession`, `fetchSession`, `compilePromptStateless`. No direct DB interaction.
+Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession`, `SessionsApi.uploadFiles` (multipart), and `PromptsApi.compilePrompt`. Each uses `HttpClient` which handles JWT auth, 401 logout, 429 rate-limit, and 400 validation errors.
 
 ### 7. Imports Summary
 - **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback)
 - **Internal components:** WizardStepper, PromptPreview, GuidedCopyLoop, ImageUploader, PasteButton, PasteImageButton, MaterialAutocomplete
-- **Utils:** `createSession`, `fetchSession`, `compilePromptStateless` from `../utils/api`
-- **Context:** `useSettings` from `SettingsContext`
+- **New API modules:** `useWizard` hook, `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
+- **Contexts:** `useSettings` from `SettingsContext`, `useToast` from `ToastContext`
+- **Errors:** `ApiError`, `RateLimitError` from `HttpClient`
 
 ### 8. Additional Info
 - Arabic-first RTL UI with Tailwind CSS v4.
-- Global paste listener on step 1 to capture image pastes outside text inputs.
+- Global paste listener on step 0 to capture image pastes outside text inputs.
 - Max 3 images with a quality warning if more than 1 is added.
 - Supports both auto-save (persisted session) and stateless prompt compilation.
+- 429 errors show a warning toast with Arabic retry-after message (vs generic error toast).
+- FluentValidation field errors from 400 responses are normalized to lowercase keys and displayed under each input with red border styling, matching the Login.jsx pattern.
 
 ### 9. API
-- `fetchSession(id)` → `GET` session data: `{ material, lectureNumber, lectureType, compiledPrompt, notes[], files[] }`
-- `createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'DRAW', generalNotes, files })` → `POST` returns `{ sessionId, id }`
-- `compilePromptStateless({ systemCode: 'DRAW', generalNotes, fileNotes })` → `POST` returns `{ compiledPrompt }`
+- `SessionsApi.getSession(id)` → GET `/api/sessions/{id}` — returns session data with `compiledPrompt`, `notes[]`, `files[]`.
+- `SessionsApi.createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'DRAW', generalNotes })` → POST `/api/sessions` — returns `{ id, sessionId }`.
+- `SessionsApi.uploadFiles(sessionId, files[], notes[])` → POST `/api/sessions/{id}/files` — multipart upload of image files with per-file notes.
+- `PromptsApi.compilePrompt('DRAW', generalNotes, fileNotes[])` → POST `/api/prompts/compile` — returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/ExtractionWizard.jsx`
@@ -1016,36 +1029,40 @@ Calls backend REST APIs: `createSession`, `fetchSession`, `compilePromptStateles
 Frontend (React page component)
 
 ### 3. What the file does
-Multi-step wizard (3 steps) for extracting lecture/question-bank content: Step 1 — session metadata entry, Step 2 — image uploads + general notes, Step 3 — prompt preview + guided copy loop. Supports both `LEC_EXT` (lecture extraction) and `BANK_EXT` (bank extraction) workflows.
+Refactored 3-step wizard that uses `useWizard` hook for step navigation, `SessionsApi` + `PromptsApi` via HttpClient for all backend calls. Steps: session metadata entry → image uploads + notes → prompt preview + guided copy loop. Integrates `ToastContext` for 429 rate-limit warnings and FluentValidation field error binding.
 
 ### 4. User Stories
 - As a user, I can select extraction type (lecture/bank), pick a material, enter lecture number & type, then proceed.
 - As a user, I can upload images with per-image notes and add general notes to build the extraction prompt.
-- As a user, I can preview the compiled prompt, copy it along with images to clipboard, and save the session.
+- As a user, I see inline field validation errors under inputs when the backend rejects data.
+- As a user, I see an Arabic warning toast when rate-limited (429).
 
 ### 5. Functions Summary
-- `ExtractionWizard` (default export): Main component; manages 3-step state, handles session creation, prompt compilation, and navigation.
+- `ExtractionWizard` (default export): Main component; uses `useWizard` for step state, `SessionsApi.createSession`/`getSession`/`uploadFiles`, `PromptsApi.compilePrompt` for API calls, `useToast` for error toasts.
 - `addImage`: Appends a file to the images array with an object URL.
 - `removeImage`: Removes an image by index and revokes its object URL.
 - `updateImageNote`: Updates the note for a specific image.
-- `goNext`: Advances step; on step 1→2, creates a session (with file uploads) and compiles the prompt (via DB fetch or stateless API).
-- `goBack`: Decrements step.
-- `handleSave`: Marks session as saved by re-fetching it.
+- `goNext`: Advances step; on step 1→2, creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
+- `goBack`: Calls `prev()` from useWizard.
+- `handleSave`: Marks session as saved by re-fetching via `getSession`.
+- `clearFieldError(field)`: Removes a field-specific validation error on input change.
 
 ### 6. Integration
-Calls backend REST API (`/api/sessions`, `/api/prompts/compile`) via `createSession`, `fetchSession`, and `compilePromptStateless` utility functions.
+Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `apiUploadFiles`) and `PromptsApi` (`apiCompilePrompt`) — all through HttpClient which handles JWT auth, 401 auto-redirect, and typed errors. Uses `ToastContext` for 429 Arabic toast warnings and 400 validation toasts.
 
 ### 7. Imports Summary
 - **External:** `useState`, `useCallback`, `useEffect`, `useContext` (React), `useSearchParams`, `Link`, `useNavigate` (React Router).
-- **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `createSession`/`fetchSession`/`compilePromptStateless` from `../utils/api`, `useSettings` context, `AuthContext`.
+- **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Supports both auto-save (fetch compiled prompt from DB) and stateless prompt compilation modes. Handles session restoration via `?id=` query param and `?type=bank` URL param.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. No inline `fetch` calls — all API communication goes through HttpClient-based services.
 
 ### 9. API
-- **`POST /api/sessions`** — `createSession({ materialName, workflowSystemCode, lectureNumber, lectureType, generalNotes })` → creates session, then uploads files via `POST /api/sessions/{id}/files` with `FormData` (files + notes). Returns session object with `id`/`sessionId`.
-- **`GET /api/sessions/{id}`** — `fetchSession(id)` → fetches session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
-- **`POST /api/prompts/compile`** — `compilePromptStateless({ systemCode, generalNotes, fileNotes })` → returns `{ compiledPrompt }` without persisting.
+- **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
+- **`POST /api/sessions/{id}/files`** — `apiUploadFiles(sessionId, files, notes)` with `FormData` → returns result.
+- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
+- **`POST /api/prompts/compile`** — `apiCompilePrompt(systemCode, generalNotes, fileNotes)` → returns `{ compiledPrompt }`.
+- **Validation error handling:** 400 with `errors` map (FluentValidation) → `fieldErrors` camelCase state → inline red border + error `<p>` under each field. 429 → Arabic toast with retry-after duration via `formatRateLimitError`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/History.jsx`
@@ -1054,33 +1071,37 @@ Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BA
 Frontend
 
 ### 3. What the file does
-Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw). Users can view or delete any session. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
+Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info, loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
 
 ### 4. User Stories
 - As a user, I want to browse my past sessions filtered by workflow type so I can quickly resume work.
-- As a user, I want to delete old/unwanted sessions.
+- As a user, I want to view session details in a modal (workflow type, material, date, compiled prompt).
+- As a user, I want to delete old/unwanted sessions with a loading indicator.
+- As a user, I see a loading spinner while the initial list loads.
+- As a user, I see a warning toast when rate-limited (429).
 
 ### 5. Functions Summary
 - `getSessionRoute(session)`: Maps backend `workflowType` SystemCode + session `id` to a frontend route.
-- `History` (default export): Main component — manages sessions state, filter, pagination, delete, and renders the UI.
-- `loadSessions(pageNum)`: Calls `fetchSessions` API and updates state (appends or replaces).
-- `handleLoadMore()`: Increments page and loads next batch.
-- `handleDelete(id)`: Confirms via `window.confirm`, calls `removeSession` API, then reloads from page 1.
+- `useModalExit(isOpen)`: Custom hook managing modal render state with exit animation (200ms).
+- `SessionDetailModal({ session, onClose, getSession })`: Portal-rendered modal that fetches and displays full session details (workflow type icon, material name, lecture number, creation date, compiled prompt).
+- `History` (default export): Main component — consumes `useSessions({ limit: 20 })` for paginated sessions, manages filter/delete/detail state.
+- `handleDelete(id)`: Confirms via `window.confirm`, calls `removeSession` from hook, manages per-item deleting state.
 
 ### 6. Integration
-Calls `fetchSessions` and `removeSession` from `../utils/api`.
+Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`). Uses `useAuth` for RBAC filter gating.
 
 ### 7. Imports Summary
-- **React hooks**: `useState`, `useMemo`, `useEffect`
-- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2` from `lucide-react`
-- **Internal**: `fetchSessions`, `removeSession` from `../utils/api`; `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`
+- **React hooks**: `useState`, `useMemo`, `useRef`, `useEffect`
+- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2`, `X`, `Info` from `lucide-react`
+- **Internal**: `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`; `useSessions` from `../hooks/useSessions`; `createPortal` from `react-dom`
 
 ### 8. Additional Info
-Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones (defense-in-depth against stale/cached data).
+Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete.
 
 ### 9. API
-- `fetchSessions(pageNum, limit)` → returns `{ sessions: Session[], hasMore: boolean, totalCount: number }`
-- `removeSession(id)` → `DELETE` endpoint, returns success/error.
+- **Read:** Delegated to `useSessions` → `SessionsApi.getSessions(page, limit)` → `GET /api/sessions?page=&limit=`.
+- **Detail:** `getSession(id)` from `useSessions` → `GET /api/sessions/{id}`.
+- **Delete:** `removeSession(id)` from `useSessions` → `DELETE /api/sessions/{id}`.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/Login.jsx`
@@ -1089,18 +1110,21 @@ Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for pe
 Frontend (React component)
 
 ### 3. What the file does
-Renders a full-page RTL login form with username/password fields, show/hide password toggle, error banner, loading spinner, and post-login role-based redirect (Admin → `/admin/users`, others → `/`). Redirects already-authenticated users on mount.
+Renders a full-page RTL login form with username/password fields, show/hide password toggle, error banner, field-level validation errors, loading spinner, and post-login role-based redirect (Admin → `/admin/users`, others → `/`). Redirects already-authenticated users on mount. Consumes `ApiError` from HttpClient — 401 sets Arabic general error, 400 with `errors` map sets per-field errors, others fall back to `err.message`.
 
 ### 4. User Stories
 - As a user, I can log in with my credentials and be redirected based on my role.
+- As a user, I see per-field Arabic validation errors under the relevant input when the backend rejects empty fields.
+- As a user, I see a clear Arabic error "اسم المستخدم أو كلمة المرور غير صحيحة" when my credentials are wrong.
 - As an already logged-in user, I am automatically redirected away from the login page.
 
 ### 5. Functions Summary
 - `Login` (default export): Main component — manages form state, calls `AuthContext.login`, handles errors, renders UI.
-- `handleSubmit`: Prevents default form submission, calls `login(username, password)`, navigates on success or sets error on failure.
+- `handleSubmit`: Prevents default form submission, calls `login(username, password)`, navigates on success or sets error on failure. On 401 → Arabic invalid credentials message; on 400 with errors → binds per-field errors; otherwise → generic fallback.
+- `clearFieldError(field)`: On input change, removes the field-specific error from `fieldErrors` state (avoids stale validation markup).
 
 ### 6. Integration
-Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No direct API calls in this file.
+Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No direct API calls in this file. `ApiError.errors` (from HttpClient) is consumed to populate `fieldErrors`.
 
 ### 7. Imports Summary
 - **React hooks:** `useState`, `useContext`, `useEffect`
@@ -1109,13 +1133,16 @@ Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No di
 - **Icons:** `LogIn`, `User`, `Lock`, `Loader2`, `AlertCircle`, `Eye`, `EyeOff` from `lucide-react`
 
 ### 8. Additional Info
-Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode.
+Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
 
 ### 9. API
 - **Endpoint:** `POST /auth/login`
 - **Request body:** `{ username, password }`
 - **Response (success):** `{ token, userId, username, firstName, lastName, role, authorizedWorkflows[] }` — token saved to `localStorage`, user object set in AuthContext.
-- **Response (error):** throws with `errData.message` (Arabic fallback: "فشل تسجيل الدخول").
+- **Response error handling:**
+  - **401:** sets `error` state to Arabic "اسم المستخدم أو كلمة المرور غير صحيحة"
+  - **400 with `errors` map (FluentValidation):** flattens keys to lowercase, sets `fieldErrors` state for per-field display
+  - **Other errors:** falls back to `err.message` or generic Arabic fallback
 
 ## 1. File Name and Directory
 Frontend/src/pages/MergeWizard.jsx
@@ -1131,30 +1158,31 @@ A 3-step wizard that lets users set session metadata (material, type, lecture nu
 - As a user, I want to reorder, add, or remove files before merging, and download the result.
 
 ### 5. Functions Summary
-- `MergeWizard`: Main component — manages 3-step wizard state (session setup → file upload/reorder → merge & download)
-- `goNext/goBack`: Navigate between wizard steps
-- `getTypeLabel`: Returns Arabic label for lecture type ("نظري" / "عملي")
+- `MergeWizard`: Main component — manages 3-step wizard via `useWizard` hook (session setup → file upload/reorder → merge & download)
 - `handleFileSelect`: Filters and appends selected .docx files to state
 - `removeFile`: Removes a file by index
 - `moveFile`: Swaps file position (move up/down) for reordering
-- `handleMerge`: Calls `mergeDocxFiles` API, creates an object URL from the returned blob, sets success/error status
+- `clearFieldError`: Removes a single field error from `fieldErrors` state on input change
+- `handleMerge`: Calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
 - `getDownloadFileName`: Generates Arabic download filename from material name and type
+- `handleReset`: Resets wizard to step 0 and clears all state
 
 ### 6. Integration
-Calls backend via `mergeDocxFiles` utility: sends multipart FormData (`files[]`, `materialName`, `lectureType`) to `/api/merge/execute`, then fetches the returned file URL to obtain the merged .docx blob.
+Calls backend via `MergeApi.execute` (which wraps `HttpClient.httpPost`): sends multipart FormData (`files[]`, `materialName`, `lectureType`) to `/api/merge/execute`. Server returns `{ url, finalFileName }` — the download URL is used directly as the `<a download>` href (server-side file).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useRef), `lucide-react` (Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2)
-- **Internal:** `WizardStepper` (step indicator), `MaterialAutocomplete` (material name selector), `mergeDocxFiles` from `utils/api`, `useSettings` from `contexts/SettingsContext`
+- **Internal:** `WizardStepper` (step indicator), `MaterialAutocomplete` (material name selector), `MergeApi` from `api/MergeApi`, `ApiError` and `RateLimitError` from `api/HttpClient`, `useWizard` from `hooks/useWizard`, `useToast` from `contexts/ToastContext`, `useSettings` from `contexts/SettingsContext`
 
 ### 8. Additional Info
-Arabic-first RTL interface. Uses MaterialAutocomplete which fetches materials from backend via settings context. Status machine: idle → loading → success/error. Uses `URL.createObjectURL` for client-side download without server-side file persistence.
+Arabic-first RTL interface. Uses `useWizard({ totalSteps: 3 })` for step management (`currentStep`, `next`, `prev`, `goTo`). Uses `useToast` for 429 rate-limit warning toasts. Per-field validation errors from `ApiError.errors` are normalized to lowercase and bound under inputs with `border-danger` styling. Status machine: idle → loading → success/error. Download URL is served directly from the backend server (`/uploads/...`), no client-side blob creation.
 
 ### 9. API
 **Request:** `POST /api/merge/execute` with `Content-Type: multipart/form-data`
 - Body: `files[]` (FileList), `materialName` (string), `lectureType` (string)
-**Response:** `{ url: string }` — URL to the generated .docx file
-**Client flow:** Fetches the URL → converts to blob → creates object URL → renders `<a download>` for user to save.
+**Response:** `{ url: string, finalFileName: string }` — server URL to download the merged file
+**Client flow:** Calls `MergeApi.execute` → receives server URL → renders `<a download href={url}>` for direct download.
+**Error handling:** `RateLimitError` → warning toast with retry message; `ApiError` (400) with `errors` → per-field errors under inputs; other errors → error state with server message displayed.
 
 ## 1. File Name and Directory
 Frontend/src/pages/NotFound.jsx
@@ -1201,20 +1229,20 @@ Three-step wizard that lets users prepare a session, paste/upload Markdown conte
 ### 5. Functions Summary
 - `handleFileOpen`: Reads a selected `.md` file and sets its content as markdown text.
 - `handleDrop`: Handles drag-and-drop of `.md` files into the textarea.
-- `handleGenerate`: Creates a session, saves markdown content, calls Pandoc generation API, and provides download link.
-- `goNext`/`goBack`: Stepper navigation between wizard steps.
+- `handleGenerate`: Creates a session via `SessionsApi`, saves markdown content, calls `PandocApi.generate`, and provides download link. Handles 429 with warning toast and 400 errors with per-field validation display.
+- `clearFieldError`: Removes a single field error from `fieldErrors` state on user input.
 
 ### 6. Integration
-Calls backend REST APIs via `createSession`, `saveSessionContent`, `fetchSession`, and `generatePandoc` to create sessions, store markdown, and generate Word documents.
+Calls backend REST APIs via `SessionsApi` (createSession, getSession, saveSessionContent) and `PandocApi` (generate). Both use `HttpClient` for JWT auth, 429 rate-limit detection (throws `RateLimitError`), and 400 FluentValidation error binding (throws `ApiError.errors`).
 
 ### 7. Imports Summary
-External: `react-router` (useSearchParams), `react` (useEffect, useState, useRef), `lucide-react` (icons). Internal: `WizardStepper`, `PasteButton`, `MaterialAutocomplete`, `SettingsContext`, `utils/api`.
+External: `react-router` (useSearchParams), `react` (useEffect, useState, useRef), `lucide-react` (icons). Internal: `useWizard` (step management), `useToast` (notifications), `PandocApi`, `SessionsApi`, `SettingsContext`, `HttpClient` (ApiError, RateLimitError), `errorFormatter` (formatRateLimitError).
 
 ### 8. Additional Info
-Arabic-first UI with RTL layout. Uses `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported.
+Arabic-first UI with RTL layout. Uses `useWizard` for step navigation and `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported. 429 responses show a warning toast with formatted Arabic retry-after message. 400 FluentValidation errors are normalized to lowercase keys and rendered inline under each input field, cleared on user interaction.
 
 ### 9. API
-**Create Session:** `POST /api/sessions` with `{ materialName, lectureNumber, lectureType, workflowSystemCode: 'PANDOC' }` → returns `{ sessionId }`. **Save Content:** `POST /api/session-contents` with `{ sessionId, contentBody }`. **Generate:** `POST /api/pandoc/generate` with `{ markdownText, templateName, materialName, lectureNumber, lectureType }` → returns `{ fileUrl }`. **Fetch Session:** `GET /api/sessions?id=...` → returns session data with `sessionContents[0].contentBody`.
+**Create Session:** `POST /api/sessions` (via `SessionsApi.createSession`) with `{ materialName, lectureNumber, lectureType, workflowSystemCode: 'PANDOC' }` → returns `{ id, sessionId }`. **Save Content:** `POST /api/sessions/save` (via `SessionsApi.saveSessionContent`) with `{ sessionId, contentBody }`. **Generate:** `POST /api/pandoc/generate` (via `PandocApi.generate`) with `{ markdownText, templateName, materialName, type, lectureNumber }` → returns `{ fileUrl }`. **Fetch Session:** `GET /api/sessions/{id}` (via `SessionsApi.getSession`) → returns session data with `sessionContents[0].contentBody`. **429:** `HttpClient` throws `RateLimitError` → caught and shown as warning toast via `formatRateLimitError`. **400:** `HttpClient` throws `ApiError` with `errors` map (flattened via `formatValidationErrors`) → normalized to lowercase and rendered per-field.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/QuizHub.jsx`
@@ -1251,7 +1279,7 @@ A dual-mode Quiz Hub page with a 2-step wizard: (1) Session setup — enter lect
 - `removeQuestion`: Removes a question by index.
 
 ### 6. Integration
-Calls backend APIs via `../utils/api`: `fetchSession`, `saveQuizSession`, `compilePromptStateless`.
+Calls backend APIs via `SessionsApi` (`getSession`, `createSession`, `saveSessionContent`) and `PromptsApi` (`compilePrompt`).
 
 ### 7. Imports Summary
 - **React**: `useState`, `useRef`, `useEffect`, `useContext`
@@ -1333,11 +1361,12 @@ No backend interaction. No request/response handling. Acts as a static error pag
 Frontend (TypeScript type definitions)
 
 ### 3. What the file does
-Defines TypeScript interfaces for authentication domain objects — the `User` model and the `AuthContextType` contract used by React context throughout the frontend.
+Defines TypeScript interfaces for authentication domain objects — `LoginResponse` (matches backend `LoginResponse` DTO), the `User` model, and the `AuthContextType` contract used by React context throughout the frontend.
 
 ### 4. User Stories
 - As a user, I can log in and have my identity (userId, username, role, permissions) available app-wide
 - As the app, I can enforce RBAC by checking `allowedWorkflows` from the authenticated user object
+- As a developer, I can type the raw API login response via `LoginResponse` (which uses `authorizedWorkflows` matching the backend)
 
 ### 5. Functions Summary
 None (pure type declarations, no runtime code)
@@ -1346,13 +1375,15 @@ None (pure type declarations, no runtime code)
 No direct API calls or database interaction. Types shape the response consumed from the backend auth endpoint (login).
 
 ### 7. Imports Summary
-No imports. Both interfaces are exported for external consumption.
+No imports. All interfaces are exported for external consumption.
 
 ### 8. Additional Info
-`allowedWorkflows` is a string array of `SystemCode` values (e.g. `LEC_EXT`, `PANDOC`) used by the UI to conditionally render tabs. `AuthContextType` is the contract fulfilled by the AuthProvider context wrapper.
+- `LoginResponse` matches the backend `LoginResponse` DTO exactly (`authorizedWorkflows` field name from JSON).
+- `allowedWorkflows` on `User` is a string array of `SystemCode` values (e.g. `LEC_EXT`, `PANDOC`) used by the UI to conditionally render tabs.
+- `AuthContextType` is the contract fulfilled by the AuthProvider context wrapper.
 
 ### 9. API
-Login endpoint is expected to return a JSON body matching the `User` interface (token, userId, username, firstName, lastName, role, allowedWorkflows). `AuthContextType.login` calls this endpoint and hydates context state with the response.
+Login endpoint is expected to return a JSON body matching the `LoginResponse` / `User` interface (token, userId, username, firstName, lastName, role, authorizedWorkflows). `AuthContextType.login` calls this endpoint and hydates context state with the response.
 
 ## 1. File Name and Directory
 `Frontend/src/types/models.d.ts`
@@ -1361,11 +1392,12 @@ Login endpoint is expected to return a JSON body matching the `User` interface (
 Frontend — TypeScript type definitions
 
 ### 3. What the file does
-Defines TypeScript interfaces for all domain models used across the frontend: `Material`, `Workflow`, `File`, `Note`, `SessionContent`, `Session`, and `SessionSummary`. These mirror backend DTOs and ensure type safety when handling API responses.
+Defines TypeScript interfaces for all domain models used across the frontend: `Material`, `Workflow`, `File`, `Note`, `SessionContent`, `Session`, `SessionSummary`, `SessionSummaryDto`, and `SessionDetail`. These mirror backend DTOs and ensure type safety when handling API responses.
 
 ### 4. User Stories
 - As a developer, I can type-check all API response data against these interfaces.
 - As a developer, I can navigate related session data (material, workflow, notes, files) via optional navigational properties on `Session`.
+- As a developer, I can type the paginated session list response via `SessionSummaryDto` and the full session detail response via `SessionDetail`.
 
 ### 5. Functions Summary
 None — this file contains only type definitions, no runtime code.
@@ -1378,6 +1410,8 @@ No imports. These are standalone interface declarations meant to be imported by 
 
 ### 8. Additional Info
 - `Session.compiledPrompt` is an optional string likely populated by a backend endpoint after prompt compilation.
+- `SessionSummaryDto` matches the backend `SessionSummaryDto` response DTO (`id`, `materialName`, `workflowType`, `createdAt`, `lectureNumber`), used for paginated session list responses.
+- `SessionDetail` matches the backend `SessionDetailResult` record, wrapping a `Session` with an optional `compiledPrompt`.
 - `File.fileType` is restricted to `'Image' | 'Docx' | 'Other'`.
 - `Note.noteType` is restricted to `'GeneralNote' | 'FileNote'`.
 - `isActive` on `Workflow` is typed as `number` (0/1) rather than `boolean`, matching SQLite convention.
@@ -1386,57 +1420,74 @@ No imports. These are standalone interface declarations meant to be imported by 
 Frontend fetches data from REST endpoints (e.g., `GET /api/session/{id}`) and casts the JSON response to these interfaces. No request/response transformation is handled here — models are direct mappings of backend DTOs.
 
 ## 1. File Name and Directory
-`Frontend/src/utils/api.js`
+`Frontend/src/types/api.d.ts`
 
 ### 2. File Type
-Frontend (API client utility)
+Frontend — TypeScript type definitions
 
 ### 3. What the file does
-Centralized HTTP client for all backend communication. Wraps `fetch` with JWT auth, handles 401 auto-logout, and provides typed functions for sessions, materials, prompts, file uploads, Pandoc generation, document merging, and full admin CRUD (users, materials, workflows, prompts, permissions).
+Defines TypeScript interfaces for API-specific response shapes: `ErrorResponse` (standard error envelope), `PandocResult` (Pandoc generation result), `MergeResult` (DOCX merge result), `ValidationErrors` (per-field validation error maps), and `PaginatedResponse<T>` (generic paginated list wrapper). These mirror backend DTOs and result records from `ExceptionHandlingMiddleware`, `IPandocService`, `IMergeService`, and `ISessionService`.
 
 ### 4. User Stories
-- As a user, I can perform all workflow operations (create/view/delete sessions, upload files, compile prompts) without manually managing tokens.
-- As an admin, I can manage users, materials, workflows, prompts, and permissions via dedicated API functions.
-- As a user, I get automatically redirected to login when my token expires.
+- As a developer, I can type API error responses consistently across the app.
+- As a developer, I can type Pandoc DOCX generation and DOCX merge results.
+- As a developer, I can type paginated API list responses using the generic `PaginatedResponse<T>`.
+- As a developer, I can type per-field validation errors returned by the backend middleware.
 
 ### 5. Functions Summary
-- `authFetch`: Core wrapper — attaches JWT `Authorization` header, handles 401 globally (clears token, redirects to `/login`), preserves existing headers.
-- `fetchUserProfile`: GET `/api/auth/me` — returns current user profile with authorized workflows.
-- `fetchMaterials`: GET `/api/materials` — cached in-memory.
-- `compilePromptStateless`: POST `/api/prompts/compile` — compiles a prompt statelessly.
-- `fetchSessions`: GET `/api/sessions?page=&limit=` — paginated session list.
-- `fetchSession`: GET `/api/sessions/{id}` — single session.
-- `createSession`: POST `/api/sessions` + optional POST `/api/sessions/{id}/files` — creates session then uploads attached files.
-- `uploadFiles`: POST `/api/sessions/{id}/files` — file upload via FormData.
-- `fetchPrompt`: GET `/api/prompts/{sessionId}/{systemCode}`.
-- `removeSession`: DELETE `/api/sessions/{id}`.
-- `generatePandoc`: POST `/api/pandoc/generate` — generates DOCX via Pandoc.
-- `mergeDocxFiles`: POST `/api/merge/execute` — uploads DOCX files, downloads merged blob.
-- `fetchStats`: Aggregates session counts by `workflowType` with 60s cache TTL.
-- `saveQuizSession`: POST `/api/sessions` then POST `/api/sessions/save?sessionId=` for quiz content.
-- `saveSessionContent`: POST `/api/sessions/save` — saves JSON/Markdown content.
-- `fetchAdminUsers` / `createAdminUser` / `updateAdminUser` / `deleteAdminUser`: Full CRUD on users.
-- `fetchAdminMaterials` / `createAdminMaterial` / `updateAdminMaterial` / `deleteAdminMaterial`: Full CRUD on materials.
-- `fetchAdminWorkflows` / `toggleAdminWorkflow`: Read and toggle workflows active state.
-- `fetchAdminPrompts` / `updateAdminPrompt`: Read and update prompts.
-- `fetchAdminPermissions` / `createAdminPermission` / `deleteAdminPermission`: Manage role-workflow permissions.
+None — pure type declarations, no runtime code.
 
 ### 6. Integration
-Calls the backend REST API exclusively. No direct database or external service calls from this file.
+No direct API calls or database interaction. Types are consumed by page components via `src/api/*.js` services (`HttpClient`) when processing backend responses.
 
 ### 7. Imports Summary
-**Zero imports** — uses native `fetch`, `Headers`, `FormData`, `localStorage`, `window.location`.
+No imports. All types are exported for external consumption.
 
 ### 8. Additional Info
-- In-memory cache (`apiCache` Map) for materials (indefinite) and stats (60s TTL).
-- Handles 400 errors with Arabic fallback messages (`'يجب اختيار مادة صالحة لمتابعة العمل.'`).
-- `createSession` extracts session ID from both `id` and `sessionId` response fields, plus falls back to `Location` header.
-- File uploads use `FormData` (no explicit `Content-Type` header — browser sets `multipart/form-data` automatically).
+- `ErrorResponse` matches the backend `ErrorResponse` DTO (`error`, `statusCode`, `traceId`) returned by `ExceptionHandlingMiddleware` for non-validation errors.
+- `PandocResult` matches the backend `PandocResult` record (`success`, `fileUrl?`, `error?`, `details?`) from `IPandocService`.
+- `MergeResult` matches the backend `MergeResult` record (`url?`, `finalFileName?`, `error?`) from `IMergeService`.
+- `ValidationErrors` is a `Record<string, string[]>` matching the per-field error map returned by `ExceptionHandlingMiddleware` for FluentValidation failures.
+- `PaginatedResponse<T>` is generic over item type with `items`, `totalCount`, `page`, `limit`, `hasMore` — matching the pagination metadata from `SessionListResult` backend DTO.
 
 ### 9. API
-**Request:** All calls go through `authFetch` which attaches `Authorization: Bearer <token>` from `localStorage`. JSON payloads get `Content-Type: application/json` automatically. File uploads use `FormData`.
+These types shape the JSON responses from various backend endpoints. The actual parsing and transformation is handled by `HttpClient` (`src/api/HttpClient.js`) — these declarations provide static type guarantees at dev/build time.
 
-**Response:** Functions parse JSON or blob. Errors are caught and logged with contextual messages. Non-OK responses throw with backend error message (Arabic where applicable). 401 triggers global logout + redirect.
+## 1. File Name and Directory
+`Frontend/src/utils/api.js` — **DELETED**
+
+### 2. File Type
+Frontend (legacy API client — removed)
+
+### 3. What the file did
+Was the original centralized HTTP client for all backend communication. Has been replaced by domain-specific API modules in `src/api/` (`HttpClient.js`, `AuthApi.js`, `SessionsApi.js`, `MaterialsApi.js`, `PromptsApi.js`, `PandocApi.js`, `MergeApi.js`, `AdminApi.js`).
+
+### 4. Why it was deleted
+Strangler Fig pattern — all consumers have been migrated to `src/api/*.js`. The old monolithic `utils/api.js` is no longer imported anywhere.
+
+### 5. Functions Summary
+All functions have been moved to their respective domain modules:
+| Legacy function | New module |
+|---|---|
+| `authFetch` | `HttpClient.js` (`baseRequest`/`handleResponse`) |
+| `fetchUserProfile` | `AuthApi.js` (`getCurrentUser`) |
+| `fetchMaterials` | `MaterialsApi.js` (`getDistinctNames`) |
+| `compilePromptStateless` | `PromptsApi.js` (`compilePrompt`) |
+| `fetchSessions`, `fetchSession`, `createSession`, `uploadFiles`, `removeSession`, `saveSessionContent` | `SessionsApi.js` |
+| `fetchStats`, `saveQuizSession` | Replaced inline via `SessionsApi` calls |
+| `generatePandoc` | `PandocApi.js` (`generate`) |
+| `mergeDocxFiles` | `MergeApi.js` (`execute`) |
+| `fetchAdminUsers`, `createAdminUser`, `updateAdminUser`, `deleteAdminUser` | `AdminApi.js` (`admin.users.*`) |
+| `fetchAdminMaterials`, `createAdminMaterial`, `updateAdminMaterial`, `deleteAdminMaterial` | `AdminApi.js` (`admin.materials.*`) |
+| `fetchAdminWorkflows`, `toggleAdminWorkflow` | `AdminApi.js` (`admin.workflows.*`) |
+| `fetchAdminPrompts`, `updateAdminPrompt` | `AdminApi.js` (`admin.prompts.*`) |
+| `fetchAdminPermissions`, `createAdminPermission`, `deleteAdminPermission` | `AdminApi.js` (`admin.permissions.*`) |
+
+### 6. Integration
+No longer exists. All backend communication now routes through `HttpClient.js` which provides JWT auth, 401 auto-logout, rate-limit interception (`RateLimitError`), and `ApiError` with validation error maps.
+
+### 7. Additional Info
+The deletion was verified by a full Vite build — zero lingering imports remain.
 
 ## 1. File Name and Directory
 Frontend/src/utils/storage.js
@@ -1472,3 +1523,651 @@ Sessions are stored as JSON under `localStorage['bluebits_sessions']`. All read 
 ### 9. API
 No HTTP requests. All data flows to/from `localStorage` synchronously via `JSON.parse`/`JSON.stringify`.
 
+## 1. File Name and Directory
+`Frontend/src/utils/errorFormatter.js`
+
+### 2. File Type
+Frontend — Arabic error formatting utility
+
+### 3. What the file does
+Provides three helper functions to format API errors into human-readable Arabic messages and structured validation error maps. Designed to be used by the API utility layer and UI components for consistent error presentation.
+
+### 4. User Stories
+- As a user, I see clear Arabic messages when rate-limited, with the exact wait time.
+- As a developer, I call `formatValidationErrors(raw)` to flatten backend validation errors into `{field: message}` for per-field display.
+- As a user, I see context-aware Arabic fallback messages for common HTTP errors (404, 403, 409, 500, 503).
+
+### 5. Functions Summary
+- `formatRateLimitError(retryAfter)`: Converts seconds to Arabic "طلبات كثيرة جداً..." message with minutes/seconds.
+- `formatValidationErrors(raw)`: Flattens `Record<string, string[]>` into `Record<string, string>` taking the first message per field.
+- `formatGeneralError(apiError)`: Returns Arabic message based on HTTP status or falls back to `apiError.message`. Default: "حدث خطأ غير متوقع."
+
+### 6. Integration
+No backend calls. Pure utility — consumes error objects thrown by `HttpClient` or caught in UI components.
+
+### 7. Imports Summary
+Zero imports. Standalone utility with no dependencies.
+
+### 8. Additional Info
+- `formatRateLimitError` defaults to 60 seconds if `retryAfter` is falsy/non-numeric.
+- `formatValidationErrors` returns `{}` for null/non-object input.
+- `formatGeneralError` checks both `status` and message text to detect error type resiliently.
+
+### 9. API
+No direct API interaction. Designed to format errors from backend responses (429, 400 with validation errors, 4xx/5xx).
+
+## 1. File Name and Directory
+`Frontend/src/api/HttpClient.js`
+
+### 2. File Type
+Frontend — Base HTTP client with auth/error/rate-limit interception
+
+### 3. What the file does
+Thin fetch wrapper that automatically attaches the JWT token from localStorage, handles response status codes with typed errors, and exports `httpGet`/`httpPost`/`httpPut`/`httpDelete` convenience functions. Reuses `formatValidationErrors` from the existing error utility for 400 field errors.
+
+### 4. User Stories
+- As a developer, I call `httpGet('/api/sessions')` and get back parsed JSON or a typed `ApiError`/`RateLimitError`.
+- As a developer, I catch `ApiError` to access `error.status`, `error.errors` (validation map), `error.traceId`, and `error.data` (raw body).
+- As a developer, I catch `RateLimitError` to access `error.retryAfter` (seconds).
+
+### 5. Functions Summary
+- `ApiError`: Custom error class with `status`, `data`, `errors`, `traceId`.
+- `RateLimitError`: Custom error class with `retryAfter` and `status = 429`.
+- `baseRequest(method, path, options)`: Core fetch wrapper — builds URL, attaches JWT header, serializes JSON body, delegates to `handleResponse`.
+- `handleResponse(response)`: Parses JSON body, inspects status: 2xx → return data; 401 → clear localStorage + redirect `/login` + throw `ApiError`; 429 → throw `RateLimitError`; 400 → throw `ApiError` with `errors` map; 404 → throw `ApiError`; 5xx → throw `ApiError`.
+- `httpGet(path, options)`: GET shorthand.
+- `httpPost(path, body, options)`: POST shorthand.
+- `httpPut(path, body, options)`: PUT shorthand.
+- `httpDelete(path, options)`: DELETE shorthand.
+
+### 6. Integration
+Calls backend REST API via `fetch`. Handles 401 (auth expiry), 429 (rate limit), 400 (validation), 404 (not found), and 5xx (server error) statuses. Reuses `formatValidationErrors` from `utils/errorFormatter`.
+
+### 7. Imports Summary
+- **Internal:** `formatValidationErrors` from `../utils/errorFormatter`
+
+### 8. Additional Info
+- `API_BASE` is empty by default (relative URLs). Pass absolute URLs or override by editing `API_BASE`.
+- `FormData` bodies skip `Content-Type` auto-set (browser sets multipart boundary).
+- Non-JSON 2xx responses (e.g. empty body, blob) return `null` or throw on parse; designed for JSON APIs.
+- The legacy `utils/api.js` has been deleted — all code now uses `HttpClient`.
+
+### 9. API
+**Request:** All requests auto-attach `Authorization: Bearer <token>`. JSON objects get `Content-Type: application/json`. `FormData` passes through unmodified.
+
+**Response:** 2xx → parsed JSON (or `null` for empty). Errors → one of:
+- `ApiError` (400): `{ message, status: 400, errors: {field: msg}, data, traceId }`
+- `ApiError` (401): `{ message, status: 401, data, traceId }` + auto-redirect to `/login`
+- `RateLimitError` (429): `{ message, status: 429, retryAfter }`
+- `ApiError` (404): `{ message, status: 404, data, traceId }`
+- `ApiError` (5xx): `{ message, status, data, traceId }`
+`Frontend/src/contexts/ToastContext.jsx`
+
+### 2. File Type
+Frontend (React Context Provider)
+
+### 3. What the file does
+Manages a global toast notification queue. Provides `showToast(message, type)` for React components and `showToastGlobal(message, type)` for dispatching toasts from non-React code (e.g., `api.js`). Toasts auto-dismiss after 5 seconds. Supports types: `success`, `error`, `warning`, `info`.
+
+### 4. User Stories
+- As a user, I see a styled toast notification when an API error (429, 403, 500) occurs.
+- As a developer, I call `showToast` from any component or `showToastGlobal` from utility code to trigger a notification.
+
+### 5. Functions Summary
+- `ToastProvider`: Context provider — wraps children with toast state, listens for global `app:showToast` custom events.
+- `useToast()`: Hook returning `{ toasts, showToast, removeToast }`.
+- `showToastGlobal(message, type)`: Dispatches a `CustomEvent('app:showToast')` on `window` for non-React callers.
+- `removeToast(id)`: Removes a toast by ID (supports manual dismissal).
+- `showToast(message, type)`: Adds a toast to the queue and schedules auto-removal after 5s.
+
+### 6. Integration
+No backend calls. Communicates with non-React code via `window` custom events (`app:showToast`). Consumed by `Toast.jsx` component.
+
+### 7. Imports Summary
+- **External:** `react` (createContext, useContext, useState, useCallback, useEffect)
+
+### 8. Additional Info
+- Toast IDs are generated via `Date.now() + Math.random()` — sufficient for local state.
+- Uses `useCallback` for stable references to `showToast` and `removeToast`.
+- The global event listener is cleaned up on provider unmount.
+
+### 9. API
+- `event.detail.message` (string) — toast text
+- `event.detail.type` (string) — one of `success`, `error`, `warning`, `info`
+
+## 1. File Name and Directory
+`Frontend/src/components/Toast.jsx`
+
+### 2. File Type
+Frontend (React component)
+
+### 3. What the file does
+Renders all active toasts as a fixed overlay at the top of the viewport, using `createPortal` to `document.body`. Each toast shows a `lucide-react` icon (CheckCircle/error, XCircle/error, AlertTriangle/warning, Info/info), the message text, and a close button. Animated entrance via `animate-fade-slide-in`.
+
+### 4. User Stories
+- As a user, I see stacked toast notifications at the top of the screen with color-coded icons for success, error, warning, and info.
+- As a user, I can manually dismiss a toast by clicking its close button.
+
+### 5. Functions Summary
+- `Toast` (default export): Reads `toasts` from `ToastContext`, renders a portal container with individual toast cards.
+
+### 6. Integration
+No backend/database calls. Renders via portal at `document.body` to ensure z-index stacking above all content.
+
+### 7. Imports Summary
+- **External:** `react-dom` (createPortal), `lucide-react` (CheckCircle, XCircle, AlertTriangle, Info, X)
+- **Internal:** `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Arabic-first: button `aria-label` is "إغلاق", RTL-compatible logical positioning (`start-1/2 -translate-x-1/2`).
+- Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
+- Toasts stack vertically with a 0.5rem gap.
+- Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
+
+## 1. File Name and Directory
+`Frontend/src/api/MaterialsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a dedicated function to fetch distinct material names from the backend via `HttpClient`. Replaced the legacy `fetchMaterials` function from the deleted `utils/api.js`.
+
+### 4. User Stories
+- As a developer, I call `getDistinctNames()` to get a `string[]` of all material names for autocomplete/dropdown UIs.
+
+### 5. Functions Summary
+- `getDistinctNames()`: Calls `httpGet('/api/materials')` and returns the parsed JSON response (`string[]`).
+
+### 6. Integration
+Calls `GET /api/materials` via `HttpClient` (`./HttpClient`). No direct database interaction.
+
+### 7. Imports Summary
+- **Internal:** `httpGet` from `./HttpClient`
+
+### 8. Additional Info
+- Response is an array of strings (material names), e.g. `["مادة 1", "مادة 2"]`.
+- Auth token is automatically attached by `HttpClient` (JWT from localStorage).
+- Error handling is inherited from `HttpClient`'s `handleResponse` (401 auto-logout, rate limiting, etc.).
+
+### 9. API
+**Request:** `GET /api/materials` — no body, no params.
+**Response:** `string[]` — array of material name strings.
+
+## 1. File Name and Directory
+`Frontend/src/api/PromptsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides two functions for prompt-related API calls using the HttpClient base client. `getPromptForSession` fetches a prompt for a given session and workflow. `compilePrompt` sends user notes to the backend and returns the compiled prompt text.
+
+### 4. User Stories
+- As a developer, I can call `getPromptForSession(sessionId, systemCode)` to fetch prompt text and name for a session.
+- As a developer, I can call `compilePrompt(systemCode, generalNotes, fileNotes)` to compile a prompt with user notes attached.
+
+### 5. Functions Summary
+- `getPromptForSession(sessionId, systemCode)`: Calls `httpGet` on `/api/prompts/{sessionId}/{systemCode}`, returns `{ promptText, promptName }`.
+- `compilePrompt(systemCode, generalNotes, fileNotes)`: Calls `httpPost` on `/api/prompts/compile` with `{ systemCode, GeneralNotes, FileNotes }`, returns `{ compiledPrompt }`.
+
+### 6. Integration
+Calls the backend REST API via HttpClient. No direct database or external service calls.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+Uses the HttpClient client (which auto-attaches JWT and handles errors). Replaced the older `compilePromptStateless` and `fetchPrompt` from the deleted `utils/api.js`.
+
+### 9. API
+- **GET** `/api/prompts/{sessionId}/{systemCode}` — Returns `{ promptText, promptName }`.
+- **POST** `/api/prompts/compile` — Body: `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
+
+## 1. File Name and Directory
+`Frontend/src/api/AuthApi.js`
+
+### 2. File Type
+Frontend — API service
+
+### 3. What the file does
+Provides authentication API methods using `HttpClient`. Exposes `login` (POST credentials) and `getCurrentUser` (GET current profile) — both return `LoginResponse` with JWT token, user profile, and authorized workflow SystemCodes.
+
+### 4. User Stories
+- As a user, I can log in with my username and password and receive a token + profile.
+- As a user, I can fetch my current profile and permissions using my stored token.
+
+### 5. Functions Summary
+- `login(username, password)`: POSTs to `/api/auth/login`, returns parsed `LoginResponse`.
+- `getCurrentUser()`: GETs `/api/auth/me`, returns parsed `LoginResponse`.
+
+### 6. Integration
+Calls backend REST API at `/api/auth/login` and `/api/auth/me`. Uses `HttpClient` which auto-attaches JWT tokens and handles error responses (401 auto-redirect, 429 rate limit, etc.).
+
+### 7. Imports Summary
+- **Internal:** `httpPost`, `httpGet` from `./HttpClient`
+
+### 8. Additional Info
+Designed as a thin service layer over `HttpClient` — no custom error handling, serialization, or token management. Errors propagate as `ApiError` / `RateLimitError` from `HttpClient`. Old `utils/api.js` has been deleted — all code now routes through `SessionsApi`.
+
+## 1. File Name and Directory
+`Frontend/src/api/SessionsApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides dedicated functions for all session-related API calls using the `HttpClient` base module. Covers paginated session listing, single session retrieval, session creation, session deletion, session content saving, and multipart file uploads with notes.
+
+### 4. User Stories
+- As a developer, I can import `getSessions(page, limit)` from SessionsApi to fetch a paginated list of sessions.
+- As a developer, I can import `uploadFiles(sessionId, files, notes)` to upload files with per-file notes via multipart FormData.
+- As a developer, I can import `createSession(data)` and `saveSessionContent(sessionId, body)` to create/update sessions.
+- As a developer, I can import `removeSession(id)` to delete a session via `DELETE /api/sessions/{id}`.
+
+### 5. Functions Summary
+- `getSessions(page, limit)`: GET `/api/sessions?page=&limit=` — returns paginated session list.
+- `getSession(id)`: GET `/api/sessions/{id}` — returns single session detail.
+- `createSession(data)`: POST `/api/sessions` with JSON body — creates a new session.
+- `removeSession(id)`: DELETE `/api/sessions/{id}` — deletes a session.
+- `saveSessionContent(sessionId, body)`: POST `/api/sessions/save` — saves session content (quiz, markdown, etc).
+- `uploadFiles(sessionId, files, notes)`: POST `/api/sessions/{id}/files` with `FormData` (multipart) — uploads files with optional per-file notes.
+
+### 6. Integration
+Calls backend REST API through the shared `HttpClient` (`./HttpClient.js`). All requests automatically get JWT auth, error handling, and rate-limit interception from HttpClient.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost`, `httpDelete` from `./HttpClient`
+
+### 8. Additional Info
+- `uploadFiles` constructs a `FormData` object: appends each file under `'files'` key and each note under `'notes'` key. The browser automatically sets `Content-Type: multipart/form-data`.
+- Default pagination: `page=1`, `limit=10`.
+- Uses HttpClient's typed error classes (`ApiError`, `RateLimitError`).
+
+### 9. API
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| GET | `/api/sessions?page=&limit=` | — | Paginated session list |
+| GET | `/api/sessions/{id}` | — | Single session detail |
+| POST | `/api/sessions` | `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }` | Create session |
+| DELETE | `/api/sessions/{id}` | — | Delete session |
+| POST | `/api/sessions/save` | `{ sessionId, contentBody }` | Save session content |
+| POST | `/api/sessions/{id}/files` | `FormData` (files + notes) | Upload files via multipart |
+
+## 1. File Name and Directory
+`Frontend/src/api/PandocApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a `PandocApi` object with a single `generate` method that converts Markdown text to a formatted `.docx` file via the backend Pandoc endpoint. Uses `HttpClient` for authenticated requests with automatic error handling.
+
+### 4. User Stories
+- As a user, I can submit markdown text and receive a file URL to a formatted Word document.
+
+### 5. Functions Summary
+- `PandocApi.generate(markdownText, templateName, materialName, type, lectureNumber)`: POSTs to `/api/pandoc/generate` with the payload, returns `{ fileUrl }`.
+
+### 6. Integration
+Calls the backend Pandoc endpoint (`POST /api/pandoc/generate`). Depends on `HttpClient.js` for JWT auth and error handling.
+
+### 7. Imports Summary
+- **Internal:** `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+JSON payload matches the backend `GenerateDocxRequest` DTO. `type` maps to the lecture type field expected by the backend.
+
+### 9. API
+**POST** `/api/pandoc/generate` — body: `{ markdownText, templateName, materialName, type, lectureNumber }` → response: `{ fileUrl: string }`
+
+## 1. File Name and Directory
+`Frontend/src/api/MergeApi.js`
+
+### 2. File Type
+Frontend — API service module
+
+### 3. What the file does
+Provides a `MergeApi` object with an `execute` method that uploads multiple DOCX files and merges them into one document via the backend Merge endpoint. Sends `multipart/form-data` via `HttpClient`.
+
+### 4. User Stories
+- As a user, I can upload multiple DOCX files and get back a download URL for the merged document.
+
+### 5. Functions Summary
+- `MergeApi.execute(files, materialName, lectureType)`: Builds a `FormData` with the file list and metadata, POSTs to `/api/merge/execute`, returns `{ url, finalFileName }`.
+
+### 6. Integration
+Calls the backend Merge endpoint (`POST /api/merge/execute`). Depends on `HttpClient.js` for JWT auth and error handling.
+
+### 7. Imports Summary
+- **Internal:** `httpPost` from `./HttpClient`
+
+### 8. Additional Info
+FormData is built without explicit `Content-Type` headers — the browser sets the multipart boundary automatically. Files are appended under the `files` field name expected by the backend.
+
+### 9. API
+**POST** `/api/merge/execute` — body: `FormData` with `files[]` (FileList), `materialName` (string), `lectureType` (string) → response: `{ url: string, finalFileName: string }`
+
+## 1. File Name and Directory
+`Frontend/src/api/AdminApi.js`
+
+### 2. File Type
+Frontend — Admin API service module
+
+### 3. What the file does
+Provides a namespaced interface (`admin.*`) for all admin-related REST API calls using `HttpClient`. Groups endpoints by domain: `users`, `materials`, `permissions`, `prompts`, and `workflows`.
+
+### 4. User Stories
+- As an admin, I can CRUD users via `admin.users.*`.
+- As an admin, I can CRUD materials via `admin.materials.*`.
+- As an admin, I can list, create, and delete permissions via `admin.permissions.*`.
+- As an admin, I can list and update prompt text via `admin.prompts.*`.
+- As an admin, I can list and toggle workflow active state via `admin.workflows.*`.
+
+### 5. Functions Summary
+- `admin.users.fetch()`: GET `/api/admin/users`
+- `admin.users.create(data)`: POST `/api/admin/users`
+- `admin.users.update(id, data)`: PUT `/api/admin/users/{id}`
+- `admin.users.delete(id)`: DELETE `/api/admin/users/{id}`
+- `admin.materials.fetch()`: GET `/api/admin/materials`
+- `admin.materials.create(data)`: POST `/api/admin/materials`
+- `admin.materials.update(id, data)`: PUT `/api/admin/materials/{id}`
+- `admin.materials.delete(id)`: DELETE `/api/admin/materials/{id}`
+- `admin.permissions.fetch()`: GET `/api/admin/permissions`
+- `admin.permissions.create(data)`: POST `/api/admin/permissions`
+- `admin.permissions.delete(id)`: DELETE `/api/admin/permissions/{id}`
+- `admin.prompts.fetch()`: GET `/api/admin/prompts`
+- `admin.prompts.updateText(id, promptText)`: PUT `/api/admin/prompts/{id}`
+- `admin.workflows.fetch()`: GET `/api/admin/workflows`
+- `admin.workflows.toggleActive(id, isActive)`: PUT `/api/admin/workflows/{id}/toggle`
+
+### 6. Integration
+Calls the backend REST API at `/api/admin/*` endpoints through the `HttpClient` module which handles JWT auth, error/rate-limit handling, and response parsing.
+
+### 7. Imports Summary
+- **Internal:** `httpGet`, `httpPost`, `httpPut`, `httpDelete` from `./HttpClient`
+
+### 8. Additional Info
+All functions delegate error handling to `HttpClient` — they return parsed JSON on success or throw `ApiError`/`RateLimitError` on failure. The `admin` object is also the default export.
+
+### 9. API
+| Namespace | Endpoint | Method | Body |
+|---|---|---|---|
+| users.fetch | `/api/admin/users` | GET | — |
+| users.create | `/api/admin/users` | POST | user data |
+| users.update | `/api/admin/users/{id}` | PUT | user data |
+| users.delete | `/api/admin/users/{id}` | DELETE | — |
+| materials.fetch | `/api/admin/materials` | GET | — |
+| materials.create | `/api/admin/materials` | POST | material data |
+| materials.update | `/api/admin/materials/{id}` | PUT | material data |
+| materials.delete | `/api/admin/materials/{id}` | DELETE | — |
+| permissions.fetch | `/api/admin/permissions` | GET | — |
+| permissions.create | `/api/admin/permissions` | POST | permission data |
+| permissions.delete | `/api/admin/permissions/{id}` | DELETE | — |
+| prompts.fetch | `/api/admin/prompts` | GET | — |
+| prompts.updateText | `/api/admin/prompts/{id}` | PUT | `{ promptText }` |
+| workflows.fetch | `/api/admin/workflows` | GET | — |
+| workflows.toggleActive | `/api/admin/workflows/{id}/toggle` | PUT | `{ isActive }` |
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useSessions.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for paginated session lifecycle management. Auto-fetches the first page on mount, supports "load more" pagination, delete with auto-refresh, and wraps all SessionsApi calls with ToastContext notifications. Handles `RateLimitError` (429) with warning toasts.
+
+### 4. User Stories
+- As a developer, I call `useSessions()` and get `{ sessions, totalCount, page, hasMore, isLoading, error }` for a paginated session list.
+- As a developer, I call `loadMore()` to append the next page of sessions.
+- As a developer, I call `refresh()` to reload from page 1.
+- As a developer, I call `removeSession(id)` to delete a session with success/429 toast + auto-refresh.
+- As a developer, I call `createSession(data)`, `getSession(id)`, `saveContent(sessionId, body)`, or `uploadFiles(sessionId, files, notes)` and get toast feedback on success/error.
+- As a developer, 429 rate-limit errors show a warning toast for load/list, get, and remove operations.
+
+### 5. Functions Summary
+- `useSessions({ initialPage, limit })`: Hook — accepts optional `initialPage` (default 1) and `limit` (default 10). Returns state and action methods.
+- `loadMore()`: Increments page and appends results if `hasMore` is true and not already loading.
+- `refresh()`: Reloads sessions from `initialPage` (replaces current list).
+- `createSession(data)`: Calls `SessionsApi.createSession`, shows success/error toast, returns created session.
+- `getSession(id)`: Calls `SessionsApi.getSession`, shows error/429 warning toast on failure, returns session.
+- `removeSession(id)`: Calls `SessionsApi.removeSession`, shows success/429 warning toast, auto-refreshes list on success.
+- `saveContent(sessionId, body)`: Calls `SessionsApi.saveSessionContent`, shows success/error toast, returns result.
+- `uploadFiles(sessionId, files, notes)`: Calls `SessionsApi.uploadFiles`, shows success/error toast, returns result.
+
+### 6. Integration
+Calls `SessionsApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for user-facing success/error/warning notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useEffect, useCallback)
+- **Internal:** `SessionsApi` functions from `../api/SessionsApi` (including `removeSession`), `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Load errors are set in `error` state for programmatic handling. 429 errors during list loading show a warning toast.
+- `loadMore` is a no-op guard (ignores call if already loading or `hasMore` is false).
+- `removeSession` catches `RateLimitError` specifically to show a warning toast, other errors show generic error toast.
+- `refresh()` re-calls `loadSessions(initialPage)` replacing the current list.
+- Return value includes: `sessions`, `totalCount`, `page`, `hasMore`, `isLoading`, `error`, `loadMore`, `refresh`, `createSession`, `getSession`, `removeSession`, `saveContent`, `uploadFiles`.
+
+### 9. API
+- **Internal:** Delegates all HTTP to `SessionsApi` (SessionsApi.js). See SessionsApi.md for endpoint details.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure, `'warning'` for 429 rate-limit errors.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminMaterials.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for admin materials CRUD. Wraps `AdminApi.materials.*` calls with loading/error states, toast notifications, and validation error mapping from backend `ApiError.errors`.
+
+### 4. User Stories
+- As an admin, I call `fetchAll()` to load all materials with loading/error state.
+- As an admin, I call `create(data)`, `update(id, data)`, or `remove(id)` with toast feedback and automatic list refresh on success.
+
+### 5. Functions Summary
+- `useAdminMaterials()`: Hook — returns state and CRUD actions.
+- `fetchAll()`: Fetches all materials from `admin.materials.fetch()`, sets `materials` state or `error` on failure.
+- `create(data)`: Creates a material via `admin.materials.create(data)`, shows success toast, re-fetches list, maps validation errors on failure.
+- `update(id, data)`: Updates a material via `admin.materials.update(id, data)`, shows success toast, re-fetches list, maps validation errors on failure.
+- `remove(id)`: Deletes a material via `admin.materials.delete(id)`, shows success toast, re-fetches list on success.
+- `clearValidationErrors()`: Resets `validationErrors` state to `null`.
+
+### 6. Integration
+Calls `admin.materials.*` from `AdminApi` (which uses `HttpClient` for JWT auth, error/rate-limit handling). Uses `ToastContext` for success/error notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `formatValidationErrors` from `../utils/errorFormatter`
+
+### 8. Additional Info
+- `validationErrors` is set from `err.errors` (flattened via `formatValidationErrors`) on 400 validation failures — useful for per-field inline error display.
+- `clearValidationErrors()` resets validation errors (useful when opening modals or resetting forms).
+- List errors show a toast and set `error` state for programmatic handling.
+- Mutations re-throw after handling so callers can chain `.catch()` if needed.
+- No auto-fetch on mount — caller must invoke `fetchAll()` explicitly.
+
+### 9. API
+- **Internal:** Delegates all HTTP to `admin.materials.*` (AdminApi.js). Endpoints: GET/POST/PUT/DELETE `/api/admin/materials`.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext`.
+- **Validation Errors:** Maps `err.errors` via `formatValidationErrors` into `{ field: message }` shape.
+- **Return:** `{ materials, isLoading, isSaving, error, validationErrors, fetchAll, create, update, remove, clearValidationErrors }`
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminPermissions.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing role-workflow permissions. Provides `list`, `create`, and `delete` operations via `admin.permissions.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all permissions, create new ones, and delete existing ones with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminPermissions()`: Hook returning `{ items, isLoading, error, validationErrors, list, create, delete }`.
+- `list()`: Fetches all permissions, sets `items`.
+- `create(data)`: Creates a permission, shows success/error toast, sets `validationErrors` on 400.
+- `delete(id)`: Deletes a permission, optimistically removes from `items`, shows toast.
+
+### 6. Integration
+Calls `admin.permissions` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors` (`Record<string, string>`). Re-throws all errors after toast so callers can chain `.catch()`.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminPrompts.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing workflow AI prompts. Provides `list` and `updateText` operations via `admin.prompts.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all prompts and update their text with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminPrompts()`: Hook returning `{ items, isLoading, error, validationErrors, list, updateText }`.
+- `list()`: Fetches all prompts, sets `items`.
+- `updateText(id, promptText)`: Updates a prompt's text, optimistic update of `items`, shows success/error toast, sets `validationErrors` on 400.
+
+### 6. Integration
+Calls `admin.prompts` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors`. Re-throws after toast.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminWorkflows.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Lightweight admin hook for managing workflow activation states. Provides `list` and `toggleActive` operations via `admin.workflows.*` from AdminApi, with ToastContext notifications and `validationErrors` state from 400 responses.
+
+### 4. User Stories
+- As an admin, I can list all workflows and toggle their active state with toast feedback.
+- As a developer, I read `validationErrors` from the hook to show per-field error messages.
+
+### 5. Functions Summary
+- `useAdminWorkflows()`: Hook returning `{ items, isLoading, error, validationErrors, list, toggleActive }`.
+- `list()`: Fetches all workflows, sets `items`.
+- `toggleActive(id, isActive)`: Toggles a workflow's active state, optimistic update of `items`, shows success/error toast, sets `validationErrors` on 400.
+
+### 6. Integration
+Calls `admin.workflows` from `AdminApi` (which uses `HttpClient`). Uses `ToastContext` for notifications.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`, `ApiError` from `../api/HttpClient`
+
+### 8. Additional Info
+Catches `ApiError` with `status === 400` to populate `validationErrors`. Re-throws after toast.
+
+### 9. API
+Delegates to `AdminApi` (HttpClient). See `AdminApi.js` for endpoints. Toast via `ToastContext`.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useAdminUsers.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mount, manages modal create/edit flow with animated close, delete confirmation, and captures validation errors from 400 API responses. Uses `AdminApi.users.*` for all HTTP operations and `ToastContext` for user-facing notifications.
+
+### 4. User Stories
+- As an admin, I can view all users via `loadUsers()` and see loading/error states.
+- As an admin, I can open a create modal or pre-filled edit modal, submit the form, and see success/error toasts with validation errors highlighted.
+- As an admin, I can trigger delete confirmation and confirm/cancel deletion.
+
+### 5. Functions Summary
+- `useAdminUsers()`: Hook — returns all state and action methods.
+- `loadUsers()`: Fetches all admin users via `AdminApi.users.fetch()` and sets `users` state.
+- `openCreateModal()`: Resets form, opens modal in create mode.
+- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode.
+- `closeModal()`: Triggers closing animation, then resets all modal state after 200ms.
+- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows toast, reloads list on success; sets `validationErrors` on 400.
+- `handleDelete(id)`: Sets `deleteConfirmId` to trigger confirm UI.
+- `confirmDelete()`: Deletes the user at `deleteConfirmId`, shows toast, reloads list.
+- `cancelDelete()`: Clears `deleteConfirmId` without deleting.
+
+### 6. Integration
+Calls `AdminApi.users.*` methods (`fetch`, `create`, `update`, `delete`) which use `HttpClient` for JWT auth and error handling. Uses `ToastContext` for success/error notifications. Captures `ApiError.errors` from 400 responses into `validationErrors` state.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useEffect, useCallback)
+- **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Load errors are set in `error` state without toasts to avoid spam.
+- Submit errors propagate validation errors (`err.errors`) from 400 responses into `validationErrors` for per-field display, and re-throw for caller chaining.
+- `handleSubmit` strips `username` from the payload on update (only sent on create).
+- Modal close animation uses a 200ms timeout consistent with existing admin page patterns.
+- `deleteConfirmId` holds the user ID pending confirmation; set to `null` when idle.
+
+### 9. API
+- **Internal:** Delegates all HTTP to `AdminApi.users.*` (AdminApi.js). See AdminApi.md for endpoint details.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+
+## 1. File Name and Directory
+`Frontend/src/hooks/useWizard.js`
+
+### 2. File Type
+Frontend — Custom React hook
+
+### 3. What the file does
+
+Provides a generic multi-step wizard state manager. Manages `currentStep` navigation (`next`, `prev`, `goTo`), `sessionId` (auto-set from createSession API response), and `wizardData` for arbitrary workflow data. Integrates with `useSessions` for session create/save and uses `ToastContext` for error handling.
+
+### 4. User Stories
+- As a developer, I call `useWizard({ totalSteps: 3 })` and get `{ currentStep, next, prev, goTo, sessionId, wizardData, setWizardData }` to manage wizard state.
+- As a developer, I call `createSession(data)` which creates a backend session and auto-stores the returned `sessionId`.
+- As a developer, I call `saveContent(body)` to persist wizard data against the current session.
+
+### 5. Functions Summary
+- `useWizard({ totalSteps })`: Hook — accepts `totalSteps` (default 1). Returns wizard state and actions.
+- `next()`: Advances to the next step, clamped to `totalSteps - 1`.
+- `prev()`: Goes back one step, clamped to 0.
+- `goTo(step)`: Jumps to a specific step index (validated against bounds).
+- `createSession(data)`: Wraps `useSessions.createSession`, stores the returned session ID, shows error toast on failure.
+- `saveContent(body)`: Wraps `useSessions.saveContent` for the current session; shows error toast if no session exists or on API failure.
+- `setSessionId(id)`: Allows external restoration of a session ID (e.g., from URL params).
+- `setWizardData(data)`: Replaces the entire wizard data object.
+
+### 6. Integration
+Uses `useSessions` (which delegates to `SessionsApi` / `HttpClient` for REST calls). Uses `ToastContext` via both `useSessions` and direct `showToast` calls for error handling.
+
+### 7. Imports Summary
+- **External:** `react` (useState, useCallback)
+- **Internal:** `useSessions` from `./useSessions`, `useToast` from `../contexts/ToastContext`
+
+### 8. Additional Info
+- Step navigation is bounded: `next` stops at `totalSteps - 1`, `prev` stops at 0, `goTo` silently ignores out-of-range steps.
+- `sessionId` is automatically set from `session.id ?? session.sessionId` after a successful `createSession` call.
+- `saveContent` silently returns `undefined` if no `sessionId` is set and shows an error toast.
+
+### 9. API
+No direct API calls. Delegates all HTTP to `useSessions` → `SessionsApi` (`SessionsApi.js`). See SessionsApi.md for endpoint details.

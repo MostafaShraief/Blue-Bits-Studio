@@ -2,11 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { Suspense, lazy } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { TourProvider } from './contexts/TourContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Layout from './components/Layout';
 import AdminRoute from './components/AdminRoute';
 import AuthOnlyRoute from './components/AuthOnlyRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
+import Toast from './components/Toast';
 
 // Lazy load all page components
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -28,11 +30,12 @@ const AdminSystem = lazy(() => import('./pages/admin/SystemConfig'));
 
 export default function App() {
     return (
-        <AuthProvider>
-            <BrowserRouter>
-                <TourProvider>
-                    <Suspense fallback={<PageLoader />}>
-                        <Routes>
+        <ToastProvider>
+            <AuthProvider>
+                <BrowserRouter>
+                    <TourProvider>
+                        <Suspense fallback={<PageLoader />}>
+                            <Routes>
                         {/* Public route */}
                         <Route path="login" element={<Login />} />
                         {/* For admins trying to access member workflows */}
@@ -91,9 +94,11 @@ export default function App() {
                         {/* Catch-all for unauthenticated users - redirect to login */}
                         <Route path="*" element={<Navigate to="/login" replace />} />
                     </Routes>
-                    </Suspense>
-                </TourProvider>
-            </BrowserRouter>
-        </AuthProvider>
+                        </Suspense>
+                    </TourProvider>
+                    <Toast />
+                </BrowserRouter>
+            </AuthProvider>
+        </ToastProvider>
     );
 }

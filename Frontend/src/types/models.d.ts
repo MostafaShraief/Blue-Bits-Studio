@@ -59,3 +59,16 @@ export interface SessionSummary {
     workflowType: string;
     createdAt: string;
 }
+
+export interface SessionSummaryDto {
+    id: number;
+    materialName: string;
+    workflowType: string;
+    createdAt: string;
+    lectureNumber: number;
+}
+
+export interface SessionDetail {
+    session: Session;
+    compiledPrompt: string | null;
+}

@@ -1,13 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-    fetchAdminWorkflows,
-    fetchAdminPrompts,
-    fetchAdminPermissions,
-    toggleAdminWorkflow,
-    updateAdminPrompt,
-    createAdminPermission,
-    deleteAdminPermission
-} from '../../utils/api';
+import { useAdminWorkflows } from '../../hooks/useAdminWorkflows';
+import { useAdminPrompts } from '../../hooks/useAdminPrompts';
+import { useAdminPermissions } from '../../hooks/useAdminPermissions';
 import {
     Settings2,
     Power,
@@ -21,7 +15,6 @@ import {
     ChevronDown,
     ChevronUp,
     Save,
-    RefreshCw,
     Shield,
     Sparkles,
     FlaskConical,
@@ -33,64 +26,45 @@ import {
 
 export default function SystemConfig() {
     const [activeTab, setActiveTab] = useState('workflows');
-    const [workflows, setWorkflows] = useState([]);
-    const [prompts, setPrompts] = useState([]);
-    const [permissions, setPermissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [saving, setSaving] = useState({});
 
-    // Form states
     const [editingPromptId, setEditingPromptId] = useState(null);
     const [promptText, setPromptText] = useState('');
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
     const [newPermissionRole, setNewPermissionRole] = useState('TechMember');
     const [isClosing, setIsClosing] = useState(false);
+    const [saving, setSaving] = useState({});
+    const [permFieldErrors, setPermFieldErrors] = useState(null);
+
+    const workflows = useAdminWorkflows();
+    const prompts = useAdminPrompts();
+    const permissions = useAdminPermissions();
 
     useEffect(() => {
-        loadData();
+        Promise.all([
+            workflows.list(),
+            prompts.list(),
+            permissions.list()
+        ]).catch(err => {
+            setError(err.message);
+        }).finally(() => {
+            setLoading(false);
+        });
     }, []);
 
-    const loadData = async () => {
-        try {
-            setLoading(true);
-            const [wfData, pData, permData] = await Promise.all([
-                fetchAdminWorkflows(),
-                fetchAdminPrompts(),
-                fetchAdminPermissions()
-            ]);
-            setWorkflows(wfData);
-            setPrompts(pData);
-            setPermissions(permData);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleToggleWorkflow = async (id, currentActive) => {
-        try {
-            await toggleAdminWorkflow(id, !currentActive);
-            setWorkflows(prev => prev.map(w => 
-                w.workflowId === id ? { ...w, isActive: !currentActive ? 1 : 0 } : w
-            ));
-        } catch (err) {
-            alert(err.message);
-        }
+        await workflows.toggleActive(id, !currentActive).catch(() => {});
+        await workflows.list().catch(() => {});
     };
 
     const handleSavePrompt = async (id) => {
+        setSaving(prev => ({ ...prev, [id]: true }));
         try {
-            setSaving(prev => ({ ...prev, [id]: true }));
-            await updateAdminPrompt(id, promptText);
-            setPrompts(prev => prev.map(p => 
-                p.promptId === id ? { ...p, promptText } : p
-            ));
+            await prompts.updateText(id, promptText);
             setEditingPromptId(null);
-        } catch (err) {
-            alert(err.message);
+        } catch {
         } finally {
             setSaving(prev => ({ ...prev, [id]: false }));
         }
@@ -98,27 +72,28 @@ export default function SystemConfig() {
 
     const handleAddPermission = async () => {
         if (!selectedWorkflowId) return;
-        
+        setPermFieldErrors(null);
+
         try {
-            await createAdminPermission({
+            await permissions.create({
                 roleName: newPermissionRole,
                 workflowId: selectedWorkflowId
             });
             setShowPermissionModal(false);
-            loadData();
+            setNewPermissionRole('TechMember');
+            await permissions.list().catch(() => {});
         } catch (err) {
-            alert(err.message);
+            if (err.errors) setPermFieldErrors(err.errors);
         }
     };
 
     const handleDeletePermission = async (id) => {
         if (!confirm('هل أنت متأكد من إزالة هذه الصلاحية؟')) return;
-        
+
         try {
-            await deleteAdminPermission(id);
-            loadData();
-        } catch (err) {
-            alert(err.message);
+            await permissions.delete(id);
+            await permissions.list().catch(() => {});
+        } catch {
         }
     };
 
@@ -130,18 +105,17 @@ export default function SystemConfig() {
         }, 200);
     };
 
-    // Build a map of workflowId -> permissions
     const permissionsByWorkflow = useMemo(() => {
         const map = {};
-        permissions.forEach(p => {
+        (permissions.items || []).forEach(p => {
             if (!map[p.workflowId]) map[p.workflowId] = [];
             map[p.workflowId].push(p);
         });
         return map;
-    }, [permissions]);
+    }, [permissions.items]);
 
     const getWorkflowName = (id) => {
-        const wf = workflows.find(w => w.workflowId === id);
+        const wf = (workflows.items || []).find(w => w.workflowId === id);
         return wf?.adminNote || `Workflow ${id}`;
     };
 
@@ -154,13 +128,12 @@ export default function SystemConfig() {
         return config[roleName] || config.TechMember;
     };
 
-    const formatDate = (date) => {
-        if (!date) return '-';
-        return new Intl.DateTimeFormat('ar-SY', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        }).format(new Date(date));
+    const getFieldError = (field) => {
+        if (!permFieldErrors) return null;
+        const key = Object.keys(permFieldErrors).find(k => k.toLowerCase() === field.toLowerCase());
+        if (!key) return null;
+        const msg = permFieldErrors[key];
+        return Array.isArray(msg) ? msg[0] : msg;
     };
 
     if (loading) {
@@ -173,7 +146,6 @@ export default function SystemConfig() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-slide-in" dir="rtl">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text">إعدادات النظام</h1>
@@ -181,7 +153,6 @@ export default function SystemConfig() {
                 </div>
             </div>
 
-            {/* Error */}
             {error && (
                 <div className="flex items-center gap-3 bg-danger-light border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm">
                     <AlertCircle size={18} />
@@ -189,7 +160,6 @@ export default function SystemConfig() {
                 </div>
             )}
 
-            {/* Tabs */}
             <div className="flex gap-2 p-1.5 bg-surface rounded-xl w-fit border border-border">
                 <button
                     onClick={() => setActiveTab('workflows')}
@@ -219,16 +189,15 @@ export default function SystemConfig() {
                 </button>
             </div>
 
-            {/* Workflows & Permissions Tab */}
             {activeTab === 'workflows' && (
                 <div className="space-y-5">
                     <div className="text-sm text-text-muted ps-1">
                        قم بتفعيل أو تعطيل السيرفرات لإدارة صلاحيات الأدوار
                     </div>
 
-                    {workflows.map((wf, index) => {
+                    {(workflows.items || []).map((wf, index) => {
                         const workflowPerms = permissionsByWorkflow[wf.workflowId] || [];
-                        
+
                         return (
                             <div
                                 key={wf.workflowId}
@@ -238,8 +207,8 @@ export default function SystemConfig() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                                            wf.isActive === 1 
-                                                ? 'bg-success/15' 
+                                            wf.isActive === 1
+                                                ? 'bg-success/15'
                                                 : 'bg-surface'
                                         }`}>
                                             {wf.isActive === 1 ? (
@@ -253,21 +222,21 @@ export default function SystemConfig() {
                                             <p className="text-xs text-text-muted font-mono bg-surface px-2 py-0.5 rounded mt-1 inline-block">{wf.systemCode}</p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex items-center gap-3">
                                         <span className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                                            wf.isActive === 1 
-                                                ? 'bg-success/15 text-success' 
+                                            wf.isActive === 1
+                                                ? 'bg-success/15 text-success'
                                                 : 'bg-surface text-text-muted'
                                         }`}>
                                             {wf.isActive === 1 ? 'مفعّل' : 'معطّل'}
                                         </span>
-                                        
+
                                         <button
                                             onClick={() => handleToggleWorkflow(wf.workflowId, wf.isActive === 1)}
                                             className={`p-2.5 rounded-xl transition-all ${
-                                                wf.isActive === 1 
-                                                    ? 'text-text-muted hover:text-danger hover:bg-danger/10' 
+                                                wf.isActive === 1
+                                                    ? 'text-text-muted hover:text-danger hover:bg-danger/10'
                                                     : 'text-success hover:bg-success/10'
                                             }`}
                                             title={wf.isActive === 1 ? 'تعطيل' : 'تفعيل'}
@@ -277,7 +246,6 @@ export default function SystemConfig() {
                                     </div>
                                 </div>
 
-                                {/* Permissions for this workflow */}
                                 <div className="mt-5 pt-5 border-t border-border">
                                     <div className="flex items-center justify-between mb-4">
                                         <span className="text-sm font-medium text-text">الصلاحيات:</span>
@@ -285,6 +253,7 @@ export default function SystemConfig() {
                                             onClick={() => {
                                                 setSelectedWorkflowId(wf.workflowId);
                                                 setShowPermissionModal(true);
+                                                setPermFieldErrors(null);
                                             }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-all"
                                         >
@@ -292,7 +261,7 @@ export default function SystemConfig() {
                                             إضافة دور
                                         </button>
                                     </div>
-                                    
+
                                     <div className="flex flex-wrap gap-2">
                                         {workflowPerms.length === 0 ? (
                                             <span className="text-xs text-text-muted px-3 py-1.5">لا توجد صلاحيات</span>
@@ -325,14 +294,13 @@ export default function SystemConfig() {
                 </div>
             )}
 
-            {/* Prompts Tab */}
             {activeTab === 'prompts' && (
                 <div className="space-y-5">
                     <div className="text-sm text-text-muted ps-1">
                         قم بتعديل التعليمات (Prompts) المستخدمة من قبل كل سيرفر
                     </div>
 
-                    {prompts.map((prompt, index) => {
+                    {(prompts.items || []).map((prompt, index) => {
                         const isEditing = editingPromptId === prompt.promptId;
                         const isSaving = saving[prompt.promptId];
 
@@ -342,7 +310,6 @@ export default function SystemConfig() {
                                 className="bg-surface-card border border-border rounded-2xl overflow-hidden transition-all hover:shadow-lg hover:shadow-purple-500/5"
                                 style={{ animationDelay: `${index * 40}ms` }}
                             >
-                                {/* Header */}
                                 <button
                                     onClick={() => {
                                         if (isEditing) {
@@ -370,17 +337,27 @@ export default function SystemConfig() {
                                     )}
                                 </button>
 
-                                {/* Expanded content */}
                                 {isEditing && (
                                     <div className="px-5 pb-5 space-y-5 animate-fade-slide-in">
                                         <textarea
                                             value={promptText}
                                             onChange={(e) => setPromptText(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 resize-none transition-all"
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm text-text focus:outline-none focus:ring-2 focus:ring-purple-500/30 resize-none transition-all ${
+                                                prompts.validationErrors?.promptText
+                                                    ? 'border-danger focus:border-danger'
+                                                    : 'border-border focus:border-purple-500'
+                                            } ${prompts.validationErrors?.promptText ? 'bg-surface' : 'bg-surface'}`}
                                             rows={8}
                                             placeholder="قم بإدخال التعليمات..."
                                         />
-                                        
+                                        {prompts.validationErrors?.promptText && (
+                                            <p className="text-xs text-danger -mt-3">
+                                                {Array.isArray(prompts.validationErrors.promptText)
+                                                    ? prompts.validationErrors.promptText[0]
+                                                    : prompts.validationErrors.promptText}
+                                            </p>
+                                        )}
+
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => setEditingPromptId(null)}
@@ -409,10 +386,9 @@ export default function SystemConfig() {
                 </div>
             )}
 
-            {/* Permission Modal */}
             {showPermissionModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div 
+                    <div
                         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isClosing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
                         onClick={closePermissionModal}
                     />
@@ -454,12 +430,25 @@ export default function SystemConfig() {
                                     </div>
                                     <select
                                         value={newPermissionRole}
-                                        onChange={(e) => setNewPermissionRole(e.target.value)}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        onChange={(e) => {
+                                            setNewPermissionRole(e.target.value);
+                                            setPermFieldErrors(null);
+                                        }}
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all ${
+                                            getFieldError('roleName')
+                                                ? 'border-danger focus:ring-danger/30 focus:border-danger'
+                                                : 'border-border focus:ring-primary/30 focus:border-primary'
+                                        }`}
                                     >
                                         <option value="TechMember">عضو تقني</option>
                                         <option value="ScientificMember">عضو علمي</option>
                                     </select>
+                                    {getFieldError('roleName') && (
+                                        <p className="text-xs text-danger mt-1">{getFieldError('roleName')}</p>
+                                    )}
+                                    {getFieldError('workflowId') && (
+                                        <p className="text-xs text-danger mt-1">{getFieldError('workflowId')}</p>
+                                    )}
                                 </div>
                             </div>
 

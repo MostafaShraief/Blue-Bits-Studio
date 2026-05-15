@@ -7,9 +7,13 @@ import GuidedCopyLoop from '../components/GuidedCopyLoop';
 import PasteButton from '../components/PasteButton';
 import PasteImageButton from '../components/PasteImageButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { createSession, fetchSession, compilePromptStateless } from '../utils/api';
+import { useWizard } from '../hooks/useWizard';
+import { getSession, createSession as apiCreateSession, uploadFiles as apiUploadFiles } from '../api/SessionsApi';
+import { compilePrompt as apiCompilePrompt } from '../api/PromptsApi';
+import { useToast } from '../contexts/ToastContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
+import { formatRateLimitError } from '../utils/errorFormatter';
 
 const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -20,92 +24,88 @@ export default function ExtractionWizard() {
     const { autoSave, defaultMaterial } = useSettings();
     const { user, loading } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { showToast } = useToast();
 
-    // Permission checks - wait until auth is loaded
+    const { currentStep, next, prev, goTo, sessionId, setSessionId } = useWizard({ totalSteps: 3 });
+
     const isAdmin = user?.role === 'Admin';
     const canDoLecture = user?.allowedWorkflows?.includes('LEC_EXT') ?? false;
     const canDoBank = user?.allowedWorkflows?.includes('BANK_EXT') ?? false;
 
-    // Helper function to determine initial workflow code - must be defined before useState
     const getInitialWorkflowCode = () => {
-        // Check if the requested type in URL is actually allowed
         if (initialType === 'bank' && canDoBank) return 'BANK_EXT';
         if (initialType === 'lecture' && canDoLecture) return 'LEC_EXT';
-        // Fallback: prioritize the enabled workflow
         if (canDoLecture) return 'LEC_EXT';
         if (canDoBank) return 'BANK_EXT';
-        return 'LEC_EXT'; // Default (will be blocked by useEffect above)
+        return 'LEC_EXT';
     };
 
-    // Access control: redirect to 403 if both workflows are disabled and user is not admin
-    // Only check after auth is loaded to avoid race condition
     useEffect(() => {
-        if (loading) return; // Wait for auth to load
+        if (loading) return;
         if (!isAdmin && !canDoLecture && !canDoBank) {
             navigate('/unauthorized', { replace: true });
         }
     }, [loading, isAdmin, canDoLecture, canDoBank, navigate]);
 
-    // Update workflow state after auth loads
     useEffect(() => {
         if (loading) return;
-        // Only set from URL if we're loading a session (id param)
         if (id) {
             setWorkflowSystemCode(getInitialWorkflowCode());
         }
-        // Otherwise, leave workflowSystemCode empty - user must choose manually
     }, [loading, canDoLecture, canDoBank, id]);
 
-    // Initial state - default to LEC_EXT while loading, will be updated after auth loads
-    const [step, setStep] = useState(0);
+    const [fieldErrors, setFieldErrors] = useState({});
 
-    // Step 1 — Naming
-    // Start with empty selection - user must choose manually (matching CoordinationWizard behavior)
+    const clearFieldError = useCallback((field) => {
+        setFieldErrors((prev) => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    }, []);
+
     const [workflowSystemCode, setWorkflowSystemCode] = useState('');
-    const [sessionId, setSessionId] = useState(null);
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
     const [lectureType, setLectureType] = useState('');
 
-    // Step 2 — Images + Notes
-    const [images, setImages] = useState([]); // { file, url, note }
+    const [images, setImages] = useState([]);
     const [generalNotes, setGeneralNotes] = useState('');
 
-    // Step 3 — Generated prompt
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
 
     useEffect(() => {
         if (id) {
-            fetchSession(id).then(data => {
-                if (data) {
-                    if (data.materialName) setMaterialName(data.materialName);
-                    if (data.lectureNumber) setLectureNumber(data.lectureNumber);
-                    if (data.lectureType) setLectureType(data.lectureType);
-                    if (data.workflowType) setWorkflowSystemCode(data.workflowType);
-                    if (data.compiledPrompt) setPrompt(data.compiledPrompt);
-                    
-                    const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
-                    if (notes) setGeneralNotes(notes);
-                    
-                    if (data.files && data.files.length > 0) {
-                        const loadedImages = data.files.map(img => ({
-                            file: null,
-                            url: '/uploads/' + img.localFilePath,
-                            note: data.notes?.find(n => n.noteType === `FileNote` && n.fileId === img.fileId)?.noteText || ''
-                        }));
-                        setImages(loadedImages);
-                    }
-                    setSaved(true);
-                    setStep(STEPS.length - 1);
+            getSession(id).then(data => {
+                if (!data) return;
+                if (data.materialName) setMaterialName(data.materialName);
+                if (data.lectureNumber) setLectureNumber(data.lectureNumber);
+                if (data.lectureType) setLectureType(data.lectureType);
+                if (data.workflowType) setWorkflowSystemCode(data.workflowType);
+                if (data.compiledPrompt) setPrompt(data.compiledPrompt);
+
+                const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
+                if (notes) setGeneralNotes(notes);
+
+                if (data.files && data.files.length > 0) {
+                    const loadedImages = data.files.map(img => ({
+                        file: null,
+                        url: '/uploads/' + img.localFilePath,
+                        note: data.notes?.find(n => n.noteType === 'FileNote' && n.fileId === img.fileId)?.noteText || ''
+                    }));
+                    setImages(loadedImages);
                 }
+                setSessionId(id);
+                setSaved(true);
+                goTo(STEPS.length - 1);
             });
         }
     }, [id]);
 
-    /* ── Image handlers ─────────────────── */
     const addImage = useCallback((file) => {
         const url = URL.createObjectURL(file);
         setImages((prev) => [...prev, { file, url, note: '' }]);
@@ -122,10 +122,9 @@ export default function ExtractionWizard() {
         setImages((prev) => prev.map((img, i) => (i === index ? { ...img, note: text } : img)));
     }, []);
 
-    /* ── Global Paste Handler ────────────── */
     useEffect(() => {
         const handleGlobalPaste = (e) => {
-            if (step !== 1) return;
+            if (currentStep !== 1) return;
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
             const items = e.clipboardData?.items;
@@ -153,14 +152,13 @@ export default function ExtractionWizard() {
 
         window.addEventListener('paste', handleGlobalPaste);
         return () => window.removeEventListener('paste', handleGlobalPaste);
-    }, [addImage, step]);
+    }, [addImage, currentStep]);
 
-    /* ── Step transitions ───────────────── */
-    const goNext = async () => {
-        if (step === 1) {
+    const goNext = useCallback(async () => {
+        setFieldErrors({});
+        if (currentStep === 1) {
             setIsLoadingPrompt(true);
             try {
-                // 1) Prepare images
                 const processedImages = await Promise.all(images.map(async (img, i) => {
                     if (!img.file && img.url) {
                         try {
@@ -168,7 +166,7 @@ export default function ExtractionWizard() {
                             const blob = await res.blob();
                             const file = new File([blob], `image-${i}.png`, { type: blob.type || 'image/png' });
                             return { ...img, file };
-                        } catch (err) {
+                        } catch {
                             return img;
                         }
                     }
@@ -177,69 +175,81 @@ export default function ExtractionWizard() {
 
                 let finalPrompt = '';
 
-                // Always create session to get an ID (handleSave will need it)
-                const createdSession = await createSession({
+                const createdSession = await apiCreateSession({
                     materialName,
                     lectureNumber: parseInt(lectureNumber, 10),
                     lectureType,
                     workflowSystemCode,
                     generalNotes,
-                    files: processedImages.map(img => ({ file: img.file, note: img.note }))
                 });
+                const newSessionId = createdSession.sessionId || createdSession.id;
+                setSessionId(newSessionId);
 
-                const idToFetch = createdSession.sessionId || createdSession.id;
-                setSessionId(idToFetch);
+                const filesWithNotes = processedImages.filter(img => img.file).map(img => img.file);
+                const fileNotes = processedImages.map(img => img.note || '');
+                if (filesWithNotes.length > 0) {
+                    await apiUploadFiles(newSessionId, filesWithNotes, fileNotes);
+                }
 
                 if (autoSave) {
-                    // Fetch compiled prompt from saved session
-                    const sessionData = await fetchSession(idToFetch);
+                    const sessionData = await getSession(newSessionId);
                     finalPrompt = sessionData?.compiledPrompt || '';
                     setSaved(true);
                 } else {
-                    // Compile prompt stateless (no DB fetch needed)
-                    const res = await compilePromptStateless({
-                        systemCode: workflowSystemCode,
-                        generalNotes,
-                        fileNotes: processedImages.map(img => img.note || '')
-                    });
+                    const res = await apiCompilePrompt(workflowSystemCode, generalNotes, fileNotes);
                     finalPrompt = res?.compiledPrompt || '';
                 }
-                
+
                 setPrompt(finalPrompt);
+                next();
             } catch (err) {
-                console.error("Failed to generate prompt or save session", err);
-                alert(err.message || "Failed to generate prompt. Please try again.");
+                if (err?.status === 429) {
+                    showToast(formatRateLimitError(err.retryAfter), 'warning');
+                } else if (err?.status === 400 && err?.errors) {
+                    const normalized = {};
+                    for (const [key, value] of Object.entries(err.errors)) {
+                        const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
+                        normalized[camelKey] = value;
+                    }
+                    setFieldErrors(normalized);
+                    showToast(err.message || 'بيانات غير صالحة. يرجى التحقق من الحقول.', 'error');
+                } else {
+                    showToast(err?.message || 'فشل إنشاء الجلسة. يرجى المحاولة مرة أخرى.', 'error');
+                }
                 setIsLoadingPrompt(false);
-                return; // Stop step transition
+                return;
             }
             setIsLoadingPrompt(false);
+        } else {
+            next();
         }
-        setStep((s) => Math.min(s + 1, STEPS.length - 1));
-    };
+    }, [currentStep, next, images, materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes, autoSave, setSessionId, showToast]);
 
-    const goBack = () => setStep((s) => Math.max(s - 1, 0));
+    const goBack = useCallback(() => {
+        prev();
+    }, [prev]);
 
-    /* ── Save session ───────────────────── */
     const handleSave = useCallback(async () => {
         if (saved || !sessionId) return;
         try {
-            await fetchSession(sessionId);
+            await getSession(sessionId);
             setSaved(true);
         } catch (err) {
             console.error("Failed to save session", err);
         }
     }, [sessionId, saved]);
 
-    /* ── Auto Save ──────────────────────── */
-    useEffect(() => {
-        // No-op: session is always created in goNext
-    }, [step, autoSave, saved, prompt, sessionId, handleSave]);
-
     const canProceedStep1 = materialValid && String(lectureNumber).trim() && workflowSystemCode && lectureType;
+
+    const fieldInputClass = (field) =>
+        `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
+            fieldErrors[field]
+                ? 'border-danger focus:ring-danger/30 focus:border-danger bg-surface-card'
+                : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
+        }`;
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
-            {/* Title */}
             <h1 className="text-2xl font-bold text-text mb-2">
                 {workflowSystemCode === 'LEC_EXT' ? 'استخراج محاضرة' : 'استخراج بنك أسئلة'}
             </h1>
@@ -247,16 +257,14 @@ export default function ExtractionWizard() {
                 معالج خطوة بخطوة لإنشاء البرومبت وتجهيز الصور
             </p>
 
-            <WizardStepper steps={STEPS} current={step} />
+            <WizardStepper steps={STEPS} current={currentStep} />
 
-            {/* ─── Step 1: Naming ─────────────────── */}
-            {step === 0 && (
+            {/* ─── Step 0: Session setup ─────────────────── */}
+            {currentStep === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
-                    {/* Workflow type toggle + Metadata in a rounded box */}
                     <div data-tour="extraction-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
                         <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
 
-                        {/* Workflow type toggle - on the left side with label */}
                         <div>
                             <label className="block text-sm font-medium text-text mb-1.5">نوع الاستخراج</label>
                             <div data-tour="extraction-type" className="flex gap-3">
@@ -266,22 +274,33 @@ export default function ExtractionWizard() {
                                 ].filter(opt => opt.enabled).map(({ value, label }) => (
                                     <button
                                         key={value}
-                                        onClick={() => setWorkflowSystemCode(value)}
-                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${workflowSystemCode === value
-                                            ? 'border-primary bg-primary-light text-primary'
-                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                            }`}
+                                        onClick={() => { setWorkflowSystemCode(value); clearFieldError('workflowSystemCode'); }}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${
+                                            workflowSystemCode === value
+                                                ? 'border-primary bg-primary-light text-primary'
+                                                : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                        }`}
                                     >
                                         {label}
                                     </button>
                                 ))}
                             </div>
+                            {fieldErrors.workflowSystemCode && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.workflowSystemCode}</p>
+                            )}
                         </div>
 
-                        {/* Material Name */}
-                        <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+                        <div>
+                            <MaterialAutocomplete
+                                value={materialName}
+                                onChange={(v) => { setMaterialName(v); clearFieldError('materialName'); }}
+                                onValidChange={(v) => { setMaterialValid(v); if (v) clearFieldError('materialName'); }}
+                            />
+                            {fieldErrors.materialName && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.materialName}</p>
+                            )}
+                        </div>
 
-                        {/* Lecture Number */}
                         <div>
                             <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                             <input
@@ -291,6 +310,7 @@ export default function ExtractionWizard() {
                                     let val = e.target.value;
                                     if (val === '') {
                                         setLectureNumber('');
+                                        clearFieldError('lectureNumber');
                                         return;
                                     }
                                     const num = parseInt(val, 10);
@@ -300,15 +320,18 @@ export default function ExtractionWizard() {
                                         else val = num.toString();
                                     }
                                     setLectureNumber(val);
+                                    clearFieldError('lectureNumber');
                                 }}
                                 placeholder="مثال: 5"
                                 min="1"
                                 max="99"
-                                className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                className={fieldInputClass('lectureNumber')}
                             />
+                            {fieldErrors.lectureNumber && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.lectureNumber}</p>
+                            )}
                         </div>
 
-                        {/* Lecture Type */}
                         <div>
                             <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
                             <div className="flex gap-3">
@@ -318,16 +341,20 @@ export default function ExtractionWizard() {
                                 ].map(({ value, label }) => (
                                     <button
                                         key={value}
-                                        onClick={() => setLectureType(value)}
-                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                            ? 'border-primary bg-primary-light text-primary'
-                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                            }`}
+                                        onClick={() => { setLectureType(value); clearFieldError('lectureType'); }}
+                                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${
+                                            lectureType === value
+                                                ? 'border-primary bg-primary-light text-primary'
+                                                : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                        }`}
                                     >
                                         {label}
                                     </button>
                                 ))}
                             </div>
+                            {fieldErrors.lectureType && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.lectureType}</p>
+                            )}
                         </div>
                     </div>
 
@@ -341,25 +368,32 @@ export default function ExtractionWizard() {
                 </div>
             )}
 
-            {/* ─── Step 2: Inputs ─────────────────── */}
-            {step === 1 && (
+            {/* ─── Step 1: Inputs ─────────────────── */}
+            {currentStep === 1 && (
                 <div data-tour="extraction-images" className="space-y-6 animate-fade-slide-in">
-                    {/* Images */}
                     <div>
-                        <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-text">الصور وملاحظات الصور</h3><PasteImageButton onPasteImage={addImage} /></div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-text">الصور وملاحظات الصور</h3>
+                            <PasteImageButton onPasteImage={addImage} />
+                        </div>
                         <ImageUploader
                             images={images}
                             onAdd={addImage}
                             onRemove={removeImage}
                             onNoteChange={updateImageNote}
                         />
+                        {fieldErrors.files && (
+                            <p className="text-xs text-danger mt-1">{fieldErrors.files}</p>
+                        )}
                     </div>
 
-                    {/* General Notes */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-semibold text-text">ملاحظات عامة</h3>
-                            <PasteButton onPaste={(text) => setGeneralNotes(prev => (prev ? prev + '\n' + text : text))} />
+                            <PasteButton onPaste={(text) => {
+                                setGeneralNotes(prev => (prev ? prev + '\n' + text : text));
+                                clearFieldError('generalNotes');
+                            }} />
                         </div>
                         <textarea
                             onPaste={(e) => {
@@ -370,22 +404,22 @@ export default function ExtractionWizard() {
                                     if (items[i].type.indexOf('image') !== -1) {
                                         hasImage = true;
                                         const file = items[i].getAsFile();
-                                        if (file) {
-                                            addImage(file);
-                                        }
+                                        if (file) addImage(file);
                                     }
                                 }
                                 if (hasImage) e.preventDefault();
                             }}
                             value={generalNotes}
-                            onChange={(e) => setGeneralNotes(e.target.value)}
+                            onChange={(e) => { setGeneralNotes(e.target.value); clearFieldError('generalNotes'); }}
                             placeholder="أضف ملاحظات عامة للمحاضرة... (اختياري) أو اضغط Ctrl+V للصق من الحافظة مباشرة"
                             rows={4}
-                            className="w-full resize-none rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                            className={fieldInputClass('generalNotes')}
                         />
+                        {fieldErrors.generalNotes && (
+                            <p className="text-xs text-danger mt-1">{fieldErrors.generalNotes}</p>
+                        )}
                     </div>
 
-                    {/* Navigation */}
                     <div className="flex gap-3">
                         <button
                             onClick={goBack}
@@ -405,10 +439,9 @@ export default function ExtractionWizard() {
                 </div>
             )}
 
-            {/* ─── Step 3: Preview & Guided Copy ──── */}
-            {step === 2 && (
+            {/* ─── Step 2: Preview & Guided Copy ──── */}
+            {currentStep === 2 && (
                 <div data-tour="extraction-preview" className="space-y-6 animate-fade-slide-in">
-                    {/* Image gallery */}
                     {images.length > 0 && (
                         <div>
                             <h3 className="text-sm font-semibold text-text mb-3">الصور المرفقة</h3>
@@ -429,13 +462,11 @@ export default function ExtractionWizard() {
                         </div>
                     )}
 
-                    {/* Prompt preview */}
                     <div>
                         <h3 className="text-sm font-semibold text-text mb-3">البرومبت النهائي</h3>
                         <PromptPreview text={prompt} />
                     </div>
 
-                    {/* PRD Clarification Text */}
                     <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-sm text-text-secondary">
                         <p className="mb-2 font-bold text-primary">خطوات العمل:</p>
                         <ul className="list-disc list-inside space-y-1 ms-2">
@@ -446,10 +477,8 @@ export default function ExtractionWizard() {
                         </ul>
                     </div>
 
-                    {/* Guided Copy Loop */}
                     <GuidedCopyLoop prompt={prompt} images={images} />
 
-                    {/* Save + Back */}
                     <div className="flex gap-3">
                         <button
                             onClick={goBack}
@@ -460,10 +489,11 @@ export default function ExtractionWizard() {
                         <button
                             onClick={handleSave}
                             disabled={saved}
-                            className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
-                                ? 'bg-success text-white cursor-default'
-                                : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
-                                }`}
+                            className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${
+                                saved
+                                    ? 'bg-success text-white cursor-default'
+                                    : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
+                            }`}
                         >
                             {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
                         </button>

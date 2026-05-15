@@ -7,13 +7,13 @@ export default function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // Redirect after mount if already logged in
     useEffect(() => {
         if (user) {
             const redirectPath = user.role === 'Admin' ? '/admin/users' : '/';
@@ -21,9 +21,19 @@ export default function Login() {
         }
     }, [user, navigate]);
 
+    const clearFieldError = (field) => {
+        setFieldErrors((prev) => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setFieldErrors({});
         setIsSubmitting(true);
 
         try {
@@ -31,7 +41,17 @@ export default function Login() {
             const redirectPath = userData?.role === 'Admin' ? '/admin/users' : '/';
             navigate(redirectPath);
         } catch (err) {
-            setError(err.message);
+            if (err?.status === 401) {
+                setError('اسم المستخدم أو كلمة المرور غير صحيحة');
+            } else if (err?.status === 400 && err?.errors) {
+                const normalized = {};
+                for (const [key, value] of Object.entries(err.errors)) {
+                    normalized[key.toLowerCase()] = value;
+                }
+                setFieldErrors(normalized);
+            } else {
+                setError(err?.message || 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -84,14 +104,17 @@ export default function Login() {
                                     id="login-username"
                                     type="text"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                    onChange={(e) => { setUsername(e.target.value); clearFieldError('username'); }}
+                                    className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.username ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل اسم المستخدم"
                                     required
                                     autoComplete="username"
                                     autoFocus
                                 />
                             </div>
+                            {fieldErrors.username && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.username}</p>
+                            )}
                         </div>
 
                         {/* Password */}
@@ -107,8 +130,8 @@ export default function Login() {
                                     id="login-password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full ps-10 pe-10 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+                                    onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
+                                    className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل كلمة المرور"
                                     required
                                     autoComplete="current-password"
@@ -121,6 +144,9 @@ export default function Login() {
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
+                            {fieldErrors.password && (
+                                <p className="text-xs text-danger mt-1">{fieldErrors.password}</p>
+                            )}
                         </div>
 
                         {/* Submit */}

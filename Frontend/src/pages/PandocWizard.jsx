@@ -1,65 +1,57 @@
 import { useSearchParams } from 'react-router';
 import { useEffect, useState, useRef } from 'react';
-import { FileOutput, Upload, Loader2, FolderOpen, File, Download } from 'lucide-react';
+import { FileOutput, Upload, Loader2, File, Download } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
-import { createSession, fetchSession, generatePandoc, saveSessionContent } from '../utils/api';
+import { useWizard } from '../hooks/useWizard';
+import { useToast } from '../contexts/ToastContext';
+import { PandocApi } from '../api/PandocApi';
+import { createSession as apiCreateSession, getSession as fetchSessionApi, saveSessionContent as apiSaveContent } from '../api/SessionsApi';
 import { useSettings } from '../contexts/SettingsContext';
+import { ApiError, RateLimitError } from '../api/HttpClient';
+import { formatRateLimitError } from '../utils/errorFormatter';
 
 const STEPS = ['إعداد الجلسة', 'إدراج Markdown', 'التنفيذ والنتيجة'];
 
 export default function PandocWizard() {
     const [searchParams] = useSearchParams();
     const id = searchParams.get('id');
-    const { autoSave, defaultMaterial } = useSettings();
+    const { defaultMaterial } = useSettings();
+    const { showToast } = useToast();
+    const { currentStep, next, prev, goTo } = useWizard({ totalSteps: STEPS.length });
 
-    
+    const [materialName, setMaterialName] = useState(defaultMaterial || '');
+    const [materialValid, setMaterialValid] = useState(false);
+    const [lectureNumber, setLectureNumber] = useState('');
+    const [lectureType, setLectureType] = useState('');
+    const [mdText, setMdText] = useState('');
+    const [status, setStatus] = useState('idle');
+    const [downloadUrl, setDownloadUrl] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         if (id) {
-            fetchSession(id).then(data => {
+            fetchSessionApi(id).then(data => {
                 if (data) {
                     if (data.material?.materialName) setMaterialName(data.material.materialName);
                     if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                     if (data.lectureType) setLectureType(data.lectureType);
-                    // Read markdown from sessionContents instead of compiledPrompt
                     const sessionContent = data.sessionContents?.[0];
                     if (sessionContent?.contentBody) {
                         setMdText(sessionContent.contentBody);
                     } else if (data.compiledPrompt) {
                         setMdText(data.compiledPrompt);
                     }
-                    setSaved(true);
-                    setStep(STEPS.length - 1);
+                    goTo(STEPS.length - 1);
                 }
             });
         }
-    }, [id]);
-
-    const [step, setStep] = useState(0);
-    const fileInputRef = useRef(null);
-
-    // Step 1
-    const [materialName, setMaterialName] = useState(defaultMaterial || '');
-    const [materialValid, setMaterialValid] = useState(false);
-    const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('');
-
-    // Step 2
-    const [mdText, setMdText] = useState('');
-    const [saved, setSaved] = useState(false);
-
-    // Step 3
-    const [status, setStatus] = useState('idle'); // idle | loading | success | error
-    const [downloadUrl, setDownloadUrl] = useState(null);
+    }, [id, goTo]);
 
     const canProceedStep1 = materialValid && String(lectureNumber).trim() && lectureType;
 
-    const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
-    const goBack = () => setStep((s) => Math.max(s - 1, 0));
-
-    /* Handle file open */
     const handleFileOpen = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -69,7 +61,6 @@ export default function PandocWizard() {
         e.target.value = '';
     };
 
-    /* Handle drag & drop */
     const handleDrop = (e) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
@@ -80,36 +71,55 @@ export default function PandocWizard() {
         }
     };
 
-    /* Mock execution (backend required) */
+    const clearFieldError = (field) => {
+        setFieldErrors(prev => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
     const handleGenerate = async () => {
         setStatus('loading');
+        setFieldErrors({});
         try {
-            const session = await createSession({
+            const session = await apiCreateSession({
                 materialName,
                 lectureNumber: Number(lectureNumber),
                 lectureType,
                 workflowSystemCode: 'PANDOC',
                 generalNotes: '',
             });
-            
-            const sessionId = session.sessionId || session.id;
-            
-            // Save markdown to SessionContents table
-            await saveSessionContent(sessionId, mdText);
-            
-            const result = await generatePandoc({
-                markdownText: mdText,
-                templateName: lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
+
+            const sid = session.id || session.sessionId;
+
+            await apiSaveContent(sid, { contentBody: mdText });
+
+            const result = await PandocApi.generate(
+                mdText,
+                lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
                 materialName,
-                lectureNumber: Number(lectureNumber),
-                lectureType
-            });
-            
+                lectureType,
+                Number(lectureNumber),
+            );
+
             setDownloadUrl('http://localhost:5135' + (result.fileUrl || result.downloadUrl));
             setStatus('success');
-        } catch (e) {
-            console.error("Failed to save session", e);
-            alert(e.message || "فشل في إنشاء الجلسة. يجب اختيار مادة صالحة.");
+        } catch (err) {
+            if (err instanceof RateLimitError) {
+                showToast(formatRateLimitError(err.retryAfter), 'warning');
+            } else if (err instanceof ApiError && err.status === 400 && err.errors) {
+                const normalized = {};
+                for (const [key, msg] of Object.entries(err.errors)) {
+                    normalized[key.toLowerCase()] = msg;
+                }
+                setFieldErrors(normalized);
+                showToast(err.message || 'بيانات غير صالحة', 'error');
+            } else {
+                console.error('Pandoc generation failed', err);
+                showToast(err.message || 'فشل في إنشاء المستند', 'error');
+            }
             setStatus('error');
         }
     };
@@ -121,13 +131,20 @@ export default function PandocWizard() {
                 تحويل ملف Markdown إلى مستند Word منسّق
             </p>
 
-            <WizardStepper steps={STEPS} current={step} />
+            <WizardStepper steps={STEPS} current={currentStep} />
 
-            {/* Step 1: Naming */}
-            {step === 0 && (
+            {currentStep === 0 && (
                 <div data-tour="pandoc-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 animate-fade-slide-in">
                     <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
-                    <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+
+                    <MaterialAutocomplete
+                        value={materialName}
+                        onChange={(val) => { setMaterialName(val); clearFieldError('materialname'); }}
+                        onValidChange={setMaterialValid}
+                    />
+                    {fieldErrors.materialname && (
+                        <p className="text-xs text-danger mt-1">{fieldErrors.materialname}</p>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
@@ -135,6 +152,7 @@ export default function PandocWizard() {
                             type="number"
                             value={lectureNumber}
                             onChange={(e) => {
+                                clearFieldError('lecturenumber');
                                 let val = e.target.value;
                                 if (val === '') {
                                     setLectureNumber('');
@@ -153,6 +171,9 @@ export default function PandocWizard() {
                             max="99"
                             className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
                         />
+                        {fieldErrors.lecturenumber && (
+                            <p className="text-xs text-danger mt-1">{fieldErrors.lecturenumber}</p>
+                        )}
                     </div>
 
                     <div>
@@ -164,7 +185,7 @@ export default function PandocWizard() {
                             ].map(({ value, label }) => (
                                 <button
                                     key={value}
-                                    onClick={() => setLectureType(value)}
+                                    onClick={() => { setLectureType(value); clearFieldError('lecturetype'); }}
                                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                             ? 'border-primary bg-primary-light text-primary'
                                             : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
@@ -174,16 +195,17 @@ export default function PandocWizard() {
                                 </button>
                             ))}
                         </div>
-                        
+                        {fieldErrors.lecturetype && (
+                            <p className="text-xs text-danger mt-1">{fieldErrors.lecturetype}</p>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Step 1 continue: Next button */}
-            {step === 0 && (
+            {currentStep === 0 && (
                 <div className="mt-5">
                     <button
-                        onClick={goNext}
+                        onClick={next}
                         disabled={!canProceedStep1}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
@@ -192,8 +214,7 @@ export default function PandocWizard() {
                 </div>
             )}
 
-            {/* Step 2: Input MD */}
-            {step === 1 && (
+            {currentStep === 1 && (
                 <div data-tour="pandoc-input" className="space-y-5 animate-fade-slide-in">
                     <div
                         onDrop={handleDrop}
@@ -213,7 +234,6 @@ export default function PandocWizard() {
                             </div>
                         </div>
                         <textarea
-                            
                             value={mdText}
                             onChange={(e) => setMdText(e.target.value)}
                             placeholder="الصق نص الـ Markdown هنا، أو اسحب ملف .md ..."
@@ -232,13 +252,13 @@ export default function PandocWizard() {
 
                     <div className="flex gap-3">
                         <button
-                            onClick={goBack}
+                            onClick={prev}
                             className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                         >
                             رجوع
                         </button>
                         <button
-                            onClick={goNext}
+                            onClick={next}
                             disabled={!mdText.trim()}
                             className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                         >
@@ -248,8 +268,7 @@ export default function PandocWizard() {
                 </div>
             )}
 
-            {/* Step 3: Execution & Result */}
-            {step === 2 && (
+            {currentStep === 2 && (
                 <div data-tour="pandoc-generate" className="space-y-6 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-8 text-center space-y-4">
                         {status === 'idle' && (
@@ -261,9 +280,9 @@ export default function PandocWizard() {
                                         {lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
                                     </span>
                                 </p>
-                                
+
                                 <div className="text-xs text-text-secondary bg-surface rounded-xl p-4 text-start">
-                                    <strong>ملاحظة:</strong> إذا كان المستند يحتوي على رسومات تحتاج تحويلها من كود لصور، 
+                                    <strong>ملاحظة:</strong> إذا كان المستند يحتوي على رسومات تحتاج تحويلها من كود لصور،
                                     استخدم قسم <strong>الرسم</strong> أولاً لاستخراج الصور وحفظها، ثم أضفها إلى ملف الـ Markdown قبل التحويل.
                                 </div>
 
@@ -305,7 +324,7 @@ export default function PandocWizard() {
                     </div>
 
                     <button
-                        onClick={goBack}
+                        onClick={prev}
                         className="w-full py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                     >
                         رجوع

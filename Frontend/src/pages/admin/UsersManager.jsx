@@ -1,13 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import {
-    fetchAdminUsers,
-    createAdminUser,
-    updateAdminUser,
-    deleteAdminUser
-} from '../../utils/api';
+import { useState, useMemo } from 'react';
+import { useAdminUsers } from '../../hooks/useAdminUsers';
 import {
     Users,
-    Plus,
     Pencil,
     Trash2,
     Loader2,
@@ -15,9 +9,7 @@ import {
     X,
     UserPlus,
     Crown,
-    Shield,
     FlaskConical,
-    Sparkles,
     Eye,
     EyeOff,
     User,
@@ -35,251 +27,145 @@ import {
 } from 'lucide-react';
 
 export default function UsersManager() {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [modalError, setModalError] = useState(''); // Error shown inside modal
-    const [showModal, setShowModal] = useState(false);
-    const [editingId, setEditingId] = useState(null);
-    const [showPassword, setShowPassword] = useState(false);
-    const [isClosing, setIsClosing] = useState(false);
-    const [usernameError, setUsernameError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [copiedTelegram, setCopiedTelegram] = useState(null);
-    
+    const {
+        users,
+        isLoading,
+        error,
+        showModal,
+        isClosing,
+        editingId,
+        formData,
+        deleteConfirmId,
+        validationErrors,
+        setFormData,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+        handleSubmit: hookHandleSubmit,
+        handleDelete,
+        confirmDelete,
+        cancelDelete,
+    } = useAdminUsers();
+
     // Filters
     const [roleFilter, setRoleFilter] = useState('');
     const [batchFilter, setBatchFilter] = useState('');
-    
+
     // Sorting
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-    
+
+    // Realtime input guard errors
+    const [usernameError, setUsernameError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+
+    // Copied state for telegram
+    const [copiedTelegram, setCopiedTelegram] = useState(null);
+
     // Available roles and batches from data
     const availableRoles = useMemo(() => {
         const roles = new Set(users.map(u => u.userRole).filter(Boolean));
         return Array.from(roles);
     }, [users]);
-    
+
     const availableBatches = useMemo(() => {
         const batches = new Set(users.map(u => u.batchNumber).filter(Boolean));
         return Array.from(batches).sort((a, b) => a - b);
     }, [users]);
-    
+
     // Filtered and sorted users
     const filteredUsers = useMemo(() => {
         let result = [...users];
-        
-        // Filter by role
+
         if (roleFilter) {
             result = result.filter(u => u.userRole === roleFilter);
         }
-        
-        // Filter by batch
+
         if (batchFilter) {
             const batchNum = parseInt(batchFilter, 10);
             result = result.filter(u => u.batchNumber === batchNum);
         }
-        
-        // Sort
+
         if (sortConfig.key) {
             result.sort((a, b) => {
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
-                
-                // Handle null/undefined
+
                 if (aVal == null) aVal = '';
                 if (bVal == null) bVal = '';
-                
-                // String comparison for text fields
+
                 if (typeof aVal === 'string') {
                     aVal = aVal.toLowerCase();
                     bVal = bVal.toLowerCase();
                 }
-                
+
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
         }
-        
+
         return result;
     }, [users, roleFilter, batchFilter, sortConfig]);
-    
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        username: '',
-        password: '',
-        userRole: 'TechMember',
-        batchNumber: '',
-        telegramUsername: '',
-        teamJoinDate: ''
-    });
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    const loadUsers = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchAdminUsers();
-            setUsers(data);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e) => {
+    const handleFormSubmit = async (e) => {
         e.preventDefault();
-        setModalError(''); // Clear modal error
 
         // Final validation before API call
         const usernameRegex = /^[a-zA-Z0-9._]+$/;
         const passwordRegex = /^[a-zA-Z0-9!@#$%^&*()_+=-]+$/;
 
         if (formData.username && !usernameRegex.test(formData.username)) {
-            setModalError('يُسمح فقط للأحرف الإنجليزية والأرقام والنقاط بدون مسافات في اسم المستخدم');
+            setUsernameError('يُسمح فقط للأحرف الإنجليزية والأرقام والنقاط بدون مسافات في اسم المستخدم');
             return;
         }
 
         if (formData.password && !passwordRegex.test(formData.password)) {
-            setModalError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
+            setPasswordError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
             return;
         }
 
-        // Username length validation (3-20)
         if (formData.username && (formData.username.length < 3 || formData.username.length > 20)) {
-            setModalError('اسم المستخدم يجب أن يكون بين 3 و 20 حرف');
+            setUsernameError('اسم المستخدم يجب أن يكون بين 3 و 20 حرف');
             return;
         }
 
-        // Password length validation (min 6)
         if (formData.password && formData.password.length < 6) {
-            setModalError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
+            setPasswordError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
             return;
         }
 
-        // Create base payload with common fields
         const payload = {
             firstName: formData.firstName,
             lastName: formData.lastName,
             userRole: formData.userRole,
             batchNumber: parseInt(formData.batchNumber, 10) || 1,
             telegramUsername: formData.telegramUsername || null,
-            teamJoinDate: formData.teamJoinDate || null
+            teamJoinDate: formData.teamJoinDate || null,
         };
 
-        // Only include password if provided (for create or update with new password)
         if (formData.password.trim() !== '') {
             payload.password = formData.password;
         }
 
-        // Only include username for create (not for update)
         if (!editingId) {
             payload.username = formData.username;
         }
 
-        try {
-            if (editingId) {
-                await updateAdminUser(editingId, payload);
-            } else {
-                await createAdminUser(payload);
-            }
-
-            setShowModal(false);
-            resetForm();
-            loadUsers();
-        } catch (err) {
-            // Handle duplicate Telegram + Role conflict (409 or 400 with DUPLICATE_TELEGRAM_ROLE)
-            const isDuplicateTelegramRole = 
-                err.status === 409 || 
-                (err.status === 400 && err.message?.includes('DUPLICATE_TELEGRAM_ROLE'));
-
-            if (isDuplicateTelegramRole) {
-                setModalError('هذا المعرف الخاص بتيليجرام مسجل مسبقاً بهذا الدور');
-            } else {
-                setModalError(err.message);
-            }
-        }
+        hookHandleSubmit(payload).catch(() => {});
     };
 
-    const handleEdit = (user) => {
-        setFormData({
-            firstName: user.firstName,
-            lastName: user.lastName,
-            username: user.username,
-            password: '',
-            userRole: user.userRole,
-            batchNumber: user.batchNumber?.toString() || '',
-            telegramUsername: user.telegramUsername || '',
-            teamJoinDate: user.teamJoinDate || ''
-        });
-        setEditingId(user.userId);
-        setShowModal(true);
-    };
-
-    const handleDelete = async (id) => {
-        if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
-
-        try {
-            await deleteAdminUser(id);
-            loadUsers();
-        } catch (err) {
-            alert(err.message);
-        }
-    };
-
-    const resetForm = () => {
-        setFormData({
-            firstName: '',
-            lastName: '',
-            username: '',
-            password: '',
-            userRole: 'TechMember',
-            batchNumber: '',
-            telegramUsername: '',
-            teamJoinDate: ''
-        });
-        setEditingId(null);
-        setModalError('');
-    };
-
-    const openCreateModal = () => {
-        resetForm();
-        setIsClosing(false);
-        setShowModal(true);
-    };
-
-    const closeModal = () => {
-        setIsClosing(true);
-        setTimeout(() => {
-            setShowModal(false);
-            resetForm();
-            setIsClosing(false);
-        }, 200);
-    };
-
-    // Input guard for Username: allow English letters, numbers, dots, underscores only
-    // Using onBeforeInput for proper UX - doesn't block Ctrl combinations
     const handleUsernameInput = (e) => {
-        // onBeforeInput fires for actual character input, not modifier combinations
-        // e.data is null for non-character keys (arrows, etc.)
         if (e.data === null || e.data === undefined) return;
-        
+
         const char = e.data;
-        
-        // Block space
+
         if (char === ' ') {
             e.preventDefault();
             setUsernameError('يُسمح فقط بالأحرف الإنجليزية والأرقام والنقاط بدون مسافات');
             setTimeout(() => setUsernameError(''), 2500);
             return;
         }
-        
-        // Allow only English letters, numbers, dots, underscores
+
         if (!/^[a-zA-Z0-9._]$/.test(char)) {
             e.preventDefault();
             setUsernameError('يُسمح فقط بالأحرف الإنجليزية والأرقام والنقاط بدون مسافات');
@@ -287,24 +173,18 @@ export default function UsersManager() {
         }
     };
 
-    // Input guard for Password: allow English letters, numbers, and standard symbols only
-    // Using onBeforeInput for proper UX - doesn't block Ctrl combinations
     const handlePasswordInput = (e) => {
-        // onBeforeInput fires for actual character input, not modifier combinations
-        // e.data is null for non-character keys (arrows, etc.)
         if (e.data === null || e.data === undefined) return;
-        
+
         const char = e.data;
-        
-        // Block space
+
         if (char === ' ') {
             e.preventDefault();
             setPasswordError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
             setTimeout(() => setPasswordError(''), 2500);
             return;
         }
-        
-        // Allow only English letters, numbers, and standard password symbols
+
         if (!/^[a-zA-Z0-9!@#$%^&*()_+=-]$/.test(char)) {
             e.preventDefault();
             setPasswordError('يجب أن تكون كلمة المرور بالإنجليزية وبدون مسافات');
@@ -312,20 +192,22 @@ export default function UsersManager() {
         }
     };
 
+    const [showPassword, setShowPassword] = useState(false);
+
     const getRoleBadge = (role) => {
         const config = {
-            'Admin': { 
-                bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', 
+            'Admin': {
+                bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
                 icon: Crown,
                 label: 'مسؤول'
             },
-            'TechMember': { 
-                bg: 'bg-primary/15 text-primary', 
+            'TechMember': {
+                bg: 'bg-primary/15 text-primary',
                 icon: Laptop2,
                 label: 'تقني'
             },
-            'ScientificMember': { 
-                bg: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400', 
+            'ScientificMember': {
+                bg: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
                 icon: FlaskConical,
                 label: 'علمي'
             }
@@ -350,7 +232,7 @@ export default function UsersManager() {
 
     const handleCopyTelegram = async (telegramUsername, userId) => {
         if (!telegramUsername) return;
-        
+
         try {
             await navigator.clipboard.writeText(telegramUsername);
             setCopiedTelegram(userId);
@@ -363,7 +245,6 @@ export default function UsersManager() {
     const handleSort = (key) => {
         setSortConfig(prev => {
             if (prev.key === key) {
-                // Cycle: asc -> desc -> null (no sort)
                 if (prev.direction === 'asc') return { key, direction: 'desc' };
                 if (prev.direction === 'desc') return { key: null, direction: 'asc' };
                 return { key, direction: 'asc' };
@@ -374,7 +255,7 @@ export default function UsersManager() {
 
     const getSortIcon = (key) => {
         if (sortConfig.key !== key) return <ArrowUpDown size={14} className="opacity-40" />;
-        return sortConfig.direction === 'asc' 
+        return sortConfig.direction === 'asc'
             ? <ArrowUp size={14} className="text-primary" />
             : <ArrowDown size={14} className="text-primary" />;
     };
@@ -394,7 +275,7 @@ export default function UsersManager() {
         setSortConfig({ key: null, direction: 'asc' });
     };
 
-    if (loading) {
+    if (isLoading && users.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="animate-spin text-primary" size={32} />
@@ -426,7 +307,6 @@ export default function UsersManager() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-card border border-border rounded-xl">
-                {/* Left side: Counter + Filters */}
                 <div className="flex flex-wrap items-center gap-3">
                     <span className="px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-lg">
                         عرض {filteredUsers.length} من {users.length} مستخدم
@@ -436,7 +316,7 @@ export default function UsersManager() {
                         <Filter size={16} className="text-text-muted" />
                         <span>تصفية:</span>
                     </div>
-                    
+
                     {/* Role Filter */}
                     <div className="flex items-center gap-2">
                         <label className="text-sm text-text-muted">الدور:</label>
@@ -485,7 +365,7 @@ export default function UsersManager() {
                     <table className="w-full">
                         <thead className="bg-surface border-b border-border">
                             <tr>
-                                <th 
+                                <th
                                     className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
                                     onClick={() => handleSort('firstName')}
                                 >
@@ -494,7 +374,7 @@ export default function UsersManager() {
                                         {getSortIcon('firstName')}
                                     </div>
                                 </th>
-                                <th 
+                                <th
                                     className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
                                     onClick={() => handleSort('userRole')}
                                 >
@@ -503,7 +383,7 @@ export default function UsersManager() {
                                         {getSortIcon('userRole')}
                                     </div>
                                 </th>
-                                <th 
+                                <th
                                     className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
                                     onClick={() => handleSort('batchNumber')}
                                 >
@@ -513,7 +393,7 @@ export default function UsersManager() {
                                     </div>
                                 </th>
                                 <th className="text-center px-5 py-4 text-sm font-bold text-text">تيليجرام</th>
-                                <th 
+                                <th
                                     className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
                                     onClick={() => handleSort('teamJoinDate')}
                                 >
@@ -522,7 +402,7 @@ export default function UsersManager() {
                                         {getSortIcon('teamJoinDate')}
                                     </div>
                                 </th>
-                                <th 
+                                <th
                                     className="text-center px-5 py-4 text-sm font-bold text-text cursor-pointer hover:bg-surface/50 transition-colors"
                                     onClick={() => handleSort('createdAt')}
                                 >
@@ -536,8 +416,8 @@ export default function UsersManager() {
                         </thead>
                         <tbody>
                             {filteredUsers.map((user, index) => (
-                                <tr 
-                                    key={user.userId} 
+                                <tr
+                                    key={user.userId}
                                     className="border-b border-border last:border-0 hover:bg-surface/50 transition-colors"
                                     style={{ animationDelay: `${index * 30}ms` }}
                                 >
@@ -596,7 +476,7 @@ export default function UsersManager() {
                                     <td className="px-5 py-4 text-center">
                                         <div className="flex items-center gap-1.5">
                                             <button
-                                                onClick={() => handleEdit(user)}
+                                                onClick={() => openEditModal(user)}
                                                 className="p-2 rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
                                                 title="تعديل"
                                             >
@@ -632,10 +512,44 @@ export default function UsersManager() {
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* Loading overlay */}
+            {isLoading && users.length > 0 && (
+                <div className="flex justify-center py-4">
+                    <Loader2 className="animate-spin text-primary" size={24} />
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirmId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={cancelDelete} />
+                    <div className="relative bg-surface-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-scaleIn">
+                        <h3 className="text-lg font-bold text-text text-center">تأكيد الحذف</h3>
+                        <p className="text-sm text-text-muted text-center">
+                            هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={cancelDelete}
+                                className="flex-1 px-4 py-3 rounded-xl border border-border text-text font-bold text-sm hover:bg-surface transition-all"
+                            >
+                                إلغاء
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 px-4 py-3 rounded-xl bg-danger text-white font-bold text-sm hover:bg-danger-dark transition-all shadow-lg shadow-danger/20"
+                            >
+                                حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div 
+                    <div
                         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isClosing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
                         onClick={closeModal}
                     />
@@ -652,15 +566,7 @@ export default function UsersManager() {
                             </button>
                         </div>
 
-                        {/* Modal Error */}
-                        {modalError && (
-                            <div className="flex items-center gap-3 bg-danger-light border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm animate-fade-slide-in">
-                                <AlertCircle size={18} />
-                                <span>{modalError}</span>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleFormSubmit} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">الاسم الأول</label>
@@ -672,11 +578,14 @@ export default function UsersManager() {
                                             type="text"
                                             value={formData.firstName}
                                             onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors.firstName ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                             placeholder="أدخل الاسم الأول"
                                             required
                                         />
                                     </div>
+                                    {validationErrors.firstName && (
+                                        <p className="text-xs text-danger mt-1">{validationErrors.firstName}</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">اسم العائلة</label>
@@ -688,11 +597,14 @@ export default function UsersManager() {
                                             type="text"
                                             value={formData.lastName}
                                             onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors.lastName ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                             placeholder="أدخل اسم العائلة"
                                             required
                                         />
                                     </div>
+                                    {validationErrors.lastName && (
+                                        <p className="text-xs text-danger mt-1">{validationErrors.lastName}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -707,7 +619,7 @@ export default function UsersManager() {
                                         value={formData.username}
                                         onChange={(e) => setFormData({...formData, username: e.target.value})}
                                         onBeforeInput={handleUsernameInput}
-                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${usernameError ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${usernameError || validationErrors.username ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                         placeholder="أدخل اسم المستخدم"
                                         dir="ltr"
                                         disabled={editingId}
@@ -715,6 +627,9 @@ export default function UsersManager() {
                                     />
                                     {usernameError && (
                                         <p className="text-xs text-danger mt-1">{usernameError}</p>
+                                    )}
+                                    {validationErrors.username && !usernameError && (
+                                        <p className="text-xs text-danger mt-1">{validationErrors.username}</p>
                                     )}
                                 </div>
                             </div>
@@ -733,7 +648,7 @@ export default function UsersManager() {
                                         value={formData.password}
                                         onChange={(e) => setFormData({...formData, password: e.target.value})}
                                         onBeforeInput={handlePasswordInput}
-                                        className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${passwordError ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
+                                        className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${passwordError || validationErrors.password ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                         placeholder="أدخل كلمة المرور"
                                         dir="ltr"
                                         required={!editingId}
@@ -748,6 +663,9 @@ export default function UsersManager() {
                                 </div>
                                 {passwordError && (
                                     <p className="text-xs text-danger mt-1">{passwordError}</p>
+                                )}
+                                {validationErrors.password && !passwordError && (
+                                    <p className="text-xs text-danger mt-1">{validationErrors.password}</p>
                                 )}
                             </div>
 
@@ -768,6 +686,9 @@ export default function UsersManager() {
                                             <option value="Admin">مسؤول</option>
                                         </select>
                                     </div>
+                                    {validationErrors.userRole && (
+                                        <p className="text-xs text-danger mt-1">{validationErrors.userRole}</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text mb-2">الدفعة</label>
@@ -779,12 +700,15 @@ export default function UsersManager() {
                                             type="number"
                                             value={formData.batchNumber}
                                             onChange={(e) => setFormData({...formData, batchNumber: e.target.value})}
-                                            className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                            className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors.batchNumber ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                             placeholder="رقم الدفعة"
                                             required
                                             min="1"
                                         />
                                     </div>
+                                    {validationErrors.batchNumber && (
+                                        <p className="text-xs text-danger mt-1">{validationErrors.batchNumber}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -798,11 +722,14 @@ export default function UsersManager() {
                                         type="text"
                                         value={formData.telegramUsername}
                                         onChange={(e) => setFormData({...formData, telegramUsername: e.target.value})}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors.telegramUsername ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                         placeholder="أدخل يوزر التيليجرام"
                                         dir="ltr"
                                     />
                                 </div>
+                                {validationErrors.telegramUsername && (
+                                    <p className="text-xs text-danger mt-1">{validationErrors.telegramUsername}</p>
+                                )}
                             </div>
 
                             <div>
@@ -815,9 +742,12 @@ export default function UsersManager() {
                                         type="date"
                                         value={formData.teamJoinDate}
                                         onChange={(e) => setFormData({...formData, teamJoinDate: e.target.value})}
-                                        className="w-full ps-10 pe-4 py-3 rounded-xl border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                        className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${validationErrors.teamJoinDate ? 'border-danger focus:border-danger focus:ring-danger/30' : 'border-border'}`}
                                     />
                                 </div>
+                                {validationErrors.teamJoinDate && (
+                                    <p className="text-xs text-danger mt-1">{validationErrors.teamJoinDate}</p>
+                                )}
                             </div>
 
                             <div className="flex gap-3 pt-2">

@@ -1008,7 +1008,7 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 ### 7. Imports Summary
 - **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback)
 - **Internal components:** WizardStepper, PromptPreview, GuidedCopyLoop, ImageUploader, PasteButton, PasteImageButton, MaterialAutocomplete
-- **New API modules:** `useWizard` hook, `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
+- **New API modules:** `useWizard` hook (returns `currentStep`, `next`, `prev`, `goTo`, `sessionId`, `setSessionId`), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
 - **Contexts:** `useSettings` from `SettingsContext`, `useToast` from `ToastContext`
 - **Errors:** `ApiError`, `RateLimitError` from `HttpClient`
 

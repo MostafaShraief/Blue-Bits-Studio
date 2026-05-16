@@ -189,7 +189,7 @@ Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/
 - **Internal:** `getDistinctNames` from `../../api/MaterialsApi`
 
 ### 8. Additional Info
-Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive).
+Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component.
 
 ### 9. API
 **Request:** `GET /api/materials` — no body, no params.
@@ -905,7 +905,7 @@ No API interaction.
 Frontend (React component)
 
 ### 3. What the file does
-A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, compile a prompt, then preview/copy it — all in one combined second step. Uses `useWizard` hook for step management and session lifecycle. Replaced legacy `utils/api.js` with `SessionsApi` + `PromptsApi`.
+A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata (step 0), paste reviewed Markdown text (step 1), then compile and preview/copy the prompt (step 2). Uses `useWizard({ totalSteps: 3 })` for step management and session lifecycle. Follows the same 3-step pattern as ExtractionWizard.
 
 ### 4. User Stories
 - As a coordinator, I want to select a material, lecture number, and type (Theoretical/Practical), so the system knows the context.
@@ -916,14 +916,15 @@ A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for c
 
 ### 5. Functions Summary
 - `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
-- `handleNextStep0`: Validates metadata fields (material, lecture number/type, workflow) before advancing to step 1.
-- `handleCompile`: Creates a session via `wizard.createSession`, then compiles the prompt (auto-save path: fetch compiled prompt from saved session via `getSession`; else stateless via `compilePrompt`). Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 creates a session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `goBack`: Calls `prev()` to go back one step.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
 - `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
 - `clearFieldError`: Removes a specific field error on input change (avoids stale validation markup).
+- `fieldInputClass`: Returns Tailwind class string with `border-danger` styling when the field has an error.
 
 ### 6. Integration
-Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
+Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook's `createSession` (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useCallback, useEffect, useContext), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
@@ -933,12 +934,16 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
-- Supports session restore via `?id=` and `?type=bank|lecture` query params. Reads `data.workflow?.systemCode` (nested object, not top-level `workflowType`).
+- **3 steps:** Step 0 = session metadata, Step 1 = Markdown input, Step 2 = prompt preview + copy + save.
+- Wizard methods destructured from `useWizard`: `{ currentStep, next, prev, goTo, sessionId, setSessionId, createSession }`.
+- Session restore via `?id=` and `?type=bank|lecture` jumps to step 2 (`goTo(2)`) with saved prompt and markdown.
+- `goNext` branches on `currentStep` — step 0→1 validates fields (no API), step 1→2 creates session + compiles prompt.
 - 429 errors trigger warning toast via `RateLimitError` from HttpClient.
+- `fieldInputClass` utility provides consistent input styling with error-state red border.
 - FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
 ### 9. API
-- **`useWizard.createSession` → SessionsApi.createSession (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
+- **`createSession` (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
 - **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material: { materialName }, lectureNumber, lectureType, workflow: { systemCode } }`.
 - **PromptsApi.compilePrompt (POST /api/prompts/compile):** Sends `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
 
@@ -2167,6 +2172,7 @@ Uses `useSessions` (which delegates to `SessionsApi` / `HttpClient` for REST cal
 - Step navigation is bounded: `next` stops at `totalSteps - 1`, `prev` stops at 0, `goTo` silently ignores out-of-range steps.
 - `sessionId` is automatically set from `session.id ?? session.sessionId` after a successful `createSession` call.
 - `saveContent` silently returns `undefined` if no `sessionId` is set and shows an error toast.
+- **No redundant toast:** `createSession` catch block only calls `showToast` for non-`RateLimitError` errors. The caller (e.g. CoordinationWizard) handles 400 with field errors and 429 with warning toasts, so the hook no longer adds a misleading generic error toast on top.
 
 ### 9. API
 No direct API calls. Delegates all HTTP to `useSessions` → `SessionsApi` (`SessionsApi.js`). See SessionsApi.md for endpoint details.

@@ -10,8 +10,8 @@ export default defineConfig({
   assetsInclude: ['**/*.md'],
   server: {
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/uploads': 'http://localhost:5000'
+      '/api': 'http://localhost:5135',
+      '/uploads': 'http://localhost:5135'
     }
   }
 });

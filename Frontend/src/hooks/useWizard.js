@@ -35,16 +35,11 @@ export function useWizard({ totalSteps = 1 } = {}) {
 
   const createSession = useCallback(
     async (data) => {
-      try {
-        const session = await apiCreateSession(data);
-        setSessionId(session.id || session.sessionId);
-        return session;
-      } catch (err) {
-        showToast(err.message || 'Failed to create session', 'error');
-        throw err;
-      }
+      const session = await apiCreateSession(data);
+      setSessionId(session.id || session.sessionId);
+      return session;
     },
-    [apiCreateSession, showToast],
+    [apiCreateSession],
   );
 
   const saveContent = useCallback(

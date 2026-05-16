@@ -13,7 +13,7 @@ export async function createSession(data) {
 }
 
 export async function saveSessionContent(sessionId, body) {
-  return httpPost('/api/sessions/save', { sessionId, ...body });
+  return httpPost(`/api/sessions/save?sessionId=${sessionId}`, body);
 }
 
 export async function removeSession(id) {

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, Link } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
-import { Loader2, ShieldX, Crown } from 'lucide-react';
+import { Loader2, ShieldX } from 'lucide-react';
 
 /**
  * AdminRoute — wraps routes that require Admin role.
@@ -38,12 +38,12 @@ export default function AdminRoute() {
                 <p className="text-text-secondary text-sm max-w-md text-center">
                     هذه الصفحة مخصصة للمسؤولين فقط.
                 </p>
-                <a
-                    href="/"
+                <Link
+                    to="/"
                     className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                 >
                     العودة للرئيسية
-                </a>
+                </Link>
             </div>
         );
     }

@@ -12,6 +12,8 @@ import {
     ArrowLeft,
     Users,
     Settings2,
+    FileJson,
+    Layers,
 } from 'lucide-react';
 import { getSessions } from '../api/SessionsApi';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,12 +63,36 @@ const WORKFLOW_CONFIG = {
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
+    LEC_COORD: {
+        to: '/coordination?type=lecture', label: 'تنسيق محاضرة', icon: AlignRight,
+        cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
+        iconCls: 'text-cyan',
+    },
+    BANK_COORD: {
+        to: '/coordination?type=bank', label: 'تنسيق بنك', icon: AlignRight,
+        cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
+        iconCls: 'text-primary',
+    },
+    BANK_QS: {
+        to: '/quiz', label: 'بنك أسئلة', icon: FileJson,
+        cls: 'border-amber/20 bg-amber/5 hover:bg-amber/10 hover:border-amber/40',
+        iconCls: 'text-amber',
+    },
+    MERGE: {
+        to: '/merge', label: 'دمج ملفات', icon: Layers,
+        cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
+        iconCls: 'text-primary',
+    },
 };
 
 const STAT_CARD_CONFIG = {
     LEC_EXT: { label: 'محاضرات', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     BANK_EXT: { label: 'بنوك أسئلة', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
+    LEC_COORD: { label: 'تنسيق محاضرات', icon: AlignRight, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    BANK_COORD: { label: 'تنسيق بنوك', icon: AlignRight, bgClass: 'bg-primary/10', textClass: 'text-primary' },
+    BANK_QS: { label: 'اختبارات', icon: FileJson, bgClass: 'bg-amber/10', textClass: 'text-amber' },
+    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
 };
 
 const ADMIN_LINKS = [
@@ -76,7 +102,7 @@ const ADMIN_LINKS = [
 ];
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0 });
+    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0, BANK_COORD: 0, MERGE: 0 });
     const [recent, setRecent] = useState([]);
     const { user, hasWorkflowAccess } = useAuth();
     const isAdmin = user?.role === 'Admin';
@@ -115,7 +141,9 @@ export default function Dashboard() {
                     BANK_QS: sessions.filter((s) => s.workflowType === 'BANK_QS').length,
                     DRAW: sessions.filter((s) => s.workflowType === 'DRAW').length,
                     PANDOC: sessions.filter((s) => s.workflowType === 'PANDOC').length,
-                    LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD' || s.workflowType === 'BANK_COORD').length,
+                    LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD').length,
+                    BANK_COORD: sessions.filter((s) => s.workflowType === 'BANK_COORD').length,
+                    MERGE: sessions.filter((s) => s.workflowType === 'MERGE').length,
                 });
 
                 const authorizedSessions = sessions

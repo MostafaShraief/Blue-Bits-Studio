@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { login as authApiLogin, getCurrentUser } from '../api/AuthApi';
-import { useToast } from './ToastContext';
 
 export const AuthContext = createContext();
 
@@ -18,7 +17,6 @@ function mapUser(data) {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const { showToast } = useToast();
 
     // Auto-restore session via getCurrentUser() on mount
     useEffect(() => {
@@ -45,21 +43,15 @@ export function AuthProvider({ children }) {
     }, []);
 
     const login = async (username, password) => {
-        try {
-            const data = await authApiLogin(username, password);
+        const data = await authApiLogin(username, password);
 
-            localStorage.setItem('token', data.token);
+        localStorage.setItem('token', data.token);
 
-            const userData = mapUser(data);
-            setUser(userData);
-            localStorage.setItem('bluebits_user', JSON.stringify(userData));
+        const userData = mapUser(data);
+        setUser(userData);
+        localStorage.setItem('bluebits_user', JSON.stringify(userData));
 
-            return userData;
-        } catch (err) {
-            const message = err.message || 'فشل تسجيل الدخول';
-            showToast(message, 'error');
-            throw err;
-        }
+        return userData;
     };
 
     const logout = useCallback(() => {

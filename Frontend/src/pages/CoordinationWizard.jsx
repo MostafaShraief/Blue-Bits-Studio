@@ -83,7 +83,7 @@ export default function CoordinationWizard() {
                     wizard.setSessionId(id);
                     setLectureNumber(data.lectureNumber || 1);
                     setLectureType(data.lectureType || '');
-                    if (data.workflowType) setWorkflowSystemCode(data.workflowType);
+                    if (data.workflow?.systemCode) setWorkflowSystemCode(data.workflow.systemCode);
                     setSaved(true);
                     wizard.goTo(1);
                 }

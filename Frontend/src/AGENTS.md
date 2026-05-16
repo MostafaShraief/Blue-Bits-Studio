@@ -253,7 +253,7 @@ No backend API calls. Pure client-side component — image files and notes are m
 - `imageCompression` from `browser-image-compression` (external library)
 
 ### 8. Additional Info
-Compression failures fall back to the original file. The `maxImages` prop defaults to `Infinity`. The UI is Arabic-first (placeholder text, positioning).
+Compression failures fall back to the original file. The `maxImages` prop defaults to `Infinity`. The UI is Arabic-first (placeholder text, positioning). Responsive layout: image cards use `flex-col sm:flex-row` (stacked on mobile, row on desktop), thumbnails are `w-full sm:w-28`, drop zone uses `py-6 sm:py-8`.
 
 ### 9. API
 No direct API interaction. Images are passed as `File` objects to the parent; the parent is responsible for uploading them to the backend.
@@ -398,7 +398,7 @@ None — purely presentational, no backend/API calls.
 No imports (no external dependencies).
 
 ### 8. Additional Info
-Uses Tailwind v4 semantic tokens (`bg-surface-card`, `border-border`). Empty lines render as `\u00A0` (non-breaking space) to preserve height.
+Uses Tailwind v4 semantic tokens (`bg-surface-card`, `border-border`). Empty lines render as `\u00A0` (non-breaking space) to preserve height. Responsive scroll: `max-h-[60dvh] sm:max-h-[500px]` (60% viewport on mobile, capped at 500px on desktop).
 
 ### 9. API
 No API interaction. Receives `text` string via props only.
@@ -933,13 +933,13 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
-- Supports session restore via `?id=` and `?type=bank|lecture` query params.
+- Supports session restore via `?id=` and `?type=bank|lecture` query params. Reads `data.workflow?.systemCode` (nested object, not top-level `workflowType`).
 - 429 errors trigger warning toast via `RateLimitError` from HttpClient.
 - FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
 ### 9. API
 - **`useWizard.createSession` → SessionsApi.createSession (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
-- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
+- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material: { materialName }, lectureNumber, lectureType, workflow: { systemCode } }`.
 - **PromptsApi.compilePrompt (POST /api/prompts/compile):** Sends `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
@@ -1054,12 +1054,12 @@ Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `api
 - **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. No inline `fetch` calls — all API communication goes through HttpClient-based services.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services.
 
 ### 9. API
 - **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
 - **`POST /api/sessions/{id}/files`** — `apiUploadFiles(sessionId, files, notes)` with `FormData` → returns result.
-- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
+- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `material: { materialName }`, `lectureNumber`, `lectureType`, `workflow: { systemCode }`, `compiledPrompt`, `notes[]`, `files[]`.
 - **`POST /api/prompts/compile`** — `apiCompilePrompt(systemCode, generalNotes, fileNotes)` → returns `{ compiledPrompt }`.
 - **Validation error handling:** 400 with `errors` map (FluentValidation) → `fieldErrors` camelCase state → inline red border + error `<p>` under each field. 429 → Arabic toast with retry-after duration via `formatRateLimitError`.
 

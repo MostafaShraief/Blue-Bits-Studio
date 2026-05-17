@@ -11,6 +11,7 @@ public interface ISessionService
     Task<CreateSessionResult> CreateSessionAsync(int userId, string role, CreateSessionRequest req);
     Task SaveSessionContentAsync(int userId, int? sessionId, SaveSessionContentRequest req);
     Task UploadFilesAsync(int sessionId, int userId, string role, IFormCollection form);
+    Task DeleteSessionAsync(int sessionId, int userId, string role);
 }
 
 public record SessionListResult

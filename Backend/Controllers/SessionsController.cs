@@ -105,6 +105,23 @@ public class SessionsController : ControllerBase
         return Ok(new { sessionId, message = "Content saved successfully" });
     }
 
+    /// <summary>Deletes a session owned by the current user.</summary>
+    /// <param name="id">Session ID.</param>
+    /// <returns>204 No Content.</returns>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteSession(int id)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        if (string.IsNullOrEmpty(role))
+            return Unauthorized();
+
+        await _sessionService.DeleteSessionAsync(id, userId, role);
+        return NoContent();
+    }
+
     /// <summary>Uploads files with optional per-file notes to a session.</summary>
     /// <param name="id">Session ID.</param>
     /// <param name="form">Multipart form containing "files" (IFormFile collection) and "notes" (string array).</param>

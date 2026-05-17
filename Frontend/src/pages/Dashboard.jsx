@@ -28,6 +28,7 @@ const getSessionRoute = (session) => {
         case 'BANK_QS': return `/quiz?id=${id}`;
         case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
+        case 'MERGE': return `/merge?id=${id}`;
         default: return '/';
     }
 };
@@ -40,6 +41,7 @@ const SYSTEM_CODE_LABELS = {
     BANK_QS: 'اختبار',
     PANDOC: 'تحويل Pandoc',
     DRAW: 'رسم',
+    MERGE: 'دمج ملفات',
 };
 
 const WORKFLOW_CONFIG = {

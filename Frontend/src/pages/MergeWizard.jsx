@@ -11,15 +11,15 @@ import { useSettings } from '../contexts/SettingsContext';
 const STEPS = ['إعداد الجلسة', 'تحميل الملفات (بالترتيب)', 'الدمج والنتيجة'];
 
 export default function MergeWizard() {
-    const { currentStep, next, prev, goTo } = useWizard({ totalSteps: 3 });
+    const { currentStep, next, prev, goTo, createSession } = useWizard({ totalSteps: 3 });
     const { showToast } = useToast();
     const fileInputRef = useRef(null);
     const { defaultMaterial } = useSettings();
 
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
-    const [lectureType, setLectureType] = useState('Theoretical');
-    const [lectureNumber, setLectureNumber] = useState(1);
+    const [lectureType, setLectureType] = useState('');
+    const [lectureNumber, setLectureNumber] = useState('');
     const [files, setFiles] = useState([]);
 
     const [status, setStatus] = useState('idle');
@@ -27,7 +27,7 @@ export default function MergeWizard() {
     const [errorMessage, setErrorMessage] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
 
-    const canProceedStep1 = materialValid && lectureNumber;
+    const canProceedStep1 = materialValid && lectureNumber && lectureType;
     const canProceedStep2 = files.length > 1;
 
     const handleFileSelect = (e) => {
@@ -66,6 +66,22 @@ export default function MergeWizard() {
             setStatus('loading');
             setFieldErrors({});
             setErrorMessage('');
+
+            try {
+                await createSession({
+                    materialName,
+                    lectureNumber: parseInt(lectureNumber),
+                    lectureType,
+                    workflowSystemCode: 'MERGE',
+                });
+            } catch (sessionError) {
+                if (sessionError instanceof RateLimitError) {
+                    showToast(sessionError.message, 'warning');
+                    setStatus('idle');
+                    return;
+                }
+                console.warn('Session creation failed, proceeding with merge:', sessionError);
+            }
 
             const result = await MergeApi.execute(files, materialName, lectureType);
 
@@ -120,7 +136,9 @@ export default function MergeWizard() {
             <WizardStepper steps={STEPS} current={currentStep} />
 
             {currentStep === 0 && (
-                <div className="space-y-5 animate-fade-slide-in">
+                <div data-tour="merge-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 animate-fade-slide-in">
+                    <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
+
                     <div>
                         <MaterialAutocomplete
                             value={materialName}
@@ -128,22 +146,26 @@ export default function MergeWizard() {
                             onValidChange={setMaterialValid}
                         />
                         {fieldErrors.materialname && (
-                            <p className="text-xs text-danger mt-1.5">{fieldErrors.materialname}</p>
+                            <p className="text-xs text-danger mt-1">{fieldErrors.materialname}</p>
                         )}
                     </div>
+
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
                             type="number"
                             min="1"
+                            max="99"
                             value={lectureNumber}
                             onChange={(e) => { setLectureNumber(e.target.value); clearFieldError('lecturenumber'); }}
+                            placeholder="مثال: 5"
                             className={`w-full rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.lecturenumber ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                         />
                         {fieldErrors.lecturenumber && (
-                            <p className="text-xs text-danger mt-1.5">{fieldErrors.lecturenumber}</p>
+                            <p className="text-xs text-danger mt-1">{fieldErrors.lecturenumber}</p>
                         )}
                     </div>
+
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
                         <div className="flex gap-3">
@@ -154,7 +176,7 @@ export default function MergeWizard() {
                                 <button
                                     key={value}
                                     onClick={() => { setLectureType(value); clearFieldError('lecturetype'); }}
-                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                                         ? 'border-primary bg-primary-light text-primary'
                                         : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
                                     }`}
@@ -164,10 +186,14 @@ export default function MergeWizard() {
                             ))}
                         </div>
                         {fieldErrors.lecturetype && (
-                            <p className="text-xs text-danger mt-1.5">{fieldErrors.lecturetype}</p>
+                            <p className="text-xs text-danger mt-1">{fieldErrors.lecturetype}</p>
                         )}
                     </div>
+                </div>
+            )}
 
+            {currentStep === 0 && (
+                <div className="mt-5">
                     <button
                         onClick={next}
                         disabled={!canProceedStep1}

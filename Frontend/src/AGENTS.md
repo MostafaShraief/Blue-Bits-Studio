@@ -1167,7 +1167,7 @@ A 3-step wizard that lets users set session metadata (material, type, lecture nu
 - `removeFile`: Removes a file by index
 - `moveFile`: Swaps file position (move up/down) for reordering
 - `clearFieldError`: Removes a single field error from `fieldErrors` state on input change
-- `handleMerge`: Calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
+- `handleMerge`: Creates a session via `useWizard.createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'MERGE' })` (non-blocking — proceeds on failure), then calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
 - `getDownloadFileName`: Generates Arabic download filename from material name and type
 - `handleReset`: Resets wizard to step 0 and clears all state
 

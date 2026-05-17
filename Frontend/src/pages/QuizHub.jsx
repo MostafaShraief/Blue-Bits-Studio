@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useContext } from 'react';
+import { useState, useRef, useEffect, useContext, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import {
   FileJson,
@@ -39,6 +39,8 @@ export default function QuizHub() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const isInitialLoad = useRef(true);
+  const isSessionRestored = useRef(false);
   
   // Metadata state for prompts
   const [materialName, setMaterialName] = useState(defaultMaterial || '');
@@ -82,6 +84,7 @@ export default function QuizHub() {
         
         setSessionId(id);
         setHasUnsavedChanges(false);
+        isSessionRestored.current = true;
         setStep(1); // Go directly to JSON Editor (Step 2 - index 1)
       }
     } catch (err) {
@@ -91,6 +94,10 @@ export default function QuizHub() {
 
   // Track unsaved changes
   useEffect(() => {
+    if (isSessionRestored.current) {
+      isSessionRestored.current = false;
+      return;
+    }
     if (formQuizData.length > 0 && step === 1) {
       setHasUnsavedChanges(true);
     }
@@ -171,6 +178,12 @@ export default function QuizHub() {
 
   const handleConfirmModalConfirm = () => {
     setShowConfirmModal(false);
+    setFormQuizData([]);
+    setHasUnsavedChanges(false);
+    setAnswers({});
+    setIsSubmitted(false);
+    setCurrentFile(null);
+    setSessionId(null);
     setStep(0);
   };
 

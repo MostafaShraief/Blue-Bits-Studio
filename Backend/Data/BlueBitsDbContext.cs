@@ -149,7 +149,10 @@ public class BlueBitsDbContext : DbContext
             new WorkflowPermission { PermissionId = 2, RoleName = "TechMember", WorkflowId = 2 },
             new WorkflowPermission { PermissionId = 3, RoleName = "TechMember", WorkflowId = 3 },
             new WorkflowPermission { PermissionId = 4, RoleName = "TechMember", WorkflowId = 4 },
-            new WorkflowPermission { PermissionId = 5, RoleName = "ScientificMember", WorkflowId = 5 }
+            new WorkflowPermission { PermissionId = 5, RoleName = "TechMember", WorkflowId = 5 },
+            new WorkflowPermission { PermissionId = 7, RoleName = "TechMember", WorkflowId = 7 },
+            new WorkflowPermission { PermissionId = 8, RoleName = "TechMember", WorkflowId = 8 },
+            new WorkflowPermission { PermissionId = 10, RoleName = "ScientificMember", WorkflowId = 6 }
         );
 
         modelBuilder.Entity<Prompt>().HasData(

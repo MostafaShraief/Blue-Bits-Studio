@@ -834,9 +834,9 @@ Admin CRUD page for managing users. Uses `useAdminUsers` hook for all data fetch
 
 ### 5. Functions Summary
 - `useAdminUsers()`: Hook providing users, form state, modal state, CRUD actions, and validation errors.
-- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. On 400 errors, hook sets `validationErrors` for per-field display.
-- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode.
-- `closeModal()`: Hook method with 200ms closing animation.
+- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. Always sends `password` in create mode (so FluentValidation catches empty password). Only sends `password` in edit mode when non-empty. On 400 errors, hook sets `validationErrors` for per-field display.
+- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode. Cancels any pending close animation timeout to prevent race conditions.
+- `closeModal()`: Hook method with 200ms closing animation; uses `closeTimeoutRef` for safe cancellation.
 - `handleDelete(id)`: Sets `deleteConfirmId` to show confirm dialog; `confirmDelete`/`cancelDelete` complete the flow.
 - `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only) via `onBeforeInput`.
 - `getRoleBadge`: Renders colored role badge with icon.
@@ -860,6 +860,7 @@ Delegates all HTTP to `useAdminUsers` hook → `AdminApi` (HttpClient). HttpClie
 - Client-side validation errors show under fields with auto-dismiss (2.5s); server-side `validationErrors` persist until modal closes.
 - Delete uses a modal confirmation dialog instead of `window.confirm()`.
 - 429 rate-limit toasts are auto-handled by HttpClient → hook's error handler (`showToast(err.message, 'error')`).
+- Modal race condition prevented: `closeTimeoutRef` cancels pending close timeout when re-opening modal during animation.
 
 ### 9. API
 All API calls go through `AdminApi` (HttpClient):
@@ -2110,10 +2111,10 @@ Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mou
 ### 5. Functions Summary
 - `useAdminUsers()`: Hook — returns all state and action methods.
 - `loadUsers()`: Fetches all admin users via `AdminApi.users.fetch()` and sets `users` state.
-- `openCreateModal()`: Resets form, opens modal in create mode.
-- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode.
-- `closeModal()`: Triggers closing animation, then resets all modal state after 200ms.
-- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows toast, reloads list on success; sets `validationErrors` on 400.
+- `openCreateModal()`: Resets form, opens modal in create mode. Cancels any pending close timeout.
+- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode. Cancels any pending close timeout.
+- `closeModal()`: Triggers closing animation via `closeTimeoutRef` (200ms), then resets all modal state.
+- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows success toast, reloads list. On 400, sets `validationErrors` without error toast (errors shown inline). On other errors, shows error toast.
 - `handleDelete(id)`: Sets `deleteConfirmId` to trigger confirm UI.
 - `confirmDelete()`: Deletes the user at `deleteConfirmId`, shows toast, reloads list.
 - `cancelDelete()`: Clears `deleteConfirmId` without deleting.
@@ -2122,19 +2123,20 @@ Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mou
 Calls `AdminApi.users.*` methods (`fetch`, `create`, `update`, `delete`) which use `HttpClient` for JWT auth and error handling. Uses `ToastContext` for success/error notifications. Captures `ApiError.errors` from 400 responses into `validationErrors` state.
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect, useCallback)
+- **External:** `react` (useState, useEffect, useCallback, useRef)
 - **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`
 
 ### 8. Additional Info
 - Load errors are set in `error` state without toasts to avoid spam.
-- Submit errors propagate validation errors (`err.errors`) from 400 responses into `validationErrors` for per-field display, and re-throw for caller chaining.
-- `handleSubmit` strips `username` from the payload on update (only sent on create).
-- Modal close animation uses a 200ms timeout consistent with existing admin page patterns.
+- Submit errors (`err.errors`) from 400 responses set `validationErrors` for per-field display without redundant toast; other errors show a toast. Re-throws for caller chaining.
+- `handleSubmit` strips `username` from the payload on update (only sent on create). Password always sent in create mode (even if empty) so FluentValidation catches it cleanly.
+- Modal close animation uses `closeTimeoutRef` (200ms) with cancellation: `openCreateModal`/`openEditModal` clear the timeout to prevent race conditions when re-opening during animation.
+- `closeTimeoutRef` is cleaned up on unmount.
 - `deleteConfirmId` holds the user ID pending confirmation; set to `null` when idle.
 
 ### 9. API
 - **Internal:** Delegates all HTTP to `AdminApi.users.*` (AdminApi.js). See AdminApi.md for endpoint details.
-- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure (not shown for 400 validation errors).
 
 ## 1. File Name and Directory
 `Frontend/src/hooks/useWizard.js`

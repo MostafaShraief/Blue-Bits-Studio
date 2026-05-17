@@ -143,12 +143,11 @@ export default function UsersManager() {
             teamJoinDate: formData.teamJoinDate || null,
         };
 
-        if (formData.password.trim() !== '') {
-            payload.password = formData.password;
-        }
-
         if (!editingId) {
             payload.username = formData.username;
+            payload.password = formData.password || '';
+        } else if (formData.password.trim() !== '') {
+            payload.password = formData.password;
         }
 
         hookHandleSubmit(payload).catch(() => {});

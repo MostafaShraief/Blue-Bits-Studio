@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import admin from '../api/AdminApi';
 import { useToast } from '../contexts/ToastContext';
 import { formatValidationErrors } from '../utils/errorFormatter';
+import { RateLimitError } from '../api/HttpClient';
 
 export function useAdminMaterials() {
   const { showToast } = useToast();
@@ -36,10 +37,13 @@ export function useAdminMaterials() {
       await fetchAll();
       return result;
     } catch (err) {
-      if (err.errors) {
+      if (err instanceof RateLimitError) {
+        showToast(err.message || 'طلبات كثيرة جداً. الرجاء الانتظار.', 'warning');
+      } else if (err.errors) {
         setValidationErrors(formatValidationErrors(err.errors));
+      } else {
+        showToast(err.message || 'Failed to create material', 'error');
       }
-      showToast(err.message || 'Failed to create material', 'error');
       throw err;
     } finally {
       setIsSaving(false);
@@ -55,10 +59,13 @@ export function useAdminMaterials() {
       await fetchAll();
       return result;
     } catch (err) {
-      if (err.errors) {
+      if (err instanceof RateLimitError) {
+        showToast(err.message || 'طلبات كثيرة جداً. الرجاء الانتظار.', 'warning');
+      } else if (err.errors) {
         setValidationErrors(formatValidationErrors(err.errors));
+      } else {
+        showToast(err.message || 'Failed to update material', 'error');
       }
-      showToast(err.message || 'Failed to update material', 'error');
       throw err;
     } finally {
       setIsSaving(false);
@@ -76,7 +83,11 @@ export function useAdminMaterials() {
       showToast('Material deleted successfully', 'success');
       await fetchAll();
     } catch (err) {
-      showToast(err.message || 'Failed to delete material', 'error');
+      if (err instanceof RateLimitError) {
+        showToast(err.message || 'طلبات كثيرة جداً. الرجاء الانتظار.', 'warning');
+      } else {
+        showToast(err.message || 'Failed to delete material', 'error');
+      }
       throw err;
     } finally {
       setIsSaving(false);

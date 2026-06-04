@@ -34,14 +34,17 @@ export function useAdminPrompts() {
       const result = await admin.prompts.updateText(id, promptText);
       showToast('Prompt updated successfully', 'success');
       setItems(prev => prev.map(item =>
-        item.id === id ? { ...item, ...result } : item
+        item.promptId === id ? { ...item, ...result } : item
       ));
       return result;
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setValidationErrors(err.errors);
+        const firstError = err.errors && Object.values(err.errors)[0];
+        showToast(firstError || err.message || 'Failed to update prompt', 'error');
+      } else {
+        showToast(err.message || 'Failed to update prompt', 'error');
       }
-      showToast(err.message || 'Failed to update prompt', 'error');
       throw err;
     }
   }, [showToast]);

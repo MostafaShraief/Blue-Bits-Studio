@@ -51,14 +51,14 @@ export default function ImageUploader({ images, onAdd, onRemove, onNoteChange, m
             {images.map((img, i) => (
                 <div
                     key={i}
-                    className="flex gap-4 bg-surface-card border border-border rounded-2xl p-4 animate-fade-slide-in"
+                    className="flex flex-col sm:flex-row gap-4 bg-surface-card border border-border rounded-2xl p-4 animate-fade-slide-in"
                 >
                     {/* Thumbnail */}
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0 self-center sm:self-auto">
                         <img
                             src={img.url}
                             alt={`صورة ${i + 1}`}
-                            className="w-28 h-28 object-cover rounded-xl border border-border"
+                            className="w-full sm:w-28 h-28 object-cover rounded-xl border border-border"
                         />
                         <button
                             onClick={() => onRemove(i)}
@@ -88,7 +88,7 @@ export default function ImageUploader({ images, onAdd, onRemove, onNoteChange, m
                     onDrop={handleDrop}
                     onDragOver={(e) => e.preventDefault()}
                     onClick={() => inputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-primary/30 rounded-2xl cursor-pointer hover:border-primary hover:bg-primary-light/30 transition-default"
+                    className="flex flex-col items-center justify-center gap-2 py-6 sm:py-8 border-2 border-dashed border-primary/30 rounded-2xl cursor-pointer hover:border-primary hover:bg-primary-light/30 transition-default"
                 >
                     <ImagePlus size={32} className="text-primary" strokeWidth={1.5} />
                     <p className="text-sm text-text-secondary">اضغط أو اسحب الصور هنا</p>

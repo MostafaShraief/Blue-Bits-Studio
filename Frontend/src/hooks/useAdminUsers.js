@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { admin } from '../api/AdminApi';
 import { useToast } from '../contexts/ToastContext';
 
@@ -29,6 +29,8 @@ export function useAdminUsers() {
 
   const [validationErrors, setValidationErrors] = useState({});
 
+  const closeTimeoutRef = useRef(null);
+
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -44,9 +46,18 @@ export function useAdminUsers() {
 
   useEffect(() => {
     loadUsers();
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
   }, [loadUsers]);
 
   const openCreateModal = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
     setEditingId(null);
     setFormData(getInitialFormData());
     setValidationErrors({});
@@ -55,6 +66,10 @@ export function useAdminUsers() {
   }, []);
 
   const openEditModal = useCallback((user) => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
     setEditingId(user.userId);
     setFormData({
       firstName: user.firstName || '',
@@ -73,12 +88,13 @@ export function useAdminUsers() {
 
   const closeModal = useCallback(() => {
     setIsClosing(true);
-    setTimeout(() => {
+    closeTimeoutRef.current = setTimeout(() => {
       setShowModal(false);
       setIsClosing(false);
       setEditingId(null);
       setFormData(getInitialFormData());
       setValidationErrors({});
+      closeTimeoutRef.current = null;
     }, 200);
   }, []);
 
@@ -98,8 +114,9 @@ export function useAdminUsers() {
     } catch (err) {
       if (err.status === 400) {
         setValidationErrors(err.errors || {});
+      } else {
+        showToast(err.message || 'فشل حفظ المستخدم', 'error');
       }
-      showToast(err.message || 'فشل حفظ المستخدم', 'error');
       throw err;
     }
   }, [editingId, closeModal, loadUsers, showToast]);

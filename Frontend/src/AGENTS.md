@@ -189,7 +189,7 @@ Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/
 - **Internal:** `getDistinctNames` from `../../api/MaterialsApi`
 
 ### 8. Additional Info
-Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive).
+Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component.
 
 ### 9. API
 **Request:** `GET /api/materials` — no body, no params.
@@ -253,7 +253,7 @@ No backend API calls. Pure client-side component — image files and notes are m
 - `imageCompression` from `browser-image-compression` (external library)
 
 ### 8. Additional Info
-Compression failures fall back to the original file. The `maxImages` prop defaults to `Infinity`. The UI is Arabic-first (placeholder text, positioning).
+Compression failures fall back to the original file. The `maxImages` prop defaults to `Infinity`. The UI is Arabic-first (placeholder text, positioning). Responsive layout: image cards use `flex-col sm:flex-row` (stacked on mobile, row on desktop), thumbnails are `w-full sm:w-28`, drop zone uses `py-6 sm:py-8`.
 
 ### 9. API
 No direct API interaction. Images are passed as `File` objects to the parent; the parent is responsible for uploading them to the backend.
@@ -398,7 +398,7 @@ None — purely presentational, no backend/API calls.
 No imports (no external dependencies).
 
 ### 8. Additional Info
-Uses Tailwind v4 semantic tokens (`bg-surface-card`, `border-border`). Empty lines render as `\u00A0` (non-breaking space) to preserve height.
+Uses Tailwind v4 semantic tokens (`bg-surface-card`, `border-border`). Empty lines render as `\u00A0` (non-breaking space) to preserve height. Responsive scroll: `max-h-[60dvh] sm:max-h-[500px]` (60% viewport on mobile, capped at 500px on desktop).
 
 ### 9. API
 No API interaction. Receives `text` string via props only.
@@ -509,24 +509,30 @@ Frontend/src/components/TourOverlay.jsx
 Frontend — React component (guided tour overlay)
 
 ### 3. What the file does
-Renders a floating tooltip/overlay card during an interactive app tour. It highlights the target element with a ring, positions the card near it (below by default, above if no space), and provides step navigation (prev/next) with a progress indicator. Renders via `createPortal` at `document.body`.
+Renders a floating tooltip/overlay card during an interactive app tour. Highlights the target element with a Tailwind ring, positions the card dynamically (below by default, above if viewport space is insufficient). Uses `createPortal` at `document.body`. Fully RTL-aware: replaces physical `left`/`right` with logical `insetInlineStart` and checks `document.dir === 'rtl'`.
 
 ### 4. User Stories
 - As a new user, I follow a guided step-by-step tour that highlights UI elements and explains what they do.
 - As a user, I navigate through tour steps, skip the tour, or finish it early.
 
 ### 5. Functions Summary
-- `TourOverlay`: Main component — reads tour state from `TourContext`, queries the DOM for the target element via CSS selector, computes its bounding rect for absolute positioning, renders a styled card with title, content, navigation buttons, step counter, and a directional arrow.
+- `TourOverlay`: Main component — reads tour state from `TourContext`, queries DOM for the target via CSS selector, computes bounding rect for absolute positioning, renders card with title, content, nav buttons, step counter, and a directional arrow.
+- `isRTL()`: Returns `document.documentElement.dir === 'rtl'` for conditional styling.
+- `measureCard()`: Measures the overlay card's actual height via `cardRef.offsetHeight` inside `requestAnimationFrame` to decide above/below placement (replaces hardcoded 200px).
 
 ### 6. Integration
 No backend calls. Purely client-side: uses DOM API (`querySelector`, `getBoundingClientRect`, `scrollIntoView`, classList) and the `TourContext` state machine.
 
 ### 7. Imports Summary
-- **External:** `react` (useEffect, useState), `lucide-react` (X, ArrowRight, ArrowLeft), `react-dom` (createPortal)
+- **External:** `react` (useEffect, useState, useRef, useCallback), `lucide-react` (X, ArrowRight, ArrowLeft), `react-dom` (createPortal)
 - **Internal:** `../contexts/TourContext` (useTour — provides isActive, currentStep, stopTour, nextStep, prevStep, currentStepIndex, totalSteps)
 
 ### 8. Additional Info
-Smart positioning: if the card would overflow below the viewport, it renders above the target instead. The arrow indicator flips accordingly. A highlight ring (`ring-4 ring-primary`) is added/removed from the target element on mount/unmount. Supports window resize and scroll events. Arabic-first (RTL layout, Arabic button labels).
+- RTL positioning: overlay uses `right`/`left` based on `document.dir` (not hardcoded); arrow uses `insetInlineStart` for RTL layout.
+- Above/below: `isAbove` state computed from actual card height (`cardRef.offsetHeight`) vs `spaceBelow`/`spaceAbove`. Fallback to bottom-center (no target) when selector element is not found.
+- Highlight ring: `ring-4 ring-primary ring-offset-2 ring-offset-surface transition-shadow` classes added/removed from target element on mount/unmount. Cleanup runs when `isActive`/`currentStep` changes or component unmounts.
+- Supports window resize and scroll events.
+- Arabic-first (RTL layout, Arabic button labels).
 
 ### 9. API
 No API communication. All state comes from `TourContext` (client-side context). UI-only component.
@@ -652,6 +658,8 @@ Manages an interactive guided tour (walkthrough) for three workflows: lecture ex
 - `prevStep()`: Goes back one step
 - `useTour()`: Hook to consume `TourContext`
 - `useEffect`: Watches location; runs `autoFill()` when arriving at a step's route
+- `setNativeInputValue(el, value)`: Sets input value via `Object.getOwnPropertyDescriptor` + `input()` event for React-controlled inputs.
+- `findButtonByText(text)`: Finds a `<button>` by its text content (trimmed match) for auto-clicking toggle buttons.
 
 ### 6. Integration
 No backend/database calls. Integrates with React Router (`useNavigate`, `useLocation`) for step navigation and `AuthContext` (`hasWorkflowAccess`) for permission gating.
@@ -663,6 +671,7 @@ No backend/database calls. Integrates with React Router (`useNavigate`, `useLoca
 
 ### 8. Additional Info
 - `TOUR_DATA` object defines steps per workflow with Arabic titles/content and optional `autoFill` functions that simulate user input via native value setters
+- Auto-fill fixes: lecture number uses `input[placeholder*="مثال: 5"]` (matches actual UI); bank metadata mentions `اسم المادة ورقم المحاضرة` (no bank name input exists); pandoc metadata uses `input[placeholder*="اسم المادة"]`
 - `WORKFLOW_SYSTEM_CODES` maps workflow IDs to backend SystemCodes for RBAC enforcement
 
 ### 9. API
@@ -834,9 +843,9 @@ Admin CRUD page for managing users. Uses `useAdminUsers` hook for all data fetch
 
 ### 5. Functions Summary
 - `useAdminUsers()`: Hook providing users, form state, modal state, CRUD actions, and validation errors.
-- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. On 400 errors, hook sets `validationErrors` for per-field display.
-- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode.
-- `closeModal()`: Hook method with 200ms closing animation.
+- `handleFormSubmit`: Validates inputs (username/password format/length), builds API payload, delegates to `hookHandleSubmit()`. Always sends `password` in create mode (so FluentValidation catches empty password). Only sends `password` in edit mode when non-empty. On 400 errors, hook sets `validationErrors` for per-field display.
+- `openEditModal(user)` / `openCreateModal()`: Hook methods to open modal in edit/create mode. Cancels any pending close animation timeout to prevent race conditions.
+- `closeModal()`: Hook method with 200ms closing animation; uses `closeTimeoutRef` for safe cancellation.
 - `handleDelete(id)`: Sets `deleteConfirmId` to show confirm dialog; `confirmDelete`/`cancelDelete` complete the flow.
 - `handleUsernameInput` / `handlePasswordInput`: Real-time input guards (English alphanumeric + allowed symbols only) via `onBeforeInput`.
 - `getRoleBadge`: Renders colored role badge with icon.
@@ -860,6 +869,7 @@ Delegates all HTTP to `useAdminUsers` hook → `AdminApi` (HttpClient). HttpClie
 - Client-side validation errors show under fields with auto-dismiss (2.5s); server-side `validationErrors` persist until modal closes.
 - Delete uses a modal confirmation dialog instead of `window.confirm()`.
 - 429 rate-limit toasts are auto-handled by HttpClient → hook's error handler (`showToast(err.message, 'error')`).
+- Modal race condition prevented: `closeTimeoutRef` cancels pending close timeout when re-opening modal during animation.
 
 ### 9. API
 All API calls go through `AdminApi` (HttpClient):
@@ -905,7 +915,7 @@ No API interaction.
 Frontend (React component)
 
 ### 3. What the file does
-A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata, paste reviewed Markdown text, compile a prompt, then preview/copy it — all in one combined second step. Uses `useWizard` hook for step management and session lifecycle. Replaced legacy `utils/api.js` with `SessionsApi` + `PromptsApi`.
+A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata (step 0), paste reviewed Markdown text (step 1), then compile and preview/copy the prompt (step 2). Uses `useWizard({ totalSteps: 3 })` for step management and session lifecycle. Follows the same 3-step pattern as ExtractionWizard.
 
 ### 4. User Stories
 - As a coordinator, I want to select a material, lecture number, and type (Theoretical/Practical), so the system knows the context.
@@ -916,14 +926,15 @@ A 2-step wizard (`إعداد الجلسة`, `النص والبرومبت`) for c
 
 ### 5. Functions Summary
 - `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
-- `handleNextStep0`: Validates metadata fields (material, lecture number/type, workflow) before advancing to step 1.
-- `handleCompile`: Creates a session via `wizard.createSession`, then compiles the prompt (auto-save path: fetch compiled prompt from saved session via `getSession`; else stateless via `compilePrompt`). Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 creates a session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `goBack`: Calls `prev()` to go back one step.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
 - `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
 - `clearFieldError`: Removes a specific field error on input change (avoids stale validation markup).
+- `fieldInputClass`: Returns Tailwind class string with `border-danger` styling when the field has an error.
 
 ### 6. Integration
-Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
+Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook's `createSession` (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
 
 ### 7. Imports Summary
 - **External:** `react` (useState, useCallback, useEffect, useContext), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
@@ -933,13 +944,17 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
-- Supports session restore via `?id=` and `?type=bank|lecture` query params.
+- **3 steps:** Step 0 = session metadata, Step 1 = Markdown input, Step 2 = prompt preview + copy + save.
+- Wizard methods destructured from `useWizard`: `{ currentStep, next, prev, goTo, sessionId, setSessionId, createSession }`.
+- Session restore via `?id=` and `?type=bank|lecture` jumps to step 2 (`goTo(2)`) with saved prompt and markdown.
+- `goNext` branches on `currentStep` — step 0→1 validates fields (no API), step 1→2 creates session + compiles prompt.
 - 429 errors trigger warning toast via `RateLimitError` from HttpClient.
+- `fieldInputClass` utility provides consistent input styling with error-state red border.
 - FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
 ### 9. API
-- **`useWizard.createSession` → SessionsApi.createSession (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
-- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material, lectureNumber, lectureType, workflowType }`.
+- **`createSession` (POST /api/sessions):** Sends `{ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes }`. Returns `{ sessionId, id }`.
+- **SessionsApi.getSession (GET /api/sessions/{id}):** Returns `{ compiledPrompt, notes, material: { materialName }, lectureNumber, lectureType, workflow: { systemCode } }`.
 - **PromptsApi.compilePrompt (POST /api/prompts/compile):** Sends `{ systemCode, GeneralNotes, FileNotes }`. Returns `{ compiledPrompt }`.
 
 ## 1. File Name and Directory
@@ -957,22 +972,21 @@ Renders the app's landing page after login: shows a welcome tour banner, dynamic
 - As an Admin user, I see management links (users, materials, system) on the dashboard instead of workflow quick actions.
 
 ### 5. Functions Summary
-- `getSessionRoute`: Maps backend `workflowType` SystemCode (e.g. `LEC_EXT`) to a frontend route with session ID.
+- `getSessionRoute`: Maps backend `workflowType` SystemCode (e.g. `LEC_EXT`, `MERGE`) to a frontend route with session ID.
 - `Dashboard`: Main component — fetches stats & recent sessions, filters by RBAC via `hasWorkflowAccess`, builds stat cards and quick actions dynamically from `user.allowedWorkflows` (mapped from backend `authorizedWorkflows`).
 
 ### 6. Integration
-Calls backend via `getSessions()` from `../api/SessionsApi` for stats and recent sessions. Uses `useAuth()` context for RBAC checks and user role detection. Stat cards and quick actions are derived from `user.allowedWorkflows` (the frontend mapping of `authorizedWorkflows`).
+Calls backend via a single `getSessions(1, 1000)` from `../api/SessionsApi` — the response is split client-side: the full array computes stat counts, and the first 5 elements are used for recent sessions (eliminating a redundant second API call). Uses `useAuth()` context for RBAC checks and user role detection. Stat cards and quick actions are derived from `user.allowedWorkflows` (the frontend mapping of `authorizedWorkflows`).
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect), `react-router` (Link), `lucide-react` (10 icons: FileSearch, AlignRight, FileOutput, Palette, BookOpen, FlaskConical, Sparkles, Clock, ArrowLeft, Users, Settings2)
+- **External:** `react` (useState, useEffect), `react-router` (Link), `lucide-react` (12 icons: FileSearch, AlignRight, FileOutput, Palette, BookOpen, FlaskConical, Sparkles, Clock, ArrowLeft, Users, Settings2, FileJson, Layers)
 - **Internal:** `getSessions` from `../api/SessionsApi`, `../contexts/AuthContext` (useAuth)
 
 ### 8. Additional Info
-Arabic-first UI with RTL layout. Admin users are no longer redirected — they see admin management links on the dashboard. Quick actions (`WORKFLOW_CONFIG`) and stat cards (`STAT_CARD_CONFIG`) are generated by mapping `authorizedWorkflows` SystemCodes through lookup objects. Unknown SystemCodes are silently filtered out. Tour banner is conditionally rendered only if user has access to any of `LEC_EXT`, `BANK_EXT`, or `DRAW`. `getSessionRoute` mapping is unchanged — still uses the same SystemCode → route switch.
+Arabic-first UI with RTL layout. Admin users are no longer redirected — they see admin management links on the dashboard. Quick actions (`WORKFLOW_CONFIG`) and stat cards (`STAT_CARD_CONFIG`) are generated by mapping `authorizedWorkflows` SystemCodes through lookup objects. Unknown SystemCodes are silently filtered out. Tour banner is conditionally rendered only if user has access to any of `LEC_EXT`, `BANK_EXT`, or `DRAW`. `getSessionRoute` maps SystemCode to route with MERGE support.
 
 ### 9. API
-- **GET stats:** `fetchStats()` → returns `{ total, LEC_EXT, BANK_EXT, BANK_QS, DRAW, PANDOC, LEC_COORD }` — numeric counts per workflow type.
-- **GET sessions:** `fetchSessions(1, 5)` → returns `{ sessions: [{ id, workflowType, materialName, lectureNumber, createdAt }] }` — paginated recent sessions; frontend filters the first 5 by RBAC.
+- **GET single call:** `getSessions(1, 1000)` → `{ sessions: [...] }` — returns up to 1000 sessions. The full list is used for stat counting; the first 5 are sliced client-side for the "recent sessions" section and filtered by RBAC.
 
 ## 1. File Name and Directory
 `Frontend/src/pages/DrawWizard.jsx`
@@ -1004,7 +1018,7 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 ### 7. Imports Summary
 - **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback)
 - **Internal components:** WizardStepper, PromptPreview, GuidedCopyLoop, ImageUploader, PasteButton, PasteImageButton, MaterialAutocomplete
-- **New API modules:** `useWizard` hook, `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
+- **New API modules:** `useWizard` hook (returns `currentStep`, `next`, `prev`, `goTo`, `sessionId`, `setSessionId`), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
 - **Contexts:** `useSettings` from `SettingsContext`, `useToast` from `ToastContext`
 - **Errors:** `ApiError`, `RateLimitError` from `HttpClient`
 
@@ -1055,12 +1069,12 @@ Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `api
 - **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. No inline `fetch` calls — all API communication goes through HttpClient-based services.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services.
 
 ### 9. API
 - **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
 - **`POST /api/sessions/{id}/files`** — `apiUploadFiles(sessionId, files, notes)` with `FormData` → returns result.
-- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `materialName`, `lectureNumber`, `lectureType`, `workflowType`, `compiledPrompt`, `notes[]`, `files[]`.
+- **`GET /api/sessions/{id}`** — `getSession(id)` → returns session data including `material: { materialName }`, `lectureNumber`, `lectureType`, `workflow: { systemCode }`, `compiledPrompt`, `notes[]`, `files[]`.
 - **`POST /api/prompts/compile`** — `apiCompilePrompt(systemCode, generalNotes, fileNotes)` → returns `{ compiledPrompt }`.
 - **Validation error handling:** 400 with `errors` map (FluentValidation) → `fieldErrors` camelCase state → inline red border + error `<p>` under each field. 429 → Arabic toast with retry-after duration via `formatRateLimitError`.
 
@@ -1071,7 +1085,7 @@ Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BA
 Frontend
 
 ### 3. What the file does
-Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info, loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
+Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw, merge). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info, loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
 
 ### 4. User Stories
 - As a user, I want to browse my past sessions filtered by workflow type so I can quickly resume work.
@@ -1091,12 +1105,12 @@ Displays a paginated, filterable list of all user workflow sessions (extraction,
 Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`). Uses `useAuth` for RBAC filter gating.
 
 ### 7. Imports Summary
-- **React hooks**: `useState`, `useMemo`, `useRef`, `useEffect`
-- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2`, `X`, `Info` from `lucide-react`
+- **React hooks**: `useState`, `useMemo`, `useEffect`
+- **Icons**: `Clock`, `FileSearch`, `AlignRight`, `Palette`, `FileOutput`, `Trash2`, `Eye`, `Loader2`, `X`, `Info`, `Layers` from `lucide-react`
 - **Internal**: `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`; `useSessions` from `../hooks/useSessions`; `createPortal` from `react-dom`
 
 ### 8. Additional Info
-Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete.
+Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete. Supports all 8 workflow types including MERGE.
 
 ### 9. API
 - **Read:** Delegated to `useSessions` → `SessionsApi.getSessions(page, limit)` → `GET /api/sessions?page=&limit=`.
@@ -1163,7 +1177,7 @@ A 3-step wizard that lets users set session metadata (material, type, lecture nu
 - `removeFile`: Removes a file by index
 - `moveFile`: Swaps file position (move up/down) for reordering
 - `clearFieldError`: Removes a single field error from `fieldErrors` state on input change
-- `handleMerge`: Calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
+- `handleMerge`: Creates a session via `useWizard.createSession({ materialName, lectureNumber, lectureType, workflowSystemCode: 'MERGE' })` (non-blocking — proceeds on failure), then calls `MergeApi.execute` with FormData (`files`, `materialName`, `lectureType`); catches `RateLimitError` to show warning toast, `ApiError` (400) with `errors` to populate `fieldErrors`, and other errors to show error state with server message
 - `getDownloadFileName`: Generates Arabic download filename from material name and type
 - `handleReset`: Resets wizard to step 0 and clears all state
 
@@ -2106,10 +2120,10 @@ Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mou
 ### 5. Functions Summary
 - `useAdminUsers()`: Hook — returns all state and action methods.
 - `loadUsers()`: Fetches all admin users via `AdminApi.users.fetch()` and sets `users` state.
-- `openCreateModal()`: Resets form, opens modal in create mode.
-- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode.
-- `closeModal()`: Triggers closing animation, then resets all modal state after 200ms.
-- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows toast, reloads list on success; sets `validationErrors` on 400.
+- `openCreateModal()`: Resets form, opens modal in create mode. Cancels any pending close timeout.
+- `openEditModal(user)`: Pre-fills form with user data, opens modal in edit mode. Cancels any pending close timeout.
+- `closeModal()`: Triggers closing animation via `closeTimeoutRef` (200ms), then resets all modal state.
+- `handleSubmit(data)`: Creates or updates user based on `editingId`, shows success toast, reloads list. On 400, sets `validationErrors` without error toast (errors shown inline). On other errors, shows error toast.
 - `handleDelete(id)`: Sets `deleteConfirmId` to trigger confirm UI.
 - `confirmDelete()`: Deletes the user at `deleteConfirmId`, shows toast, reloads list.
 - `cancelDelete()`: Clears `deleteConfirmId` without deleting.
@@ -2118,19 +2132,20 @@ Provides a reusable hook for admin user CRUD lifecycle. Fetches all users on mou
 Calls `AdminApi.users.*` methods (`fetch`, `create`, `update`, `delete`) which use `HttpClient` for JWT auth and error handling. Uses `ToastContext` for success/error notifications. Captures `ApiError.errors` from 400 responses into `validationErrors` state.
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useEffect, useCallback)
+- **External:** `react` (useState, useEffect, useCallback, useRef)
 - **Internal:** `admin` from `../api/AdminApi`, `useToast` from `../contexts/ToastContext`
 
 ### 8. Additional Info
 - Load errors are set in `error` state without toasts to avoid spam.
-- Submit errors propagate validation errors (`err.errors`) from 400 responses into `validationErrors` for per-field display, and re-throw for caller chaining.
-- `handleSubmit` strips `username` from the payload on update (only sent on create).
-- Modal close animation uses a 200ms timeout consistent with existing admin page patterns.
+- Submit errors (`err.errors`) from 400 responses set `validationErrors` for per-field display without redundant toast; other errors show a toast. Re-throws for caller chaining.
+- `handleSubmit` strips `username` from the payload on update (only sent on create). Password always sent in create mode (even if empty) so FluentValidation catches it cleanly.
+- Modal close animation uses `closeTimeoutRef` (200ms) with cancellation: `openCreateModal`/`openEditModal` clear the timeout to prevent race conditions when re-opening during animation.
+- `closeTimeoutRef` is cleaned up on unmount.
 - `deleteConfirmId` holds the user ID pending confirmation; set to `null` when idle.
 
 ### 9. API
 - **Internal:** Delegates all HTTP to `AdminApi.users.*` (AdminApi.js). See AdminApi.md for endpoint details.
-- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure.
+- **Toast:** Calls `showToast(message, type)` from `ToastContext` — `type` is `'success'` on success, `'error'` on failure (not shown for 400 validation errors).
 
 ## 1. File Name and Directory
 `Frontend/src/hooks/useWizard.js`
@@ -2168,6 +2183,7 @@ Uses `useSessions` (which delegates to `SessionsApi` / `HttpClient` for REST cal
 - Step navigation is bounded: `next` stops at `totalSteps - 1`, `prev` stops at 0, `goTo` silently ignores out-of-range steps.
 - `sessionId` is automatically set from `session.id ?? session.sessionId` after a successful `createSession` call.
 - `saveContent` silently returns `undefined` if no `sessionId` is set and shows an error toast.
+- **No redundant toast:** `createSession` catch block only calls `showToast` for non-`RateLimitError` errors. The caller (e.g. CoordinationWizard) handles 400 with field errors and 429 with warning toasts, so the hook no longer adds a misleading generic error toast on top.
 
 ### 9. API
 No direct API calls. Delegates all HTTP to `useSessions` → `SessionsApi` (`SessionsApi.js`). See SessionsApi.md for endpoint details.

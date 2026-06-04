@@ -11,29 +11,30 @@ const WORKFLOW_SYSTEM_CODES = {
     draw: 'DRAW',
 };
 
+function findButtonByText(text) {
+    return Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === text);
+}
+
+function setNativeInputValue(el, value) {
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+        el instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+        "value"
+    ).set;
+    nativeSetter.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 const TOUR_DATA = {
     lecture: [
-        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-type"]', title: 'تحديد نوع المستند', content: 'في هذه الخطوة الأولى، نحدد نوع الملف كـ "محاضرة". هذا يضمن اختيار الموجه (Prompt) الصحيح للذكاء الاصطناعي.', autoFill: () => {
-            const btn = document.querySelector('button[value="lecture"]');
-            if (btn) btn.click();
-        }},
+        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-type"]', title: 'تحديد نوع المستند', content: 'في هذه الخطوة الأولى، نحدد نوع الملف كـ "محاضرة". هذا يضمن اختيار الموجه (Prompt) الصحيح للذكاء الاصطناعي.' },
         { path: '/extraction?type=lecture', selector: '[data-tour="extraction-metadata"]', title: 'بيانات المحاضرة', content: 'نقوم بإدخال اسم المادة ورقم المحاضرة. هذه البيانات مهمة لتسمية الملف النهائي لاحقاً بشكل صحيح.', autoFill: () => {
             const matName = document.querySelector('input[placeholder*="اسم المادة"]');
-            const lecNum = document.querySelector('input[placeholder*="رقم المحاضرة"]');
-            if (matName) {
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeInputValueSetter.call(matName, 'مقدمة في قواعد البيانات');
-                matName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            if (lecNum) {
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeInputValueSetter.call(lecNum, '1');
-                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
+            if (matName) setNativeInputValue(matName, 'مقدمة في قواعد البيانات');
+            if (lecNum) setNativeInputValue(lecNum, '1');
         }},
         { path: '/extraction?type=lecture', selector: '[data-tour="extraction-images"]', title: 'رفع الصور والملاحظات', content: 'أضف الصور هنا، واكتب ملاحظاتك الخاصة بكل صورة لتوجيه الذكاء الاصطناعي لاستخراج المحتوى بدقة.', autoFill: async () => {
             try {
-                // Create a dummy blank image blob
                 const canvas = document.createElement('canvas');
                 canvas.width = 100; canvas.height = 100;
                 const ctx = canvas.getContext('2d');
@@ -51,38 +52,22 @@ const TOUR_DATA = {
                 
                 setTimeout(() => {
                     const notesArea = document.querySelector('textarea[placeholder*="ملاحظات لهذه الصورة"]');
-                    if (notesArea) {
-                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                        nativeSetter.call(notesArea, 'استخرج النصوص كما هي مع الحفاظ على التنسيق.');
-                        notesArea.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
+                    if (notesArea) setNativeInputValue(notesArea, 'استخرج النصوص كما هي مع الحفاظ على التنسيق.');
                 }, 100);
             } catch (e) {}
         }},
         { path: '/extraction?type=lecture', selector: '[data-tour="extraction-preview"]', title: 'توليد ونسخ الموجه (Prompt)', content: 'يقوم النظام بدمج معلوماتك مع الموجه الأساسي. استخدم أزرار "التالي" و"السابق" (النسخ الموجه Guided Copy Loop) لنسخ الموجهات مجزأة، لتجنب تجاوز حد استيعاب الذكاء الاصطناعي.' },
         { path: '/coordination', selector: '[data-tour="coordination-input"]', title: 'مرحلة التنسيق', content: 'بعد تصحيح النص في Obsidian، ألصقه هنا مع تحديد نوع المحتوى كـ "محاضرة" للحصول على موجه التنسيق.', autoFill: () => {
-            const btn = document.querySelector('button[value="lecture"]');
+            const btn = findButtonByText('محاضرة');
             if (btn) btn.click();
             const textArea = document.querySelector('textarea');
-            if (textArea) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                nativeSetter.call(textArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
-                textArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (textArea) setNativeInputValue(textArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'نقوم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
-            const matName = document.querySelector('input[placeholder*="قواعد البيانات"]');
-            if (matName) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(matName, 'مقدمة في قواعد البيانات');
-                matName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            const matName = document.querySelector('input[placeholder*="اسم المادة"]');
             const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
-            if (lecNum) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(lecNum, '1');
-                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (matName) setNativeInputValue(matName, 'مقدمة في قواعد البيانات');
+            if (lecNum) setNativeInputValue(lecNum, '1');
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'نلصق هنا النص المنسق من الخطوة السابقة.', autoFill: () => {
             const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('التالي'));
@@ -90,11 +75,7 @@ const TOUR_DATA = {
             
             setTimeout(() => {
                 const contentArea = document.querySelector('textarea[placeholder*="الصق نص"]');
-                if (contentArea) {
-                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                    nativeSetter.call(contentArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
-                    contentArea.dispatchEvent(new Event('input', { bubbles: true }));
-                }
+                if (contentArea) setNativeInputValue(contentArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
             }, 300);
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط أخيراً على إنشاء ملف Word لتحويل النص عبر Pandoc.', autoFill: () => {
@@ -108,23 +89,12 @@ const TOUR_DATA = {
         }}
     ],
     bank: [
-        { path: '/extraction?type=bank', selector: '[data-tour="extraction-type"]', title: 'تحديد نوع المستند', content: 'اختر "بنك أسئلة" ليقوم النظام باختيار الموجه المخصص لاستخراج وبناء الأسئلة بشكل منظم.', autoFill: () => {
-            const btn = document.querySelector('button[value="bank"]');
-            if (btn) btn.click();
-        }},
-        { path: '/extraction?type=bank', selector: '[data-tour="extraction-metadata"]', title: 'بيانات البنك', content: 'أدخل اسم المادة واسم البنك لتنظيم الملفات النهائية.', autoFill: () => {
+        { path: '/extraction?type=bank', selector: '[data-tour="extraction-type"]', title: 'تحديد نوع المستند', content: 'اختر "بنك أسئلة" ليقوم النظام باختيار الموجه المخصص لاستخراج وبناء الأسئلة بشكل منظم.' },
+        { path: '/extraction?type=bank', selector: '[data-tour="extraction-metadata"]', title: 'بيانات البنك', content: 'أدخل اسم المادة ورقم المحاضرة لتنظيم الملفات النهائية.', autoFill: () => {
             const matName = document.querySelector('input[placeholder*="اسم المادة"]');
-            const bankName = document.querySelector('input[placeholder*="اسم البنك"]');
-            if (matName) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(matName, 'فيزياء عامة');
-                matName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            if (bankName) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(bankName, 'بنك الميدتيرم');
-                bankName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
+            if (matName) setNativeInputValue(matName, 'فيزياء عامة');
+            if (lecNum) setNativeInputValue(lecNum, '1');
         }},
         { path: '/extraction?type=bank', selector: '[data-tour="extraction-images"]', title: 'رفع الصور والملاحظات', content: 'أضف صور الأسئلة، ويمكنك إضافة ملاحظات لحل أو الانتباه لأسئلة معينة.', autoFill: async () => {
             try {
@@ -142,38 +112,22 @@ const TOUR_DATA = {
                 
                 setTimeout(() => {
                     const notesArea = document.querySelector('textarea[placeholder*="ملاحظات لهذه الصورة"]');
-                    if (notesArea) {
-                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                        nativeSetter.call(notesArea, 'رجاء استخراج الخيارات المتعددة بشكل واضح.');
-                        notesArea.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
+                    if (notesArea) setNativeInputValue(notesArea, 'رجاء استخراج الخيارات المتعددة بشكل واضح.');
                 }, 100);
             } catch(e) {}
         }},
         { path: '/extraction?type=bank', selector: '[data-tour="extraction-preview"]', title: 'توليد الموجه', content: 'استخدم أزرار "التالي" و"السابق" (النسخ الموجه Guided Copy Loop) لنسخ الموجهات مجزأة واذهب إلى AI Studio ليقوم باستخراج وتحليل البنك.' },
         { path: '/coordination', selector: '[data-tour="coordination-input"]', title: 'تنسيق البنك', content: 'ألصق أسئلة البنك هنا وتأكد من اختيار "بنك أسئلة" للحصول على تنسيق البنوك.', autoFill: () => {
-            const btn = document.querySelector('button[value="bank"]');
+            const btn = findButtonByText('بنك أسئلة');
             if (btn) btn.click();
             const textArea = document.querySelector('textarea');
-            if (textArea) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                nativeSetter.call(textArea, 'السؤال الأول: ما هي السرعة؟\nأ) مسافة ب) زمن');
-                textArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (textArea) setNativeInputValue(textArea, 'السؤال الأول: ما هي السرعة؟\nأ) مسافة ب) زمن');
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'نقوم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
-            const matName = document.querySelector('input[placeholder*="قواعد البيانات"]');
-            if (matName) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(matName, 'فيزياء عامة');
-                matName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            const matName = document.querySelector('input[placeholder*="اسم المادة"]');
             const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
-            if (lecNum) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(lecNum, '1');
-                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (matName) setNativeInputValue(matName, 'فيزياء عامة');
+            if (lecNum) setNativeInputValue(lecNum, '1');
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'نلصق هنا نص بنك الأسئلة.', autoFill: () => {
             const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('التالي'));
@@ -181,11 +135,7 @@ const TOUR_DATA = {
             
             setTimeout(() => {
                 const contentArea = document.querySelector('textarea[placeholder*="الصق نص"]');
-                if (contentArea) {
-                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                    nativeSetter.call(contentArea, 'السؤال الأول: ما هي السرعة؟\nأ) مسافة ب) زمن');
-                    contentArea.dispatchEvent(new Event('input', { bubbles: true }));
-                }
+                if (contentArea) setNativeInputValue(contentArea, 'السؤال الأول: ما هي السرعة؟\nأ) مسافة ب) زمن');
             }, 300);
         }},
         { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط أخيراً على إنشاء ملف Word لتحويل النص عبر Pandoc.', autoFill: () => {
@@ -200,18 +150,10 @@ const TOUR_DATA = {
     ],
     draw: [
         { path: '/draw', selector: '[data-tour="draw-metadata"]', title: 'بيانات الرسمة', content: 'أدخل اسم المادة ورقم المحاضرة المتعلقة بالرسمة.', autoFill: () => {
-            const matName = document.querySelector('input[placeholder*="المادة"]');
-            const lecNum = document.querySelector('input[placeholder*="رقم"]');
-            if (matName) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(matName, 'خوارزميات');
-                matName.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            if (lecNum) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                nativeSetter.call(lecNum, '3');
-                lecNum.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            const matName = document.querySelector('input[placeholder*="اسم المادة"]');
+            const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
+            if (matName) setNativeInputValue(matName, 'خوارزميات');
+            if (lecNum) setNativeInputValue(lecNum, '3');
         }},
         { path: '/draw', selector: '[data-tour="draw-images"]', title: 'الصور الوصفية', content: 'يمكنك رفع 3 صور كحد أقصى لتوضيح المخطط للذكاء الاصطناعي مع كتابة ملاحظة لكل صورة.', autoFill: async () => {
             try {
@@ -230,11 +172,7 @@ const TOUR_DATA = {
         }},
         { path: '/draw', selector: '[data-tour="draw-description"]', title: 'وصف الرسمة العام', content: 'اشرح تفاصيل الرسمة المطلوبة بدقة (مثلاً: مخطط تدفقي، شجرة بيانية).', autoFill: () => {
             const textArea = document.querySelector('textarea[placeholder*="اكتب وصفاً دقيقاً"]');
-            if (textArea) {
-                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-                nativeSetter.call(textArea, 'ارسم شجرة بحث ثنائية مع توضيح العقد الجذري.');
-                textArea.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (textArea) setNativeInputValue(textArea, 'ارسم شجرة بحث ثنائية مع توضيح العقد الجذري.');
         }},
         { path: '/draw', selector: '[data-tour="draw-preview"]', title: 'استخراج الكود', content: 'انسخ الموجه وأرسله لـ AI Studio للحصول على كود بايثون للرسمة.' },
         { path: '/draw', selector: '.vscode-step-fallback', title: 'بيئة VS Code', content: 'قم بفتح بيئة VS Code المجهزة بمشروعك، والصق الكود لتوليد الصورة وإضافتها لـ Word.' }

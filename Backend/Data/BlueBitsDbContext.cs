@@ -116,17 +116,43 @@ public class BlueBitsDbContext : DbContext
 
         // --- 3. Initial Seed Data ---
         
-        // Default Admin User (Password stored as plain text as per system requirement)
+        // Seed Users (Password stored as plain text as per system requirement)
         modelBuilder.Entity<User>().HasData(
-            new User 
-            { 
-                UserId = 1, 
-                FirstName = "System", 
-                LastName = "Admin", 
-                UserRole = "Admin", 
-                BatchNumber = 1, 
-                Username = "admin", 
+            new User
+            {
+                UserId = 1,
+                FirstName = "Mostafa",
+                LastName = "Shraief",
+                UserRole = "Admin",
+                BatchNumber = 1,
+                Username = "MostafaShraief",
                 Password = "Admin@123",
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                TeamJoinDate = null,
+                TelegramUsername = null
+            },
+            new User
+            {
+                UserId = 2,
+                FirstName = "John",
+                LastName = "Tech",
+                UserRole = "TechMember",
+                BatchNumber = 1,
+                Username = "john_tech",
+                Password = "Tech@2026",
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                TeamJoinDate = null,
+                TelegramUsername = null
+            },
+            new User
+            {
+                UserId = 3,
+                FirstName = "Sara",
+                LastName = "Siri",
+                UserRole = "ScientificMember",
+                BatchNumber = 1,
+                Username = "SaraSiri",
+                Password = "something",
                 CreatedAt = DateTime.UtcNow.ToString("O"),
                 TeamJoinDate = null,
                 TelegramUsername = null
@@ -149,7 +175,10 @@ public class BlueBitsDbContext : DbContext
             new WorkflowPermission { PermissionId = 2, RoleName = "TechMember", WorkflowId = 2 },
             new WorkflowPermission { PermissionId = 3, RoleName = "TechMember", WorkflowId = 3 },
             new WorkflowPermission { PermissionId = 4, RoleName = "TechMember", WorkflowId = 4 },
-            new WorkflowPermission { PermissionId = 5, RoleName = "ScientificMember", WorkflowId = 5 }
+            new WorkflowPermission { PermissionId = 5, RoleName = "TechMember", WorkflowId = 5 },
+            new WorkflowPermission { PermissionId = 7, RoleName = "TechMember", WorkflowId = 7 },
+            new WorkflowPermission { PermissionId = 8, RoleName = "TechMember", WorkflowId = 8 },
+            new WorkflowPermission { PermissionId = 10, RoleName = "ScientificMember", WorkflowId = 6 }
         );
 
         modelBuilder.Entity<Prompt>().HasData(

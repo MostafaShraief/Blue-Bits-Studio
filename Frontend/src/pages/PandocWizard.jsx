@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router';
 import { useEffect, useState, useRef } from 'react';
-import { FileOutput, Upload, Loader2, File, Download } from 'lucide-react';
+import { FileOutput, Upload, Loader2, File, Download, AlertCircle } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
@@ -101,10 +101,10 @@ export default function PandocWizard() {
                 lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
                 materialName,
                 lectureType,
-                Number(lectureNumber),
+                lectureNumber,
             );
 
-            setDownloadUrl('http://localhost:5135' + (result.fileUrl || result.downloadUrl));
+            setDownloadUrl(window.location.origin + (result.fileUrl || result.downloadUrl));
             setStatus('success');
         } catch (err) {
             if (err instanceof RateLimitError) {
@@ -149,6 +149,7 @@ export default function PandocWizard() {
                     <div>
                         <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
                         <input
+                            id="lecture-number"
                             type="number"
                             value={lectureNumber}
                             onChange={(e) => {
@@ -221,7 +222,7 @@ export default function PandocWizard() {
                         onDragOver={(e) => e.preventDefault()}
                     >
                         <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-sm font-medium text-text">نص الـ Markdown</label>
+                            <label htmlFor="md-textarea" className="text-sm font-medium text-text">نص الـ Markdown</label>
                             <div className="flex gap-2">
                                 <PasteButton onPaste={(text) => setMdText(prev => (prev ? prev + '\n' + text : text))} />
                                 <button
@@ -234,6 +235,7 @@ export default function PandocWizard() {
                             </div>
                         </div>
                         <textarea
+                            id="md-textarea"
                             value={mdText}
                             onChange={(e) => setMdText(e.target.value)}
                             placeholder="الصق نص الـ Markdown هنا، أو اسحب ملف .md ..."
@@ -319,6 +321,21 @@ export default function PandocWizard() {
                                         </button>
                                     )}
                                 </div>
+                            </>
+                        )}
+
+                        {status === 'error' && (
+                            <>
+                                <div className="w-16 h-16 mx-auto bg-danger/10 rounded-full flex items-center justify-center">
+                                    <AlertCircle size={32} className="text-danger" strokeWidth={1.5} />
+                                </div>
+                                <p className="text-sm font-semibold text-danger">فشل في إنشاء المستند</p>
+                                <button
+                                    onClick={() => setStatus('idle')}
+                                    className="px-8 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                                >
+                                    إعادة المحاولة
+                                </button>
                             </>
                         )}
                     </div>

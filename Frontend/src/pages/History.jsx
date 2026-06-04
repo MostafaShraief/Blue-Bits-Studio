@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2, X, Info } from 'lucide-react';
+import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2, X, Info, Layers } from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useSessions } from '../hooks/useSessions';
@@ -15,6 +15,7 @@ const getSessionRoute = (session) => {
         case 'BANK_QS': return `/quiz?id=${id}`;
         case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
+        case 'MERGE': return `/merge?id=${id}`;
         default: return '/';
     }
 };
@@ -28,6 +29,7 @@ const FILTERS = [
     { value: 'BANK_COORD', label: 'تنسيق بنوك', systemCode: 'BANK_COORD' },
     { value: 'DRAW', label: 'رسم', systemCode: 'DRAW' },
     { value: 'PANDOC', label: 'Pandoc', systemCode: 'PANDOC' },
+    { value: 'MERGE', label: 'دمج', systemCode: 'MERGE' },
 ];
 
 const TYPE_META = {
@@ -38,6 +40,7 @@ const TYPE_META = {
     BANK_QS: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
     PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
+    MERGE: { label: 'دمج ملفات', icon: Layers, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 };
 
 function useModalExit(isOpen) {
@@ -103,7 +106,7 @@ function SessionDetailModal({ session, onClose, getSession }) {
                 </div>
 
                 <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
-                    {loading ? (
+                    {!session ? null : loading ? (
                         <div className="flex justify-center py-8">
                             <Loader2 size={24} className="animate-spin text-primary" />
                         </div>

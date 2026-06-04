@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useContext } from 'react';
+import { useState, useRef, useEffect, useContext, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import {
   FileJson,
@@ -39,6 +39,8 @@ export default function QuizHub() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const isInitialLoad = useRef(true);
+  const isSessionRestored = useRef(false);
   
   // Metadata state for prompts
   const [materialName, setMaterialName] = useState(defaultMaterial || '');
@@ -82,6 +84,7 @@ export default function QuizHub() {
         
         setSessionId(id);
         setHasUnsavedChanges(false);
+        isSessionRestored.current = true;
         setStep(1); // Go directly to JSON Editor (Step 2 - index 1)
       }
     } catch (err) {
@@ -91,6 +94,10 @@ export default function QuizHub() {
 
   // Track unsaved changes
   useEffect(() => {
+    if (isSessionRestored.current) {
+      isSessionRestored.current = false;
+      return;
+    }
     if (formQuizData.length > 0 && step === 1) {
       setHasUnsavedChanges(true);
     }
@@ -171,6 +178,12 @@ export default function QuizHub() {
 
   const handleConfirmModalConfirm = () => {
     setShowConfirmModal(false);
+    setFormQuizData([]);
+    setHasUnsavedChanges(false);
+    setAnswers({});
+    setIsSubmitted(false);
+    setCurrentFile(null);
+    setSessionId(null);
     setStep(0);
   };
 
@@ -334,54 +347,56 @@ export default function QuizHub() {
 
       {/* Step 0: Setup */}
       {step === 0 && (
-        <div className="space-y-5 animate-fade-slide-in">
-          {/* Metadata Card */}
-          <div className="bg-surface-card border border-border rounded-2xl p-6 space-y-4 mt-8">
-              <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                      <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
-                      <input
-                          type="number"
-                          min="1"
-                          placeholder="مثال: 5"
-                          value={lectureNumber}
-                          onChange={(e) => setLectureNumber(e.target.value)}
-                          className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                      />
-                  </div>
-<div>
-                       <label className="block text-sm font-medium text-text mb-1.5">نوع المحاضرة</label>
-                       <div className="flex gap-3">
-                           {[
-                               { value: 'Theoretical', label: 'نظري' },
-                               { value: 'Practical', label: 'عملي' },
-                           ].map(({ value, label }) => (
-                               <button
-                                   key={value}
-                                   onClick={() => setLectureType(value)}
-                                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
-                                           ? 'border-primary bg-primary-light text-primary'
-                                           : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                       }`}
-                               >
-                                   {label}
-                               </button>
-                           ))}
-                       </div>
-                   </div>
-              </div>
+        <div data-tour="quiz-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 animate-fade-slide-in">
+          <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
+
+          <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+
+          <div>
+            <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
+            <input
+              type="number"
+              min="1"
+              max="99"
+              placeholder="مثال: 5"
+              value={lectureNumber}
+              onChange={(e) => setLectureNumber(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
+            />
           </div>
 
-          <div className="flex gap-3 mt-6">
-              <button 
-                  onClick={handleNextStep0}
-                  disabled={isLoadingPrompt || !materialValid || !lectureNumber || !lectureType} 
-                  className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
-              >
-                  {isLoadingPrompt ? 'جاري التحضير...' : 'متابعة للمحرر'}
-              </button>
+          <div>
+            <label className="block text-sm font-medium text-text mb-1.5">النوع</label>
+            <div className="flex gap-3">
+              {[
+                { value: 'Theoretical', label: 'نظري' },
+                { value: 'Practical', label: 'عملي' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setLectureType(value)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
+                    ? 'border-primary bg-primary-light text-primary'
+                    : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+        </div>
+      )}
+
+      {step === 0 && (
+        <div className="mt-5">
+          <button
+            onClick={handleNextStep0}
+            disabled={isLoadingPrompt || !materialValid || !lectureNumber || !lectureType}
+            className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+          >
+            {isLoadingPrompt ? 'جاري التحضير...' : 'التالي'}
+          </button>
         </div>
       )}
 

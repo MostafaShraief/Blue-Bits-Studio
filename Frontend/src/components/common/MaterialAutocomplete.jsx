@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { getDistinctNames } from '../../api/MaterialsApi';
 
 export default function MaterialAutocomplete({ value, onChange, label = 'اسم المادة', required = true, onValidChange }) {
@@ -26,10 +26,15 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
     const hasInput = value && value.trim().length > 0;
 
     useEffect(() => {
-        getDistinctNames().then(data => {
-            setMaterials(data || []);
-            setFiltered(data || []);
-        });
+        getDistinctNames()
+            .then(data => {
+                setMaterials(data || []);
+                setFiltered(data || []);
+            })
+            .catch(() => {
+                setMaterials([]);
+                setFiltered([]);
+            });
     }, []);
 
     useEffect(() => {

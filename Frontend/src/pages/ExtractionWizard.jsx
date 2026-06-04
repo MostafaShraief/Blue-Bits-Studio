@@ -82,10 +82,10 @@ export default function ExtractionWizard() {
         if (id) {
             getSession(id).then(data => {
                 if (!data) return;
-                if (data.materialName) setMaterialName(data.materialName);
+                if (data.material?.materialName) setMaterialName(data.material.materialName);
                 if (data.lectureNumber) setLectureNumber(data.lectureNumber);
                 if (data.lectureType) setLectureType(data.lectureType);
-                if (data.workflowType) setWorkflowSystemCode(data.workflowType);
+                if (data.workflow?.systemCode) setWorkflowSystemCode(data.workflow.systemCode);
                 if (data.compiledPrompt) setPrompt(data.compiledPrompt);
 
                 const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';

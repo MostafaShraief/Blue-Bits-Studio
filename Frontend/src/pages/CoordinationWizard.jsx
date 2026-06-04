@@ -12,7 +12,7 @@ import { getSession } from '../api/SessionsApi';
 import { compilePrompt } from '../api/PromptsApi';
 import { RateLimitError } from '../api/HttpClient';
 
-const STEPS = ['إعداد الجلسة', 'النص والبرومبت'];
+const STEPS = ['إعداد الجلسة', 'النص', 'المعاينة والنسخ'];
 
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
@@ -22,6 +22,8 @@ export default function CoordinationWizard() {
     const { user, loading } = useContext(AuthContext);
     const { showToast } = useToast();
     const navigate = useNavigate();
+
+    const { currentStep, next, prev, goTo, sessionId, setSessionId, createSession } = useWizard({ totalSteps: 3 });
 
     const isAdmin = user?.role === 'Admin';
     const canDoLectureCoord = user?.allowedWorkflows?.includes('LEC_COORD') ?? false;
@@ -42,9 +44,9 @@ export default function CoordinationWizard() {
         }
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 
-    const wizard = useWizard({ totalSteps: 2 });
-
-    const [workflowSystemCode, setWorkflowSystemCode] = useState('');
+    const [workflowSystemCode, setWorkflowSystemCode] = useState(
+        initialType === 'bank' ? 'BANK_COORD' : 'LEC_COORD'
+    );
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
@@ -67,9 +69,10 @@ export default function CoordinationWizard() {
 
     useEffect(() => {
         if (loading) return;
-        if (id) {
-            setWorkflowSystemCode(getInitialWorkflowCode());
-        }
+        if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) return;
+        if (id) return;
+        const code = getInitialWorkflowCode();
+        if (code) setWorkflowSystemCode(code);
     }, [loading, canDoLectureCoord, canDoBankCoord, id]);
 
     useEffect(() => {
@@ -80,12 +83,12 @@ export default function CoordinationWizard() {
                     const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
                     if (notes) setMarkdownText(notes);
                     setMaterialName(data.material?.materialName || '');
-                    wizard.setSessionId(id);
+                    setSessionId(id);
                     setLectureNumber(data.lectureNumber || 1);
                     setLectureType(data.lectureType || '');
-                    if (data.workflowType) setWorkflowSystemCode(data.workflowType);
+                    if (data.workflow?.systemCode) setWorkflowSystemCode(data.workflow.systemCode);
                     setSaved(true);
-                    wizard.goTo(1);
+                    goTo(2);
                 }
             }).catch(err => {
                 if (err instanceof RateLimitError) {
@@ -97,59 +100,64 @@ export default function CoordinationWizard() {
         }
     }, [id]);
 
-    const handleNextStep0 = () => {
-        if (!materialValid || !lectureNumber || !lectureType || !workflowSystemCode) {
-            showToast('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة', 'error');
-            return;
-        }
-        wizard.next();
-    };
-
-    const handleCompile = async () => {
-        if (!markdownText.trim()) {
-            showToast('الرجاء إدخال نص الـ Markdown', 'error');
-            return;
-        }
-
-        setIsLoadingPrompt(true);
+    const goNext = useCallback(async () => {
         setFieldErrors({});
-
-        try {
-            const session = await wizard.createSession({
-                materialName,
-                lectureNumber: Number(lectureNumber),
-                lectureType,
-                workflowSystemCode,
-                generalNotes: markdownText,
-            });
-
-            const sid = session.id || session.sessionId;
-            let finalPrompt = '';
-
-            if (autoSave) {
-                const sessionData = await getSession(sid);
-                finalPrompt = sessionData?.compiledPrompt || '';
-                setSaved(true);
-            } else {
-                const res = await compilePrompt(workflowSystemCode, markdownText, []);
-                finalPrompt = res?.compiledPrompt || '';
+        if (currentStep === 0) {
+            if (!materialValid || !lectureNumber || !lectureType || !workflowSystemCode) {
+                showToast('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة', 'error');
+                return;
             }
+            next();
+        } else if (currentStep === 1) {
+            if (!markdownText.trim()) {
+                showToast('الرجاء إدخال نص الـ Markdown', 'error');
+                return;
+            }
+            setIsLoadingPrompt(true);
+            try {
+                const session = await createSession({
+                    materialName,
+                    lectureNumber: Number(lectureNumber),
+                    lectureType,
+                    workflowSystemCode,
+                    generalNotes: markdownText,
+                });
 
-            setPrompt(finalPrompt);
-        } catch (err) {
-            if (err instanceof RateLimitError) {
-                showToast(err.message, 'warning');
-            } else if (err?.status === 400 && err?.errors) {
-                const normalized = {};
-                for (const [key, value] of Object.entries(err.errors)) {
-                    normalized[key.toLowerCase()] = value;
+                const sid = session.id || session.sessionId;
+                let finalPrompt = '';
+
+                if (autoSave) {
+                    const sessionData = await getSession(sid);
+                    finalPrompt = sessionData?.compiledPrompt || '';
+                    setSaved(true);
+                } else {
+                    const res = await compilePrompt(workflowSystemCode, markdownText, []);
+                    finalPrompt = res?.compiledPrompt || '';
                 }
-                setFieldErrors(normalized);
+
+                setPrompt(finalPrompt);
+                next();
+            } catch (err) {
+                if (err instanceof RateLimitError) {
+                    showToast(err.message, 'warning');
+                } else if (err?.status === 400 && err?.errors) {
+                    const normalized = {};
+                    for (const [key, value] of Object.entries(err.errors)) {
+                        normalized[key.toLowerCase()] = value;
+                    }
+                    setFieldErrors(normalized);
+                } else {
+                    showToast(err?.message || 'حدث خطأ غير متوقع', 'error');
+                }
+            } finally {
+                setIsLoadingPrompt(false);
             }
-        } finally {
-            setIsLoadingPrompt(false);
         }
-    };
+    }, [currentStep, next, materialValid, lectureNumber, lectureType, workflowSystemCode, markdownText, materialName, autoSave, createSession]);
+
+    const goBack = useCallback(() => {
+        prev();
+    }, [prev]);
 
     const handleCopy = useCallback(async () => {
         try {
@@ -167,9 +175,9 @@ export default function CoordinationWizard() {
     }, [prompt]);
 
     const handleSave = useCallback(async () => {
-        if (saved || !wizard.sessionId) return;
+        if (saved || !sessionId) return;
         try {
-            await getSession(wizard.sessionId);
+            await getSession(sessionId);
             setSaved(true);
             showToast('تم حفظ الجلسة بنجاح', 'success');
         } catch (err) {
@@ -179,7 +187,14 @@ export default function CoordinationWizard() {
                 showToast(err.message || 'فشل في حفظ الجلسة', 'error');
             }
         }
-    }, [wizard.sessionId, saved, showToast]);
+    }, [sessionId, saved, showToast]);
+
+    const fieldInputClass = (field) =>
+        `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
+            fieldErrors[field]
+                ? 'border-danger focus:ring-danger/30 focus:border-danger bg-surface-card'
+                : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
+        }`;
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -187,9 +202,9 @@ export default function CoordinationWizard() {
             <p className="text-sm text-text-secondary mb-6">
                 ادرج النص المراجَع من Obsidian لدمجه مع قواعد التنسيق
             </p>
-            <WizardStepper steps={STEPS} current={wizard.currentStep} />
+            <WizardStepper steps={STEPS} current={currentStep} />
 
-            {wizard.currentStep === 0 && (
+            {currentStep === 0 && (
                 <div className="space-y-5 animate-fade-slide-in">
                     <div className="bg-surface-card border border-border rounded-2xl p-5 space-y-4">
                         <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
@@ -248,7 +263,7 @@ export default function CoordinationWizard() {
                                 placeholder="مثال: 5"
                                 min="1"
                                 max="99"
-                                className={`w-full rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.lecturenumber ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
+                                className={fieldInputClass('lecturenumber')}
                             />
                             {fieldErrors.lecturenumber && (
                                 <p className="text-xs text-danger mt-1">{fieldErrors.lecturenumber}</p>
@@ -281,7 +296,7 @@ export default function CoordinationWizard() {
                     </div>
 
                     <button
-                        onClick={handleNextStep0}
+                        onClick={goNext}
                         disabled={!materialValid || !lectureNumber || !lectureType || !workflowSystemCode}
                         className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
@@ -290,7 +305,7 @@ export default function CoordinationWizard() {
                 </div>
             )}
 
-            {wizard.currentStep === 1 && (
+            {currentStep === 1 && (
                 <div data-tour="coordination-input" className="space-y-5 animate-fade-slide-in">
                     <div>
                         <div className="flex justify-between items-end mb-1.5">
@@ -309,62 +324,71 @@ export default function CoordinationWizard() {
                         />
                     </div>
 
+                    <div className="flex gap-3">
+                        <button
+                            onClick={goBack}
+                            disabled={isLoadingPrompt}
+                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default disabled:opacity-40"
+                        >
+                            رجوع
+                        </button>
+                        <button
+                            onClick={goNext}
+                            disabled={!markdownText.trim() || isLoadingPrompt}
+                            className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        >
+                            {isLoadingPrompt ? 'جاري التحضير...' : 'توليد البرومبت'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {currentStep === 2 && prompt && (
+                <div data-tour="coordination-preview" className="space-y-5 animate-fade-slide-in">
+                    <PromptPreview text={prompt} />
+
+                    <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
+                        <p><strong>خطوات التنفيذ:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1">
+                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
+                            <li>قم بلصق البرومبت في حقل الإدخال لإنشاء النتيجة.</li>
+                            <li>بعد الحصول على النتيجة، انتقل إلى قسم <strong className="text-primary">محوّل Pandoc</strong> في التطبيق والصقها هناك لتحويلها إلى ملف Word.</li>
+                        </ol>
+                    </div>
+
                     <button
-                        onClick={handleCompile}
-                        disabled={!markdownText.trim() || isLoadingPrompt}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        onClick={handleCopy}
+                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-default ${copied
+                                ? 'bg-success animate-copy-flash'
+                                : 'bg-primary hover:bg-primary-dark shadow-lg shadow-primary/25'
+                            }`}
                     >
-                        {isLoadingPrompt ? 'جاري التحضير...' : 'توليد البرومبت'}
+                        <Copy size={16} />
+                        {copied ? 'تم النسخ ✓' : 'نسخ البرومبت'}
                     </button>
 
-                    {prompt && (
-                        <>
-                            <PromptPreview text={prompt} />
+                    <div className="flex gap-3">
+                        <button
+                            onClick={goBack}
+                            className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
+                        >
+                            رجوع
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saved}
+                            className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
+                                    ? 'bg-success text-white cursor-default'
+                                    : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
+                                }`}
+                        >
+                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                        </button>
+                    </div>
 
-                            <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
-                                <p><strong>خطوات التنفيذ:</strong></p>
-                                <ol className="list-decimal list-inside space-y-1">
-                                    <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
-                                    <li>قم بلصق البرومبت في حقل الإدخال لإنشاء النتيجة.</li>
-                                    <li>بعد الحصول على النتيجة، انتقل إلى قسم <strong className="text-primary">محوّل Pandoc</strong> في التطبيق والصقها هناك لتحويلها إلى ملف Word.</li>
-                                </ol>
-                            </div>
-
-                            <button
-                                onClick={handleCopy}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-default ${copied
-                                        ? 'bg-success animate-copy-flash'
-                                        : 'bg-primary hover:bg-primary-dark shadow-lg shadow-primary/25'
-                                    }`}
-                            >
-                                <Copy size={16} />
-                                {copied ? 'تم النسخ ✓' : 'نسخ البرومبت'}
-                            </button>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={wizard.prev}
-                                    className="flex-1 py-3 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
-                                >
-                                    رجوع
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saved}
-                                    className={`flex-[2] py-3 rounded-xl text-sm font-bold transition-default ${saved
-                                            ? 'bg-success text-white cursor-default'
-                                            : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
-                                        }`}
-                                >
-                                    {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
-                                </button>
-                            </div>
-
-                            <div className="flex justify-center">
-                                {!saved && !autoSave && <span className="text-text-muted text-sm font-medium">الجلسة غير محفوظة</span>}
-                            </div>
-                        </>
-                    )}
+                    <div className="flex justify-center">
+                        {!saved && !autoSave && <span className="text-text-muted text-sm font-medium">الجلسة غير محفوظة</span>}
+                    </div>
                 </div>
             )}
         </div>

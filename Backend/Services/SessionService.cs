@@ -175,6 +175,24 @@ public class SessionService : ISessionService
         await _db.SaveChangesAsync();
     }
 
+    public async Task DeleteSessionAsync(int sessionId, int userId, string role)
+    {
+        if (role == "Admin")
+            throw new ForbiddenException("Admins cannot delete sessions.");
+
+        var session = await _db.Sessions
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId);
+
+        if (session == null)
+            throw new NotFoundException(nameof(Session), sessionId);
+
+        if (session.UserId != userId)
+            throw new ForbiddenException("You do not own this session.");
+
+        _db.Sessions.Remove(session);
+        await _db.SaveChangesAsync();
+    }
+
     public async Task UploadFilesAsync(int sessionId, int userId, string role, IFormCollection form)
     {
         if (role == "Admin")

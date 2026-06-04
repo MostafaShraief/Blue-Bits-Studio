@@ -34,14 +34,17 @@ export function useAdminWorkflows() {
       const result = await admin.workflows.toggleActive(id, isActive);
       showToast('Workflow updated successfully', 'success');
       setItems(prev => prev.map(item =>
-        item.id === id ? { ...item, ...result } : item
+        item.workflowId === id ? { ...item, ...result } : item
       ));
       return result;
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setValidationErrors(err.errors);
+        const firstError = err.errors && Object.values(err.errors)[0];
+        showToast(firstError || err.message || 'Failed to update workflow', 'error');
+      } else {
+        showToast(err.message || 'Failed to update workflow', 'error');
       }
-      showToast(err.message || 'Failed to update workflow', 'error');
       throw err;
     }
   }, [showToast]);

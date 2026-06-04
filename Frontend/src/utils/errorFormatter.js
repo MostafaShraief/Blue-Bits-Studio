@@ -22,11 +22,10 @@ export function formatRateLimitError(retryAfter) {
  */
 export function formatValidationErrors(raw) {
     if (!raw || typeof raw !== 'object') return {};
-
     const result = {};
-    for (const [field, messages] of Object.entries(raw)) {
+    for (const [key, messages] of Object.entries(raw)) {
         if (Array.isArray(messages) && messages.length > 0) {
-            result[field] = messages[0];
+            result[key.charAt(0).toLowerCase() + key.slice(1)] = messages[0];
         }
     }
     return result;

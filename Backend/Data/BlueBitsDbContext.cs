@@ -116,17 +116,43 @@ public class BlueBitsDbContext : DbContext
 
         // --- 3. Initial Seed Data ---
         
-        // Default Admin User (Password stored as plain text as per system requirement)
+        // Seed Users (Password stored as plain text as per system requirement)
         modelBuilder.Entity<User>().HasData(
-            new User 
-            { 
-                UserId = 1, 
-                FirstName = "System", 
-                LastName = "Admin", 
-                UserRole = "Admin", 
-                BatchNumber = 1, 
-                Username = "admin", 
+            new User
+            {
+                UserId = 1,
+                FirstName = "Mostafa",
+                LastName = "Shraief",
+                UserRole = "Admin",
+                BatchNumber = 1,
+                Username = "MostafaShraief",
                 Password = "Admin@123",
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                TeamJoinDate = null,
+                TelegramUsername = null
+            },
+            new User
+            {
+                UserId = 2,
+                FirstName = "John",
+                LastName = "Tech",
+                UserRole = "TechMember",
+                BatchNumber = 1,
+                Username = "john_tech",
+                Password = "Tech@2026",
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                TeamJoinDate = null,
+                TelegramUsername = null
+            },
+            new User
+            {
+                UserId = 3,
+                FirstName = "Sara",
+                LastName = "Siri",
+                UserRole = "ScientificMember",
+                BatchNumber = 1,
+                Username = "SaraSiri",
+                Password = "something",
                 CreatedAt = DateTime.UtcNow.ToString("O"),
                 TeamJoinDate = null,
                 TelegramUsername = null

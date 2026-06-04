@@ -37,8 +37,11 @@ export function useAdminPermissions() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setValidationErrors(err.errors);
+        const firstError = err.errors && Object.values(err.errors)[0];
+        showToast(firstError || err.message || 'Failed to create permission', 'error');
+      } else {
+        showToast(err.message || 'Failed to create permission', 'error');
       }
-      showToast(err.message || 'Failed to create permission', 'error');
       throw err;
     }
   }, [showToast]);
@@ -49,12 +52,15 @@ export function useAdminPermissions() {
     try {
       await admin.permissions.delete(id);
       showToast('Permission deleted successfully', 'success');
-      setItems(prev => prev.filter(item => item.id !== id));
+        setItems(prev => prev.filter(item => item.permissionId !== id));
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setValidationErrors(err.errors);
+        const firstError = err.errors && Object.values(err.errors)[0];
+        showToast(firstError || err.message || 'Failed to delete permission', 'error');
+      } else {
+        showToast(err.message || 'Failed to delete permission', 'error');
       }
-      showToast(err.message || 'Failed to delete permission', 'error');
       throw err;
     }
   }, [showToast]);

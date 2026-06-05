@@ -41,7 +41,8 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiting(configuration);
 
         services.AddHostedService<OrphanFileCleanupService>();
-        services.AddHostedService<PandocQueueService>();
+        services.AddSingleton<PandocQueueService>();
+        services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<PandocQueueService>());
 
         return services;
     }

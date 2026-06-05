@@ -38,6 +38,7 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - SEQ_FIRSTRUN_ADMINPASSWORD=bluebits123
+      - SEQ_BASEURI=http://139.59.157.34/seq/
     volumes:
       - seq-data:/data
     deploy:

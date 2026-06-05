@@ -35,10 +35,11 @@ export const admin = {
 
   templates: {
     fetch: () => httpGet(`${ADMIN_BASE}/templates`),
-    upload: (name, file) => {
+    upload: (type, file) => {
       const formData = new FormData();
+      formData.append('type', type);
       formData.append('file', file);
-      return httpPut(`${ADMIN_BASE}/templates/${encodeURIComponent(name)}`, formData);
+      return httpPut(`${ADMIN_BASE}/templates`, formData);
     },
   },
 };

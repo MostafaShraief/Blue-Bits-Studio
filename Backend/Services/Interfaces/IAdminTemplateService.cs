@@ -15,6 +15,8 @@ public class TemplateInfo
     public string FileName { get; set; } = string.Empty;
     public long FileSize { get; set; }
     public DateTime LastModified { get; set; }
+    public string LectureType { get; set; } = string.Empty;
+    public string Purpose { get; set; } = string.Empty;
 }
 
 public class TemplateUploadResult

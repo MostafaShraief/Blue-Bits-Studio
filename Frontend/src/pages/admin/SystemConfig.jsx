@@ -457,70 +457,102 @@ export default function SystemConfig() {
             {activeTab === 'templates' && (
                 <div className="space-y-5">
                     <div className="text-sm text-text-muted ps-1">
-                        قم برفع قوالب DOTX للمحاضرات النظرية والعملية
+                        قم برفع قوالب DOTX للمحاضرات النظرية والعملية — كل نوع يتضمن قالب Pandoc للتنسيق والقالب النهائي للدمج
                     </div>
 
                     {[
-                        { id: 'نظري', label: 'القالب النظري', hint: 'يُستخدم هذا القالب لتنسيق المحاضرات النظرية', color: 'bg-primary/15 text-primary' },
-                        { id: 'عملي', label: 'القالب العملي', hint: 'يُستخدم هذا القالب لتنسيق المحاضرات العملية', color: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400' }
-                    ].map((type) => {
-                        const template = (templates || []).find(t => t.name === type.id);
-                        const isUploading = uploading[type.id];
+                        {
+                            type: 'Theo', displayName: 'نظري', label: 'القالب النظري',
+                            iconColor: 'bg-primary/15 text-primary',
+                            purposes: [
+                                { typeKey: 'Theo', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
+                                { typeKey: 'Theo-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                            ],
+                        },
+                        {
+                            type: 'Prac', displayName: 'عملي', label: 'القالب العملي',
+                            iconColor: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
+                            purposes: [
+                                { typeKey: 'Prac', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
+                                { typeKey: 'Prac-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                            ],
+                        },
+                    ].map((lecture) => {
+                        const pandocTemplate = (templates || []).find(t => t.type === lecture.purposes[0].typeKey);
+                        const mergeTemplate = (templates || []).find(t => t.type === lecture.purposes[1].typeKey);
 
                         return (
                             <div
-                                key={type.id}
+                                key={lecture.type}
                                 className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${type.color}`}>
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${lecture.iconColor}`}>
                                             <FileText size={22} strokeWidth={1.8} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-text">{type.label}</h3>
-                                            <p className="text-xs text-text-muted mt-0.5">{type.hint}</p>
+                                            <h3 className="font-bold text-text">{lecture.label}</h3>
+                                            <p className="text-xs text-text-muted mt-0.5">{lecture.displayName === 'نظري' ? 'القوالب الخاصة بالمحاضرات النظرية' : 'القوالب الخاصة بالمحاضرات العملية'}</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 pt-4 border-t border-border space-y-4">
-                                    {template?.fileName ? (
-                                        <div className="flex items-center justify-between flex-wrap gap-2">
-                                            <div className="flex items-center gap-2 text-sm text-text">
-                                                <FileText size={16} className="text-text-muted shrink-0" />
-                                                <span dir="ltr">{template.fileName}</span>
-                                            </div>
-                                            <span className="text-xs text-text-muted flex items-center gap-1.5">
-                                                <Calendar size={14} />
-                                                {formatDate(template.lastModified)}
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-text-muted">لم يتم رفع قالب بعد</p>
-                                    )}
+                                <div className="mt-4 pt-4 border-t border-border space-y-5">
+                                    {lecture.purposes.map((purpose) => {
+                                        const template = purpose.purpose === 'Pandoc' ? pandocTemplate : mergeTemplate;
+                                        const isUploading = uploading[purpose.typeKey];
 
-                                    <div className="flex justify-end">
-                                        <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all ${
-                                            isUploading
-                                                ? 'bg-surface text-text-muted cursor-not-allowed'
-                                                : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20'
-                                        }`}>
-                                            {isUploading ? (
-                                                <Loader2 size={16} className="animate-spin" />
-                                            ) : (
-                                                <Upload size={16} />
-                                            )}
-                                            {isUploading ? 'جاري الرفع...' : 'رفع القالب'}
-                                            <input
-                                                type="file"
-                                                accept=".dotx"
-                                                className="hidden"
-                                                disabled={isUploading}
-                                                onChange={(e) => handleTemplateUpload(type.id, e)}
-                                            />
-                                        </label>
-                                    </div>
+                                        return (
+                                            <div key={purpose.typeKey}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-text">{purpose.label}</h4>
+                                                        <p className="text-xs text-text-muted mt-0.5">{purpose.hint}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-surface rounded-xl p-3">
+                                                    {template?.fileName ? (
+                                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                                                            <div className="flex items-center gap-2 text-sm text-text">
+                                                                <FileText size={16} className="text-text-muted shrink-0" />
+                                                                <span dir="ltr">{template.fileName}</span>
+                                                            </div>
+                                                            <span className="text-xs text-text-muted flex items-center gap-1.5">
+                                                                <Calendar size={14} />
+                                                                {formatDate(template.lastModified)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-text-muted mb-3">لم يتم رفع قالب بعد</p>
+                                                    )}
+
+                                                    <div className="flex justify-end">
+                                                        <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                                                            isUploading
+                                                                ? 'bg-surface-card text-text-muted cursor-not-allowed'
+                                                                : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20'
+                                                        }`}>
+                                                            {isUploading ? (
+                                                                <Loader2 size={16} className="animate-spin" />
+                                                            ) : (
+                                                                <Upload size={16} />
+                                                            )}
+                                                            {isUploading ? 'جاري الرفع...' : 'رفع القالب'}
+                                                            <input
+                                                                type="file"
+                                                                accept=".dotx"
+                                                                className="hidden"
+                                                                disabled={isUploading}
+                                                                onChange={(e) => handleTemplateUpload(purpose.typeKey, e)}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );

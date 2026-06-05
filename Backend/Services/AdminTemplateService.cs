@@ -9,10 +9,12 @@ public class AdminTemplateService : IAdminTemplateService
     private static readonly SemaphoreSlim _writeLock = new(1, 1);
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
 
-    private static readonly (string Type, string DisplayName, string FileName)[] _templateDefs =
+    private static readonly (string Type, string DisplayName, string FileName, string LectureType, string Purpose)[] _templateDefs =
     [
-        ("Theo", "نظري", "Pandoc-Theo.dotx"),
-        ("Prac", "عملي", "Pandoc-Prac.dotx")
+        ("Theo", "نظري", "Pandoc-Theo.dotx", "Theo", "Pandoc"),
+        ("Theo-Final", "نظري", "Pandoc-Theo-Final-Step.dotx", "Theo", "Merge"),
+        ("Prac", "عملي", "Pandoc-Prac.dotx", "Prac", "Pandoc"),
+        ("Prac-Final", "عملي", "Pandoc-Prac-Final-Step.dotx", "Prac", "Merge"),
     ];
 
     private readonly IWebHostEnvironment _env;
@@ -28,7 +30,7 @@ public class AdminTemplateService : IAdminTemplateService
     {
         var templates = new List<TemplateInfo>();
 
-        foreach (var (type, displayName, fileName) in _templateDefs)
+        foreach (var (type, displayName, fileName, lectureType, purpose) in _templateDefs)
         {
             var pandocPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", fileName);
             if (File.Exists(pandocPath))
@@ -40,7 +42,9 @@ public class AdminTemplateService : IAdminTemplateService
                     DisplayName = displayName,
                     FileName = fileName,
                     FileSize = fi.Length,
-                    LastModified = fi.LastWriteTimeUtc
+                    LastModified = fi.LastWriteTimeUtc,
+                    LectureType = lectureType,
+                    Purpose = purpose,
                 });
             }
         }
@@ -50,8 +54,9 @@ public class AdminTemplateService : IAdminTemplateService
 
     public async Task<TemplateUploadResult> UploadTemplateAsync(string templateType, IFormFile file)
     {
-        if (templateType != "Theo" && templateType != "Prac")
-            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid template type. Must be 'Theo' or 'Prac'.", StatusCode = 400 };
+        var def = _templateDefs.FirstOrDefault(d => d.Type == templateType);
+        if (def == default)
+            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid template type. Must be 'Theo', 'Prac', 'Theo-Final', or 'Prac-Final'.", StatusCode = 400 };
 
         var ext = Path.GetExtension(file.FileName);
         if (!".dotx".Equals(ext, StringComparison.OrdinalIgnoreCase))
@@ -85,7 +90,7 @@ public class AdminTemplateService : IAdminTemplateService
 
         try
         {
-            var fileName = templateType == "Theo" ? "Pandoc-Theo.dotx" : "Pandoc-Prac.dotx";
+            var (_, _, fileName, _, _) = def;
 
             var pandocDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates");
             Directory.CreateDirectory(pandocDir);

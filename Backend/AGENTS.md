@@ -15,8 +15,9 @@ This backend powers a **Unified Academic Workflow Platform**. It acts as a modul
 1. **API Responses:** When authenticating a user, the API must return a list of authorized `SystemCodes` (e.g., `["LEC_EXT", "PANDOC"]`). The frontend relies entirely on this array for UI rendering.
 2. **File Management (Crucial):** Never rely solely on SQLite's `ON DELETE CASCADE` for physical files. Implement and maintain a C# `BackgroundService` (Garbage Collector) that nightly compares database `Files` records against physical disk files and deletes orphans.
 3. **Admin Endpoints:** Admins cannot execute workflows. Admin endpoints should only provide CRUD for Users, Materials, and toggling `IsActive` on Workflows. Admin cannot delete system Workflows or Prompts (only update text or visibility).
-4. **Error Logging:** Log exceptions with context: UserID, SystemCode, SessionID, and the exact physical file path if applicable.
+4. **Error Logging:** Log exceptions with context: UserID, SystemCode, SessionID, and the exact physical file path if applicable. The `ExceptionHandlingMiddleware` wraps every log call in `LogContext.PushProperty` so these fields become searchable properties in Seq.
 5. **Global Exception Handling:** Use `NotFoundException` for missing-resource errors. Avoid inline `return NotFound()` in favor of throwing `NotFoundException` when the error should propagate through the global `ExceptionHandlingMiddleware`. The middleware returns standardized JSON `{error, statusCode, traceId}` and logs full diagnostic context.
+6. **Log Aggregation:** Backend pushes structured logs to Seq at `http://seq:5341` via `Serilog.Sinks.Seq`. Configured in `appsettings.json` (default) and overridden in `appsettings.Docker.json` for Docker environments. Seq is accessible at `/seq/` behind the nginx reverse proxy.
 
 ## AI Prompt Instructions
 When generating code for this backend:
@@ -896,7 +897,7 @@ Part of the global exception handling strategy. Thrown by `SessionService` when 
 Backend — ASP.NET Core middleware
 
 ### 3. What the file does
-Global exception handling middleware that catches all unhandled exceptions, logs UserID/SystemCode/SessionId/request path via Serilog, and returns a standardized JSON error envelope `{error, statusCode, traceId}`. Handles four exception categories: FluentValidation `ValidationException` → 400 with per-field error details, `NotFoundException` → 404, `ForbiddenException` → 403, and all other unhandled exceptions → 500.
+Global exception handling middleware that catches all unhandled exceptions, pushes UserID/SessionID/SystemCode/TraceId into Serilog `LogContext.PushProperty` before logging so they become searchable Seq properties, and returns a standardized JSON error envelope `{error, statusCode, traceId}`. Handles four exception categories: FluentValidation `ValidationException` → 400 with per-field error details, `NotFoundException` → 404, `ForbiddenException` → 403, and all other unhandled exceptions → 500.
 
 ### 4. User Stories
 - As a developer, all unhandled exceptions produce a consistent JSON error response instead of HTML or raw 500s.
@@ -904,6 +905,7 @@ Global exception handling middleware that catches all unhandled exceptions, logs
 - As a developer, `NotFoundException` throws from anywhere produce a clean 404 response.
 - As a developer, `ForbiddenException` throws from services produce a clean 403 response.
 - As an operator, all errors are logged with diagnostic context (UserID, SystemCode, SessionId, request path) for debugging.
+- As an operator, each error pushes UserId/SessionId/SystemCode/TraceId into `LogContext.PushProperty` so they appear as structured properties in Seq for filtering.
 
 ### 5. Functions Summary
 - `InvokeAsync(HttpContext)`: Wraps the next middleware in try/catch dispatching to per-type handlers.
@@ -915,7 +917,7 @@ Global exception handling middleware that catches all unhandled exceptions, logs
 - `ExtractSessionId`: Best-effort extraction from route values `id`/`sessionId`, then query param `sessionId`.
 
 ### 6. Integration
-Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddleware>()`. Logs through standard `ILogger<ExceptionHandlingMiddleware>`. Consumes `FluentValidation.ValidationException`, `BlueBits.Api.Exceptions.NotFoundException`, and `BlueBits.Api.Exceptions.ForbiddenException`.
+Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddleware>()`. Logs through standard `ILogger<ExceptionHandlingMiddleware>` with Serilog `LogContext.PushProperty` for enriched context. Consumes `FluentValidation.ValidationException`, `BlueBits.Api.Exceptions.NotFoundException`, and `BlueBits.Api.Exceptions.ForbiddenException`.
 
 ### 7. Imports Summary
 - `System.Diagnostics` — `Activity.Current` for trace ID
@@ -923,9 +925,10 @@ Registered early in `Program.cs` via `app.UseMiddleware<ExceptionHandlingMiddlew
 - `System.Text.Json` — `JsonSerializer` for writing JSON responses
 - `FluentValidation` — `ValidationException` for validation error handling
 - `BlueBits.Api.Exceptions` — `NotFoundException`, `ForbiddenException`
+- `Serilog.Context` — `LogContext.PushProperty` for enriching log events with UserId, SessionId, SystemCode, TraceId
 
 ### 8. Additional Info
-Placed after Swagger but before all other middleware to catch every unhandled exception across the entire pipeline. Uses best-effort extraction for SystemCode/SessionId (may be "N/A" if not present in route/query). Trace ID uses `Activity.Current.Id` when available, falling back to `HttpContext.TraceIdentifier`. `ValidationException` errors are grouped by `PropertyName` to produce `{fieldName: [errorMessage, ...]}` maps matching common frontend validation patterns.
+Placed after Swagger but before all other middleware to catch every unhandled exception across the entire pipeline. Each handler wraps the logger call in `LogContext.PushProperty` so UserID, SessionID, SystemCode, and TraceId become searchable properties in Seq. Uses best-effort extraction for SystemCode/SessionId (may be "N/A" if not present in route/query). Trace ID uses `Activity.Current.Id` when available, falling back to `HttpContext.TraceIdentifier`. `ValidationException` errors are grouped by `PropertyName` to produce `{fieldName: [errorMessage, ...]}` maps matching common frontend validation patterns.
 ## 1. File Name and Directory
 `Backend/Extensions/ServiceCollectionExtensions.cs`
 

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using FluentValidation;
 using BlueBits.Api.Exceptions;
+using Serilog.Context;
 
 namespace BlueBits.Api.Middleware;
 
@@ -49,9 +50,15 @@ public class ExceptionHandlingMiddleware
         var sessionId = ExtractSessionId(context);
         var path = context.Request.Path;
 
-        _logger.LogWarning(ex,
-            "Validation failed - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
-            userId, systemCode, sessionId, path);
+        using (LogContext.PushProperty("UserId", userId))
+        using (LogContext.PushProperty("SessionId", sessionId))
+        using (LogContext.PushProperty("SystemCode", systemCode))
+        using (LogContext.PushProperty("TraceId", traceId))
+        {
+            _logger.LogWarning(ex,
+                "Validation failed - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
+                userId, systemCode, sessionId, path);
+        }
 
         var errors = ex.Errors
             .GroupBy(e => e.PropertyName)
@@ -78,9 +85,15 @@ public class ExceptionHandlingMiddleware
         var sessionId = ExtractSessionId(context);
         var path = context.Request.Path;
 
-        _logger.LogWarning(ex,
-            "Resource not found - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
-            userId, systemCode, sessionId, path);
+        using (LogContext.PushProperty("UserId", userId))
+        using (LogContext.PushProperty("SessionId", sessionId))
+        using (LogContext.PushProperty("SystemCode", systemCode))
+        using (LogContext.PushProperty("TraceId", traceId))
+        {
+            _logger.LogWarning(ex,
+                "Resource not found - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
+                userId, systemCode, sessionId, path);
+        }
 
         var response = new
         {
@@ -102,9 +115,15 @@ public class ExceptionHandlingMiddleware
         var sessionId = ExtractSessionId(context);
         var path = context.Request.Path;
 
-        _logger.LogWarning(ex,
-            "Forbidden - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
-            userId, systemCode, sessionId, path);
+        using (LogContext.PushProperty("UserId", userId))
+        using (LogContext.PushProperty("SessionId", sessionId))
+        using (LogContext.PushProperty("SystemCode", systemCode))
+        using (LogContext.PushProperty("TraceId", traceId))
+        {
+            _logger.LogWarning(ex,
+                "Forbidden - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
+                userId, systemCode, sessionId, path);
+        }
 
         var response = new
         {
@@ -126,9 +145,15 @@ public class ExceptionHandlingMiddleware
         var sessionId = ExtractSessionId(context);
         var path = context.Request.Path;
 
-        _logger.LogError(ex,
-            "Unhandled exception - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
-            userId, systemCode, sessionId, path);
+        using (LogContext.PushProperty("UserId", userId))
+        using (LogContext.PushProperty("SessionId", sessionId))
+        using (LogContext.PushProperty("SystemCode", systemCode))
+        using (LogContext.PushProperty("TraceId", traceId))
+        {
+            _logger.LogError(ex,
+                "Unhandled exception - UserID: {UserId}, SystemCode: {SystemCode}, SessionID: {SessionId}, Path: {Path}",
+                userId, systemCode, sessionId, path);
+        }
 
         var response = new
         {

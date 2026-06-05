@@ -78,6 +78,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminPermissionService, AdminPermissionService>();
         services.AddScoped<IAdminPromptService, AdminPromptService>();
         services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
+        services.AddScoped<IAdminTemplateService, AdminTemplateService>();
 
         return services;
     }

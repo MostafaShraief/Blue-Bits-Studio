@@ -1,0 +1,114 @@
+using DocumentFormat.OpenXml.Packaging;
+using Microsoft.AspNetCore.Http;
+using BlueBits.Api.Services.Interfaces;
+
+namespace BlueBits.Api.Services;
+
+public class AdminTemplateService : IAdminTemplateService
+{
+    private static readonly SemaphoreSlim _writeLock = new(1, 1);
+    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
+
+    private static readonly (string Type, string DisplayName, string FileName)[] _templateDefs =
+    [
+        ("Theo", "نظري", "Pandoc-Theo.dotx"),
+        ("Prac", "عملي", "Pandoc-Prac.dotx")
+    ];
+
+    private readonly IWebHostEnvironment _env;
+    private readonly ILogger<AdminTemplateService> _logger;
+
+    public AdminTemplateService(IWebHostEnvironment env, ILogger<AdminTemplateService> logger)
+    {
+        _env = env;
+        _logger = logger;
+    }
+
+    public Task<List<TemplateInfo>> GetTemplatesAsync()
+    {
+        var templates = new List<TemplateInfo>();
+
+        foreach (var (type, displayName, fileName) in _templateDefs)
+        {
+            var pandocPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", fileName);
+            if (File.Exists(pandocPath))
+            {
+                var fi = new FileInfo(pandocPath);
+                templates.Add(new TemplateInfo
+                {
+                    Type = type,
+                    DisplayName = displayName,
+                    FileName = fileName,
+                    FileSize = fi.Length,
+                    LastModified = fi.LastWriteTimeUtc
+                });
+            }
+        }
+
+        return Task.FromResult(templates);
+    }
+
+    public async Task<TemplateUploadResult> UploadTemplateAsync(string templateType, IFormFile file)
+    {
+        if (templateType != "Theo" && templateType != "Prac")
+            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid template type. Must be 'Theo' or 'Prac'.", StatusCode = 400 };
+
+        var ext = Path.GetExtension(file.FileName);
+        if (!".dotx".Equals(ext, StringComparison.OrdinalIgnoreCase))
+            return new TemplateUploadResult { Success = false, ErrorMessage = "Only .dotx files are accepted.", StatusCode = 400 };
+
+        if (file.Length > 10 * 1024 * 1024)
+            return new TemplateUploadResult { Success = false, ErrorMessage = "File size must not exceed 10 MB.", StatusCode = 400 };
+
+        byte[] fileBytes;
+        using (var ms = new MemoryStream())
+        {
+            await file.CopyToAsync(ms);
+            fileBytes = ms.ToArray();
+        }
+
+        try
+        {
+            using var validateMs = new MemoryStream(fileBytes);
+            using var doc = WordprocessingDocument.Open(validateMs, false);
+        }
+        catch
+        {
+            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid .dotx file format.", StatusCode = 400 };
+        }
+
+        if (!await _writeLock.WaitAsync(_timeout))
+        {
+            _logger.LogWarning("Semaphore timeout for template upload (type: {TemplateType})", templateType);
+            return new TemplateUploadResult { Success = false, ErrorMessage = "Another upload is in progress. Please try again.", StatusCode = 409 };
+        }
+
+        try
+        {
+            var fileName = templateType == "Theo" ? "Pandoc-Theo.dotx" : "Pandoc-Prac.dotx";
+
+            var pandocDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates");
+            Directory.CreateDirectory(pandocDir);
+            var pandocPath = Path.Combine(pandocDir, fileName);
+
+            var resourcesDir = Path.Combine(_env.ContentRootPath, "..", "Resources", "PandocTemplates");
+            Directory.CreateDirectory(resourcesDir);
+            var resourcesPath = Path.Combine(resourcesDir, fileName);
+
+            await File.WriteAllBytesAsync(pandocPath, fileBytes);
+            await File.WriteAllBytesAsync(resourcesPath, fileBytes);
+
+            _logger.LogInformation("Template '{FileName}' uploaded successfully (type: {TemplateType})", fileName, templateType);
+            return new TemplateUploadResult { Success = true, StatusCode = 200 };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upload template {TemplateType}", templateType);
+            return new TemplateUploadResult { Success = false, ErrorMessage = "An error occurred while uploading the template.", StatusCode = 500 };
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+}

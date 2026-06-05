@@ -1,0 +1,63 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    image: ghcr.io/mostafashraief/bluebits-backend:latest
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./Backend/data:/app/data
+      - ./Backend/uploads:/app/uploads
+      - ./Resources/PandocTemplates:/app/Resources/PandocTemplates
+      - ./Backend/appsettings.Docker.json:/app/appsettings.Docker.json
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    image: ghcr.io/mostafashraief/bluebits-frontend:latest
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    restart: unless-stopped
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+      - seq
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    restart: unless-stopped
+
+volumes:
+  seq-data:

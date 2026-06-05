@@ -46,6 +46,9 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
+# Database runtime data
+Backend/data/
+
 # Uploads
 Backend/uploads/
 
@@ -59,6 +62,7 @@ test-*
 update-*
 *.cjs
 *.sh
+!setup-server.sh
 App_Data/
 Tests/
 inspect_proj/

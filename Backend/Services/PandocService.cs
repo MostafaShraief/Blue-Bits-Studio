@@ -23,7 +23,8 @@ public class PandocService : IPandocService
         string materialName,
         string type,
         string lectureNumber,
-        string contentRootPath)
+        string contentRootPath,
+        CancellationToken cancellationToken = default)
     {
         var appData = Path.Combine(contentRootPath, "App_Data");
         Directory.CreateDirectory(appData);
@@ -71,7 +72,7 @@ public class PandocService : IPandocService
         };
 
         process.Start();
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(cancellationToken);
 
         File.Delete(tempMd);
 

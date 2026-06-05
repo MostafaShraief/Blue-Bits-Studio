@@ -1,0 +1,16 @@
+.git
+.gitignore
+node_modules
+Frontend/node_modules
+Backend/bin
+Backend/obj
+dist
+*.md
+.gitkeep
+.idea
+.vscode
+*.log
+test-*
+Tests/
+inspect_proj/
+extract_doc/

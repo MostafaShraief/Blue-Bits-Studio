@@ -41,13 +41,14 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiting(configuration);
 
         services.AddHostedService<OrphanFileCleanupService>();
+        services.AddHostedService<PandocQueueService>();
 
         return services;
     }
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-        var dbPath = Path.Join(environment.ContentRootPath, "bluebits.db");
+        var dbPath = Path.Join(environment.ContentRootPath, "data", "bluebits.db");
         services.AddDbContext<BlueBitsDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 

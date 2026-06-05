@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Exceptions;
 using BlueBits.Api.Models;
@@ -9,11 +10,18 @@ namespace BlueBits.Api.Services;
 public class AdminPromptService : IAdminPromptService
 {
     private readonly IPromptRepository _promptRepository;
+    private readonly ILogger<AdminPromptService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AdminPromptService(IPromptRepository promptRepository)
+    public AdminPromptService(IPromptRepository promptRepository, ILogger<AdminPromptService> logger, IHttpContextAccessor httpContextAccessor)
     {
         _promptRepository = promptRepository;
+        _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private int GetCurrentAdminId() =>
+        int.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
     public async Task<IEnumerable<Prompt>> GetAllAsync()
     {
@@ -29,6 +37,7 @@ public class AdminPromptService : IAdminPromptService
         prompt.PromptText = request.PromptText;
         _promptRepository.Update(prompt);
         await _promptRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} updated prompt {PromptId} for workflow {WorkflowId}", GetCurrentAdminId(), id, prompt.WorkflowId);
         return prompt;
     }
 }

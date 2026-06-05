@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Exceptions;
 using BlueBits.Api.Models;
@@ -11,12 +12,17 @@ public class AdminUserService : IAdminUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly ILogger<AdminUserService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AdminUserService(IUserRepository userRepository, ILogger<AdminUserService> logger)
+    public AdminUserService(IUserRepository userRepository, ILogger<AdminUserService> logger, IHttpContextAccessor httpContextAccessor)
     {
         _userRepository = userRepository;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private int GetCurrentAdminId() =>
+        int.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
     public async Task<IEnumerable<User>> GetAllAsync()
     {
@@ -59,6 +65,7 @@ public class AdminUserService : IAdminUserService
 
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} created user {UserId} with role {Role}", GetCurrentAdminId(), user.UserId, user.UserRole);
         return user;
     }
 
@@ -105,6 +112,7 @@ public class AdminUserService : IAdminUserService
 
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} updated user {UserId}", GetCurrentAdminId(), id);
         return user;
     }
 
@@ -116,5 +124,6 @@ public class AdminUserService : IAdminUserService
 
         _userRepository.Delete(user);
         await _userRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} deleted user {UserId}", GetCurrentAdminId(), id);
     }
 }

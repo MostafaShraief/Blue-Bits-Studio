@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Exceptions;
 using BlueBits.Api.Models;
@@ -9,11 +10,18 @@ namespace BlueBits.Api.Services;
 public class AdminPermissionService : IAdminPermissionService
 {
     private readonly IWorkflowPermissionRepository _permissionRepository;
+    private readonly ILogger<AdminPermissionService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AdminPermissionService(IWorkflowPermissionRepository permissionRepository)
+    public AdminPermissionService(IWorkflowPermissionRepository permissionRepository, ILogger<AdminPermissionService> logger, IHttpContextAccessor httpContextAccessor)
     {
         _permissionRepository = permissionRepository;
+        _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private int GetCurrentAdminId() =>
+        int.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
     public async Task<IEnumerable<WorkflowPermission>> GetAllAsync()
     {
@@ -41,6 +49,7 @@ public class AdminPermissionService : IAdminPermissionService
 
         await _permissionRepository.AddAsync(permission);
         await _permissionRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} granted {Role} permission to workflow {WorkflowId}", GetCurrentAdminId(), request.roleName, request.workflowId);
         return permission;
     }
 
@@ -52,5 +61,6 @@ public class AdminPermissionService : IAdminPermissionService
 
         _permissionRepository.Delete(permission);
         await _permissionRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} revoked permission {PermissionId} ({Role} -> Workflow {WorkflowId})", GetCurrentAdminId(), id, permission.RoleName, permission.WorkflowId);
     }
 }

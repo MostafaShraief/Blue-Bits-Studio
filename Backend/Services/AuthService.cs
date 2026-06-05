@@ -14,25 +14,32 @@ public class AuthService : IAuthService
     private readonly IUserRepository _userRepository;
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUserRepository userRepository, IWorkflowRepository workflowRepository, IConfiguration configuration)
+    public AuthService(IUserRepository userRepository, IWorkflowRepository workflowRepository, IConfiguration configuration, ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
         _workflowRepository = workflowRepository;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<(User user, string token, List<string> workflows)?> LoginAsync(string username, string password)
     {
         var user = await _userRepository.GetByUsernameAsync(username);
         if (user == null || user.Password != password)
+        {
+            _logger.LogWarning("Failed login attempt for username {Username}", username);
             return null;
+        }
 
         var workflows = (await _workflowRepository.GetActiveWorkflowsForRoleAsync(user.UserRole))
             .Select(w => w.SystemCode)
             .ToList();
 
         var token = GenerateJwt(user);
+
+        _logger.LogInformation("User {UserId} authenticated with role {Role}", user.UserId, user.UserRole);
 
         return (user, token, workflows);
     }

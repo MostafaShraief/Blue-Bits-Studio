@@ -14,18 +14,23 @@ public class SessionService : ISessionService
     private readonly BlueBitsDbContext _db;
     private readonly IWebHostEnvironment _env;
     private readonly IPromptService _promptService;
+    private readonly ILogger<SessionService> _logger;
 
-    public SessionService(BlueBitsDbContext db, IWebHostEnvironment env, IPromptService promptCompilationService)
+    public SessionService(BlueBitsDbContext db, IWebHostEnvironment env, IPromptService promptCompilationService, ILogger<SessionService> logger)
     {
         _db = db;
         _env = env;
         _promptService = promptCompilationService;
+        _logger = logger;
     }
 
     public async Task<SessionListResult> GetSessionsAsync(int userId, string role, int page, int limit)
     {
         if (role == "Admin")
+        {
+            _logger.LogWarning("Admin user {UserId} attempted to access session list", userId);
             throw new ForbiddenException("Admins cannot access session list.");
+        }
 
         var query = _db.Sessions
             .Where(s => s.UserId == userId)
@@ -73,15 +78,24 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
         if (session == null)
+        {
+            _logger.LogWarning("Session {SessionId} not found for user {UserId}", sessionId, userId);
             throw new NotFoundException(nameof(Session), sessionId);
+        }
 
         if (session.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to access session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
             throw new ForbiddenException("You do not own this session.");
+        }
 
         var hasPermission = await _db.WorkflowPermissions
             .AnyAsync(p => p.RoleName == role && p.WorkflowId == session.WorkflowId);
         if (!hasPermission)
+        {
+            _logger.LogWarning("User {UserId} with role {Role} lacks permission for session {SessionId} workflow {WorkflowId}", userId, role, sessionId, session.WorkflowId);
             throw new ForbiddenException("ليس لديك إذن للوصول إلى هذا النوع من الجلسات");
+        }
 
         var generalNotes = session.Notes.FirstOrDefault(n => n.NoteType == "GeneralNote")?.NoteText;
         var fileNotes = session.Notes.Where(n => n.NoteType == "FileNote").OrderBy(n => n.FileId).Select(n => n.NoteText).ToList();
@@ -104,22 +118,34 @@ public class SessionService : ISessionService
     public async Task<CreateSessionResult> CreateSessionAsync(int userId, string role, CreateSessionRequest req)
     {
         if (role == "Admin")
+        {
+            _logger.LogWarning("Admin user {UserId} attempted to create a session", userId);
             throw new ForbiddenException("Admins cannot create sessions.");
+        }
 
         var material = await _db.Materials
             .FirstOrDefaultAsync(m => m.MaterialName == req.MaterialName);
         if (material == null)
+        {
+            _logger.LogWarning("Material {MaterialName} not found for session creation by user {UserId}", req.MaterialName, userId);
             throw new NotFoundException(nameof(Material), req.MaterialName);
+        }
 
         var workflow = await _db.Workflows
             .Include(w => w.Permissions)
             .FirstOrDefaultAsync(w => w.SystemCode == req.WorkflowSystemCode);
 
         if (workflow == null || workflow.IsActive == 0)
+        {
+            _logger.LogWarning("Invalid or inactive workflow {SystemCode} for user {UserId}", req.WorkflowSystemCode, userId);
             throw new ForbiddenException("Invalid or inactive workflow.");
+        }
 
         if (!workflow.Permissions.Any(p => p.RoleName == role))
+        {
+            _logger.LogWarning("User {UserId} with role {Role} lacks permission for workflow {SystemCode}", userId, role, req.WorkflowSystemCode);
             throw new ForbiddenException("Role does not have permission for this workflow.");
+        }
 
         var session = new Session
         {
@@ -135,6 +161,8 @@ public class SessionService : ISessionService
 
         _db.Sessions.Add(session);
         await _db.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} created session {SessionId} for material {MaterialName}, workflow {WorkflowSystemCode}, lecture {LectureNumber}", userId, session.SessionId, req.MaterialName, req.WorkflowSystemCode, req.LectureNumber);
 
         return new CreateSessionResult
         {
@@ -153,10 +181,16 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
         if (session == null)
+        {
+            _logger.LogWarning("Session {SessionId} not found for SaveSessionContent by user {UserId}", sessionId, userId);
             throw new NotFoundException(nameof(Session), sessionId);
+        }
 
         if (session.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to save content to session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
             throw new ForbiddenException("You do not own this session.");
+        }
 
         var existingContent = session.SessionContents.FirstOrDefault();
         if (existingContent != null)
@@ -173,30 +207,44 @@ public class SessionService : ISessionService
         }
 
         await _db.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} saved content to session {SessionId}", userId, sessionId);
     }
 
     public async Task DeleteSessionAsync(int sessionId, int userId, string role)
     {
         if (role == "Admin")
+        {
+            _logger.LogWarning("Admin user {UserId} attempted to delete session {SessionId}", userId, sessionId);
             throw new ForbiddenException("Admins cannot delete sessions.");
+        }
 
         var session = await _db.Sessions
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
         if (session == null)
+        {
+            _logger.LogWarning("Session {SessionId} not found for deletion by user {UserId}", sessionId, userId);
             throw new NotFoundException(nameof(Session), sessionId);
+        }
 
         if (session.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to delete session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
             throw new ForbiddenException("You do not own this session.");
+        }
 
         _db.Sessions.Remove(session);
         await _db.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} deleted session {SessionId}", userId, sessionId);
     }
 
     public async Task UploadFilesAsync(int sessionId, int userId, string role, IFormCollection form)
     {
         if (role == "Admin")
+        {
+            _logger.LogWarning("Admin user {UserId} attempted to upload files to session {SessionId}", userId, sessionId);
             throw new ForbiddenException("Admins cannot upload files.");
+        }
 
         var session = await _db.Sessions
             .Include(s => s.Files)
@@ -204,10 +252,16 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
         if (session == null)
+        {
+            _logger.LogWarning("Session {SessionId} not found for file upload by user {UserId}", sessionId, userId);
             throw new NotFoundException(nameof(Session), sessionId);
+        }
 
         if (session.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to upload files to session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
             throw new ForbiddenException("You do not own this session.");
+        }
 
         var files = form.Files.GetFiles("files");
         var notes = form["notes"];
@@ -264,5 +318,8 @@ public class SessionService : ISessionService
         }
 
         await _db.SaveChangesAsync();
+
+        var extensions = files.Select(f => Path.GetExtension(f.FileName)?.ToLowerInvariant()).Where(e => e != null);
+        _logger.LogInformation("User {UserId} uploaded {FileCount} files to session {SessionId}. Extensions: {Extensions}", userId, files.Count, sessionId, string.Join(", ", extensions));
     }
 }

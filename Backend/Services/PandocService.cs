@@ -10,6 +10,13 @@ namespace BlueBits.Api.Services;
 
 public class PandocService : IPandocService
 {
+    private readonly ILogger<PandocService> _logger;
+
+    public PandocService(ILogger<PandocService> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<PandocResult> GenerateDocxAsync(
         string markdownText,
         string templateName,
@@ -48,6 +55,8 @@ public class PandocService : IPandocService
         var tempOutputDocx = Path.Combine(uploadDir, $"temp_{Guid.NewGuid()}.docx");
         var finalOutputDocx = Path.Combine(uploadDir, fileName);
 
+        _logger.LogInformation("Starting DOCX generation for material {MaterialName}, Lecture {LectureNumber}, type {Type}", materialName, lectureNumber, type);
+
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
@@ -69,6 +78,7 @@ public class PandocService : IPandocService
         if (process.ExitCode != 0)
         {
             var error = await process.StandardError.ReadToEndAsync();
+            _logger.LogError("Pandoc CLI failed for {MaterialName} Lecture {LectureNumber}. ExitCode: {ExitCode}, Error: {Error}", materialName, lectureNumber, process.ExitCode, error);
             return new PandocResult { Success = false, Error = "Pandoc generation failed", Details = error };
         }
 
@@ -78,6 +88,7 @@ public class PandocService : IPandocService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "OpenXML post-processing failed for {MaterialName} Lecture {LectureNumber}", materialName, lectureNumber);
             return new PandocResult { Success = false, Error = "Post-processing failed", Details = ex.Message };
         }
         finally
@@ -88,6 +99,7 @@ public class PandocService : IPandocService
             }
         }
 
+        _logger.LogInformation("DOCX generation completed for {MaterialName} Lecture {LectureNumber}. Output: {FileName}", materialName, lectureNumber, fileName);
         return new PandocResult { Success = true, FileUrl = $"/uploads/pandoc/{Uri.EscapeDataString(fileName)}" };
     }
 

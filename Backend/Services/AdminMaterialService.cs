@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BlueBits.Api.DTOs.Requests;
 using BlueBits.Api.Exceptions;
 using BlueBits.Api.Models;
@@ -9,11 +10,18 @@ namespace BlueBits.Api.Services;
 public class AdminMaterialService : IAdminMaterialService
 {
     private readonly IMaterialRepository _materialRepository;
+    private readonly ILogger<AdminMaterialService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AdminMaterialService(IMaterialRepository materialRepository)
+    public AdminMaterialService(IMaterialRepository materialRepository, ILogger<AdminMaterialService> logger, IHttpContextAccessor httpContextAccessor)
     {
         _materialRepository = materialRepository;
+        _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private int GetCurrentAdminId() =>
+        int.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
     public async Task<IEnumerable<Material>> GetAllAsync()
     {
@@ -35,6 +43,7 @@ public class AdminMaterialService : IAdminMaterialService
 
         await _materialRepository.AddAsync(material);
         await _materialRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} created material {MaterialName} ({MaterialYear})", GetCurrentAdminId(), material.MaterialName, material.MaterialYear);
         return material;
     }
 
@@ -49,6 +58,7 @@ public class AdminMaterialService : IAdminMaterialService
 
         _materialRepository.Update(material);
         await _materialRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} updated material {MaterialId} to {MaterialName} ({MaterialYear})", GetCurrentAdminId(), id, material.MaterialName, material.MaterialYear);
         return material;
     }
 
@@ -60,5 +70,6 @@ public class AdminMaterialService : IAdminMaterialService
 
         _materialRepository.Delete(material);
         await _materialRepository.SaveChangesAsync();
+        _logger.LogInformation("Admin {AdminId} deleted material {MaterialId}", GetCurrentAdminId(), id);
     }
 }

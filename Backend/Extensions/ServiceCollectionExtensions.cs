@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         services.AddCors(options =>
         {
             options.AddPolicy("AllowFrontend", policy =>

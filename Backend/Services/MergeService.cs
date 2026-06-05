@@ -8,6 +8,13 @@ namespace BlueBits.Api.Services;
 
 public class MergeService : IMergeService
 {
+    private readonly ILogger<MergeService> _logger;
+
+    public MergeService(ILogger<MergeService> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<MergeResult> MergeDocxFilesAsync(
         IReadOnlyList<IFormFile> files,
         string materialName,
@@ -16,8 +23,11 @@ public class MergeService : IMergeService
     {
         if (files == null || files.Count == 0)
         {
+            _logger.LogWarning("Merge request with no files for material {MaterialName}", materialName);
             return new MergeResult { Error = "No files uploaded." };
         }
+
+        _logger.LogInformation("Starting merge of {FileCount} files for material {MaterialName}, lecture type {LectureType}", files.Count, materialName, lectureType);
 
         if (string.IsNullOrEmpty(materialName)) materialName = "Merged_Document";
 
@@ -33,6 +43,7 @@ public class MergeService : IMergeService
 
         if (!System.IO.File.Exists(templatePath))
         {
+            _logger.LogError("Merge template file {TemplateName} not found at {TemplatePath}", templateName, templatePath);
             return new MergeResult { Error = $"Template file {templateName} not found at {templatePath}." };
         }
 
@@ -47,6 +58,7 @@ public class MergeService : IMergeService
             var mainPart = finalDoc.MainDocumentPart;
             if (mainPart?.Document?.Body == null)
             {
+                _logger.LogError("Merge template {TemplateName} has no body", templateName);
                 return new MergeResult { Error = "Invalid template." };
             }
 
@@ -233,6 +245,7 @@ public class MergeService : IMergeService
             mainPart.Document?.Save();
         }
 
+        _logger.LogInformation("Merge completed for {MaterialName}. Output: {FileName}, Files merged: {FileCount}", materialName, finalFileName, files.Count);
         string downloadUrl = $"/uploads/{Uri.EscapeDataString(finalFileName)}";
         return new MergeResult { Url = downloadUrl, FinalFileName = finalFileName };
     }

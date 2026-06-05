@@ -1,0 +1,36 @@
+{
+  "drafts": [
+    {
+      "draftKey": "pandoc-backend",
+      "title": "Strip Pandoc Equation Processing from Backend",
+      "projectId": "a081e9da-633f-4551-89b4-42f218e0f0c6",
+      "description": "Remove ProcessEquations, CreateWordRuns, CreateMathRuns, and CharFormat class from Backend/Services/PandocService.cs. Delete the call at line 78. Clean up unused OpenXml.Math imports (MRun, MText, OfficeMath, Fraction, Numerator, Denominator). Update doc comments in IPandocService.cs and PandocEndpoints.cs to remove equation references. Verify with dotnet build.",
+      "dependsOn": [],
+      "warnings": ["Prompt resource files (تنسيق المحاضرات.md, تنسيق البنوك.md) still reference {{{}}} — handled in separate ticket."]
+    },
+    {
+      "draftKey": "pandoc-frontend",
+      "title": "Remove Equation References from Prompts & UI",
+      "projectId": "a081e9da-633f-4551-89b4-42f218e0f0c6",
+      "description": "Update Resources/Prompts/تنسيق المحاضرات.md and تنسيق البنوك.md: remove all {{{...}}} instructions from Quick Reference tables, Rule syntax, Common Mistakes, and Pre-Submission Checklists. Delete Resources/PandocTemplates/ConvertTripleBracketsMacro.vb. Grep PandocWizard.jsx and TourContext.jsx to confirm zero references.",
+      "dependsOn": [],
+      "warnings": ["Coordinate with backend Pandoc ticket — both can proceed in parallel."]
+    },
+    {
+      "draftKey": "autosave-logic",
+      "title": "Shift Auto-Save: Force Session Persistence + Rename Toggle",
+      "projectId": "a081e9da-633f-4551-89b4-42f218e0f0c6",
+      "description": "Three changes in wizard pages (ExtractionWizard, DrawWizard, CoordinationWizard): (1) ALWAYS call getSession() for compiled prompt — remove the compilePrompt else branch. (2) Gate apiUploadFiles with autoSave toggle — only upload when toggle is ON. (3) In SettingsModal.jsx line 301, rename label from 'الحفظ التلقائي' to 'حفظ الملفات والصور المرفقة تلقائياً'. The toggle now only controls physical file uploads, not session/notes/content persistence. CoordinationWizard has no uploadFiles — just remove the else branch. PandocWizard, MergeWizard, QuizHub need no changes.",
+      "dependsOn": [],
+      "warnings": ["Existing users with toggle OFF will now have auto-upload OFF — their sessions still save correctly.", "Consider removing the !saved && !autoSave warning in CoordinationWizard line 390."]
+    },
+    {
+      "draftKey": "step1-ux",
+      "title": "Redesign Step 1 (بيانات الجلسة) as Segmented Controls",
+      "projectId": "a081e9da-633f-4551-89b4-42f218e0f0c6",
+      "description": "Upgrade the lectureType (نظري/عملي) and workflowSystemCode (محاضرة/بنك) toggles in all 6 wizard pages from small buttons to large segmented control cards using Tailwind v4. Use lucide-react icons (FlaskConical/Code for نظري/عملي, BookOpen/Layers for محاضرة/بنك). Add red border (border-danger) + red tint (bg-danger/5) on unselected options when validation fails. Standardize labels to 'نوع المحاضرة' across all wizards. Fix error key casing inconsistency (lectureType vs lecturetype). Add QuizHub missing error display. Optionally extract a shared SegmentedControl component to Frontend/src/components/common/.",
+      "dependsOn": [],
+      "warnings": ["Targets all 6 wizard files — coordinate to avoid merge conflicts.", "RTL: verify visual order (محاضرة right, بنك left)."]
+    }
+  ]
+}

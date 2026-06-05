@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Backend/Dockerfile
     image: ghcr.io/mostafashraief/bluebits-backend:latest
+    security_opt:
+      - seccomp=unconfined
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
       - ASPNETCORE_URLS=http://+:8080

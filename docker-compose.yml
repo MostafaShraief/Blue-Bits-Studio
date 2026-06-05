@@ -37,6 +37,7 @@ services:
     image: datalust/seq:latest
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=bluebits123
     volumes:
       - seq-data:/data
     deploy:

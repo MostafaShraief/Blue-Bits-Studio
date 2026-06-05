@@ -10,10 +10,12 @@ namespace BlueBits.Api.Services;
 public class PromptService : IPromptService
 {
     private readonly BlueBitsDbContext _db;
+    private readonly ILogger<PromptService> _logger;
 
-    public PromptService(BlueBitsDbContext db)
+    public PromptService(BlueBitsDbContext db, ILogger<PromptService> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     public async Task<Prompt?> GetPromptForSessionAsync(int sessionId, string systemCode)
@@ -32,6 +34,9 @@ public class PromptService : IPromptService
             .FirstOrDefaultAsync(p => p.Workflow.SystemCode == systemCode || p.SystemCode == systemCode);
 
         string basePrompt = promptEntity?.PromptText ?? string.Empty;
+
+        _logger.LogInformation("Compiling prompt using system code {SystemCode}", systemCode);
+        _logger.LogDebug("Compiled prompt body: {PromptBody}", basePrompt);
 
         var sb = new StringBuilder(basePrompt);
         

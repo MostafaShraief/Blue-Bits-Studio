@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         services.AddCors(options =>
         {
             options.AddPolicy("AllowFrontend", policy =>
@@ -39,13 +41,14 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiting(configuration);
 
         services.AddHostedService<OrphanFileCleanupService>();
+        services.AddHostedService<PandocQueueService>();
 
         return services;
     }
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-        var dbPath = Path.Join(environment.ContentRootPath, "bluebits.db");
+        var dbPath = Path.Join(environment.ContentRootPath, "data", "bluebits.db");
         services.AddDbContext<BlueBitsDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 
@@ -78,6 +81,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminPermissionService, AdminPermissionService>();
         services.AddScoped<IAdminPromptService, AdminPromptService>();
         services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
+        services.AddScoped<IAdminTemplateService, AdminTemplateService>();
 
         return services;
     }

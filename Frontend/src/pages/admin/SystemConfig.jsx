@@ -1,7 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAdminWorkflows } from '../../hooks/useAdminWorkflows';
 import { useAdminPrompts } from '../../hooks/useAdminPrompts';
 import { useAdminPermissions } from '../../hooks/useAdminPermissions';
+import { admin } from '../../api/AdminApi';
+import { useToast } from '../../contexts/ToastContext';
+import { ApiError } from '../../api/HttpClient';
 import {
     Settings2,
     Power,
@@ -21,7 +24,9 @@ import {
     Crown,
     Scroll,
     Server,
-    UserCog
+    UserCog,
+    Upload,
+    Calendar
 } from 'lucide-react';
 
 export default function SystemConfig() {
@@ -38,15 +43,28 @@ export default function SystemConfig() {
     const [saving, setSaving] = useState({});
     const [permFieldErrors, setPermFieldErrors] = useState(null);
 
+    const { showToast } = useToast();
+
     const workflows = useAdminWorkflows();
     const prompts = useAdminPrompts();
     const permissions = useAdminPermissions();
+
+    const [templates, setTemplates] = useState([]);
+    const [uploading, setUploading] = useState({});
+
+    const fetchTemplates = useCallback(async () => {
+        try {
+            const data = await admin.templates.fetch();
+            setTemplates(data);
+        } catch {}
+    }, []);
 
     useEffect(() => {
         Promise.all([
             workflows.list(),
             prompts.list(),
-            permissions.list()
+            permissions.list(),
+            fetchTemplates()
         ]).catch(err => {
             setError(err.message);
         }).finally(() => {
@@ -136,6 +154,43 @@ export default function SystemConfig() {
         return Array.isArray(msg) ? msg[0] : msg;
     };
 
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '—';
+        return new Date(dateStr).toLocaleDateString('ar-EG', {
+            year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
+
+    const handleTemplateUpload = async (name, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+
+        if (!file.name.toLowerCase().endsWith('.dotx')) {
+            showToast('يجب أن يكون الملف بصيغة DOTX', 'error');
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('حجم الملف يجب أن لا يتجاوز 10 ميجابايت', 'error');
+            return;
+        }
+
+        setUploading(prev => ({ ...prev, [name]: true }));
+        try {
+            await admin.templates.upload(name, file);
+            showToast(`تم رفع القالب "${name}" بنجاح`, 'success');
+            const data = await admin.templates.fetch();
+            setTemplates(data);
+        } catch (err) {
+            const msg = err instanceof ApiError ? err.message : 'فشل رفع القالب';
+            showToast(msg, 'error');
+        } finally {
+            setUploading(prev => ({ ...prev, [name]: false }));
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -185,6 +240,19 @@ export default function SystemConfig() {
                     <div className="flex items-center gap-2">
                         <Scroll size={16} />
                         التعليمات (Prompts)
+                    </div>
+                </button>
+                <button
+                    onClick={() => setActiveTab('templates')}
+                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                        activeTab === 'templates'
+                            ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
+                            : 'text-text-muted hover:text-text hover:bg-surface-card'
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <FileText size={16} />
+                        القالب
                     </div>
                 </button>
             </div>
@@ -380,6 +448,112 @@ export default function SystemConfig() {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {activeTab === 'templates' && (
+                <div className="space-y-5">
+                    <div className="text-sm text-text-muted ps-1">
+                        قم برفع قوالب DOTX للمحاضرات النظرية والعملية — كل نوع يتضمن قالب Pandoc للتنسيق والقالب النهائي للدمج
+                    </div>
+
+                    {[
+                        {
+                            type: 'Theo', displayName: 'نظري', label: 'القالب النظري',
+                            iconColor: 'bg-primary/15 text-primary',
+                            purposes: [
+                                { typeKey: 'Theo', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
+                                { typeKey: 'Theo-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                            ],
+                        },
+                        {
+                            type: 'Prac', displayName: 'عملي', label: 'القالب العملي',
+                            iconColor: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
+                            purposes: [
+                                { typeKey: 'Prac', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
+                                { typeKey: 'Prac-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                            ],
+                        },
+                    ].map((lecture) => {
+                        const pandocTemplate = (templates || []).find(t => t.type === lecture.purposes[0].typeKey);
+                        const mergeTemplate = (templates || []).find(t => t.type === lecture.purposes[1].typeKey);
+
+                        return (
+                            <div
+                                key={lecture.type}
+                                className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${lecture.iconColor}`}>
+                                            <FileText size={22} strokeWidth={1.8} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-text">{lecture.label}</h3>
+                                            <p className="text-xs text-text-muted mt-0.5">{lecture.displayName === 'نظري' ? 'القوالب الخاصة بالمحاضرات النظرية' : 'القوالب الخاصة بالمحاضرات العملية'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-border space-y-5">
+                                    {lecture.purposes.map((purpose) => {
+                                        const template = purpose.purpose === 'Pandoc' ? pandocTemplate : mergeTemplate;
+                                        const isUploading = uploading[purpose.typeKey];
+
+                                        return (
+                                            <div key={purpose.typeKey}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-text">{purpose.label}</h4>
+                                                        <p className="text-xs text-text-muted mt-0.5">{purpose.hint}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-surface rounded-xl p-3">
+                                                    {template?.fileName ? (
+                                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                                                            <div className="flex items-center gap-2 text-sm text-text">
+                                                                <FileText size={16} className="text-text-muted shrink-0" />
+                                                                <span dir="ltr">{template.fileName}</span>
+                                                            </div>
+                                                            <span className="text-xs text-text-muted flex items-center gap-1.5">
+                                                                <Calendar size={14} />
+                                                                {formatDate(template.lastModified)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-text-muted mb-3">لم يتم رفع قالب بعد</p>
+                                                    )}
+
+                                                    <div className="flex justify-end">
+                                                        <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-all ${
+                                                            isUploading
+                                                                ? 'bg-surface-card text-text-muted cursor-not-allowed'
+                                                                : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20'
+                                                        }`}>
+                                                            {isUploading ? (
+                                                                <Loader2 size={16} className="animate-spin" />
+                                                            ) : (
+                                                                <Upload size={16} />
+                                                            )}
+                                                            {isUploading ? 'جاري الرفع...' : 'رفع القالب'}
+                                                            <input
+                                                                type="file"
+                                                                accept=".dotx"
+                                                                className="hidden"
+                                                                disabled={isUploading}
+                                                                onChange={(e) => handleTemplateUpload(purpose.typeKey, e)}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         );
                     })}

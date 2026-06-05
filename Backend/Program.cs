@@ -31,6 +31,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.ServeUploadedFiles();
+    app.UseSerilogRequestLogging();
     app.MapControllers();
     app.MapGroup("/api/pandoc").MapPandocEndpoints().RequireAuthorization("WorkflowPolicy");
     app.MapGroup("/api/merge").MapMergeEndpoints().RequireAuthorization("WorkflowPolicy");

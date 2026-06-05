@@ -54,6 +54,8 @@ public class OrphanFileCleanupService : BackgroundService
             .Select(f => Path.GetFullPath(f))
             .ToList();
 
+        _logger.LogInformation("Scanned {Count} physical files in upload directory", physicalFiles.Count);
+
         // 2. Get all file paths currently documented in the DB
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<BlueBitsDbContext>();

@@ -32,6 +32,16 @@ export const admin = {
     fetch: () => httpGet(`${ADMIN_BASE}/workflows`),
     toggleActive: (id, isActive) => httpPut(`${ADMIN_BASE}/workflows/${id}/toggle`, { isActive }),
   },
+
+  templates: {
+    fetch: () => httpGet(`${ADMIN_BASE}/templates`),
+    upload: (type, file) => {
+      const formData = new FormData();
+      formData.append('type', type);
+      formData.append('file', file);
+      return httpPut(`${ADMIN_BASE}/templates`, formData);
+    },
+  },
 };
 
 export default admin;

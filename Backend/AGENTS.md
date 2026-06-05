@@ -47,7 +47,7 @@ Bootstraps the API: delegates all service registration to `ServiceCollectionExte
 ### 5. Functions Summary
 Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
-- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
+- Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 12 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → RateLimiter → CORS → ResponseCompression → Auth → StaticFiles → Controllers → Minimal endpoints
 - DB initialization: extracted to `ApplicationBuilderExtensions.EnsureDatabaseCreated` (`db.Database.EnsureCreated()`)
 - Static files: extracted to `ApplicationBuilderExtensions.ServeUploadedFiles` (serves `./uploads/` at `/uploads`)
@@ -428,11 +428,10 @@ No database calls. Relies on `IMergeService` for all DOCX processing logic.
 Backend (C# API Endpoint)
 
 ### 3. What the file does
-Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file. Delegates all logic — Pandoc CLI invocation, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) — to `IPandocService`.
+Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file. Delegates all logic — Pandoc CLI invocation and template merge (`MergeWithTemplate`) — to `IPandocService`.
 
 ### 4. User Stories
 - As a user, I can submit markdown text and receive a fully formatted Word document based on a professional template.
-- As a user, I can embed LaTeX-style equations in `{{{...}}}` delimiters and have them rendered as editable Office Math objects in the output.
 
 ### 5. Functions Summary
 - `MapPandocEndpoints`: Registers the `POST /generate` route; reads the `GenerateDocxRequest` and delegates to `IPandocService.GenerateDocxAsync`.
@@ -446,7 +445,6 @@ Relies on `IPandocService` for all Pandoc CLI and OpenXML processing.
 ### 8. Additional Info
 - Requires **pandoc** installed on the system PATH.
 - Template `.dotx` files must exist in `Resources/PandocTemplates/`.
-- All OpenXML/math processing moved to `PandocService`.
 - `GenerateDocxRequest` DTO imported from `BlueBits.Api.DTOs.Requests`.
 ## 1. File Name and Directory
 `Backend/Models/File.cs`
@@ -728,122 +726,89 @@ Implemented by `PromptService`. Consumed by `PromptsController` and `SessionsCon
 - **Internal:** `BlueBits.Api.Models` (Prompt entity)
 
 ### 8. Additional Info
-Created as part of the service extraction refactor that merged `IPromptCompilationService` and `PromptsController` prompt logic into a single service.
+Created as part of admin service extraction.
 ## 1. File Name and Directory
-`Backend/Services/PromptService.cs`
+`Backend/Services/Interfaces/IAdminTemplateService.cs`
+
+### 2. File Type
+Backend — Service interface + DTO records
+
+### 3. What the file does
+Defines `IAdminTemplateService` contract for admin template management: `GetTemplatesAsync` (returns metadata about the two Pandoc templates نظري/عملي) and `UploadTemplateAsync` (replaces a .dotx file with validation and write serialization). Also defines `TemplateInfo` and `TemplateUploadResult` result DTOs.
+
+### 4. User Stories
+- As an Admin, I can view metadata (type, file name, size, last modified) for the two Pandoc templates.
+- As an Admin, I can upload a replacement .dotx file for a specific template type.
+
+### 5. Functions Summary
+- `GetTemplatesAsync()` → `List<TemplateInfo>`: Reads file metadata from `AppDomain.BaseDirectory/Resources/PandocTemplates/` for `Pandoc-Theo.dotx` and `Pandoc-Prac.dotx`.
+- `UploadTemplateAsync(string templateType, IFormFile file)` → `TemplateUploadResult`: Validates extension (.dotx), size (≤10 MB), and OpenXML validity via `WordprocessingDocument.Open`. Uses `static SemaphoreSlim(1,1)` to serialize writes. Writes to both `AppDomain.BaseDirectory` (PandocService path) and `ContentRootPath/../Resources` (MergeService path). Returns 200/400/409 status.
+
+### 6. Integration
+Consumed by `AdminTemplatesController`. Implemented by `AdminTemplateService`. Uses `Microsoft.AspNetCore.Http.IFormFile` and `DocumentFormat.OpenXml.Packaging.WordprocessingDocument`.
+
+### 7. Imports Summary
+- **External:** `Microsoft.AspNetCore.Http`
+- **Internal:** none (pure interface in `BlueBits.Api.Services.Interfaces`)
+
+### 8. Additional Info
+Follows the same pattern as `IAdminPromptService` and other admin service interfaces. `TemplateInfo` and `TemplateUploadResult` are defined alongside the interface (same pattern as `PandocResult` in `IPandocService.cs`).
+## 1. File Name and Directory
+`Backend/Services/AdminTemplateService.cs`
 
 ### 2. File Type
 Backend — Service implementation
 
 ### 3. What the file does
-Implements `IPromptService`. Retrieves prompts from the database by SystemCode or session, then assembles a final prompt string by appending optional general user instructions and file-specific notes. Used to construct the full context text sent to AI workflows.
+Implements `IAdminTemplateService`. Validates uploaded .dotx files (extension, size, OpenXML format), serializes writes via `static SemaphoreSlim(1,1)`, and writes the file to both `AppDomain.BaseDirectory/Resources/PandocTemplates/` (PandocService path) and `ContentRootPath/../Resources/PandocTemplates/` (MergeService path). Reads template file metadata from disk for the GET endpoint.
 
 ### 4. User Stories
-- As a user, I want my workflow's base prompt automatically fetched so I don't have to paste it manually.
-- As a user, I want to attach general instructions and per-file notes that get appended to the prompt before submission.
+- As an Admin, uploading a corrupted or oversized file returns 400 immediately.
+- As a developer, concurrent uploads are serialized via a static semaphore to prevent file corruption; timeout returns 409.
+- As a developer, the uploaded file is written to both the runtime directory (PandocService) and the source Resources directory (MergeService) so both services see the update.
 
 ### 5. Functions Summary
-- `GetPromptForSessionAsync(int sessionId, string systemCode)`: Looks up a session, then finds the Prompt entity by session's WorkflowId and systemCode. Returns null if session or prompt not found.
-- `CompilePromptAsync(string systemCode, string? generalNotes, List<string> fileNotes)`: Looks up a Prompt entity by workflow SystemCode (or its own SystemCode), appends optional user instructions and file notes, and returns the compiled string.
+- `GetTemplatesAsync`: Iterates `_templateDefs` (Theo→نظري/Pandoc-Theo.dotx, Prac→عملي/Pandoc-Prac.dotx), reads `FileInfo` from disk, returns list of `TemplateInfo`.
+- `UploadTemplateAsync`: Validates type, extension (.dotx), size (≤10 MB), then copies to `byte[]` and validates via `WordprocessingDocument.Open`. Acquires `SemaphoreSlim` (30s timeout). Writes bytes to both target paths. Releases semaphore in `finally`.
 
 ### 6. Integration
-Reads from the `Sessions` and `Prompts` tables via Entity Framework Core (`BlueBitsDbContext`). No external API calls.
+Injected as `IAdminTemplateService` (scoped). Depends on `IWebHostEnvironment` (for ContentRootPath) and `ILogger<AdminTemplateService>`. Uses `DocumentFormat.OpenXml.Packaging.WordprocessingDocument` for OpenXML validation.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.EntityFrameworkCore`, `System.Text`, `System.Linq`
-- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Services.Interfaces` (IPromptService)
+- **External:** `DocumentFormat.OpenXml.Packaging`, `Microsoft.AspNetCore.Http`
+- **Internal:** `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Lookup tries `Workflow.SystemCode` first, then falls back to `Prompt.SystemCode`, so callers can pass either identifier. Replaces the old `PromptCompilationService`.
+Uses `static SemaphoreSlim(1,1)` to serialize all write operations across requests — critical for preventing partial writes when PandocService or MergeService may be reading the same files concurrently. Both template files (Theo and Prac) share the same semaphore so one upload blocks the other.
 ## 1. File Name and Directory
-`Backend/Services/Interfaces/ISessionService.cs`
+`Backend/Controllers/AdminTemplatesController.cs`
 
 ### 2. File Type
-Backend — Service interface + result record DTOs
+Backend — C# .NET Web API Controller
 
 ### 3. What the file does
-Defines the `ISessionService` interface contract for all session operations: listing, viewing, creating, saving content, and uploading files. Also defines three result record DTOs (`SessionListResult`, `SessionDetailResult`, `CreateSessionResult`) used as return types for the interface methods.
+Admin-only controller exposing `GET /api/admin/templates` (list two Pandoc templates with metadata) and `PUT /api/admin/templates` (replace a .dotx template file via multipart/form-data). Delegates all business logic to `IAdminTemplateService`.
 
 ### 4. User Stories
-- As a developer, I can inject `ISessionService` to perform all session operations (RBAC, CRUD, file I/O, prompt compilation) without coupling to `BlueBitsDbContext`, `IWebHostEnvironment`, or `IPromptCompilationService` directly.
+- As an Admin, I can GET the list of Pandoc templates (نظري and عملي) with file metadata.
+- As an Admin, I can PUT a new .dotx file to replace an existing template, specifying the target type ("Theo" or "Prac") as a form field.
 
 ### 5. Functions Summary
-- `GetSessionsAsync(int userId, string role, int page, int limit)` → `SessionListResult`: Returns paginated session summaries filtered by ownership and workflow permissions.
-- `GetSessionAsync(int sessionId, int userId, string role)` → `SessionDetailResult`: Returns full session with all navigation properties and compiled prompt.
-- `CreateSessionAsync(int userId, string role, CreateSessionRequest req)` → `CreateSessionResult`: Validates material/workflow, checks permissions, creates session.
-- `SaveSessionContentAsync(int userId, int? sessionId, SaveSessionContentRequest req)`: Upserts session content body.
-- `UploadFilesAsync(int sessionId, int userId, string role, IFormCollection form)`: Saves uploaded files to disk and creates File/Note records.
+- `GetTemplates()`: GET `/api/admin/templates` — delegates to `IAdminTemplateService.GetTemplatesAsync()`, returns list of `TemplateInfo`.
+- `UploadTemplate([FromForm] string type, IFormFile file)`: PUT `/api/admin/templates` — delegates to `IAdminTemplateService.UploadTemplateAsync()`. Returns 200 on success, 400 on validation errors, 409 on semaphore timeout.
 
 ### 6. Integration
-No direct database calls — this is a pure interface. Consumed by `SessionsController`. Implemented by `SessionService`.
+Depends solely on `IAdminTemplateService` (injected via DI). No direct database or file system access.
 
 ### 7. Imports Summary
-- **External:** `Microsoft.AspNetCore.Http` (`IFormCollection`)
-- **Internal:** `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.DTOs.Responses`, `BlueBits.Api.Models` (`Session`)
+- **ASP.NET Core:** `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Mvc`
+- **Internal:** `BlueBits.Api.Services.Interfaces` (`IAdminTemplateService`, `TemplateInfo`, `TemplateUploadResult`)
 
 ### 8. Additional Info
-Result records follow the same pattern as `PandocResult` / `MergeResult` (defined alongside their interface). `SessionListResult` includes pagination metadata (`TotalCount`, `Page`, `Limit`, `HasMore`). `SessionDetailResult` wraps the `Session` entity and compiled prompt string.
-## 1. File Name and Directory
-`Backend/Services/SessionService.cs`
-
-### 2. File Type
-Backend — Service implementation
-
-### 3. What the file does
-Implements `ISessionService` by orchestrating all 5 session operations extracted from `SessionsController`. Contains RBAC checks (Admin blocks, ownership verification, workflow permission validation), file I/O (saves physical files to `uploads/sessions/{id}/`), prompt compilation via `IPromptCompilationService`, and upsert logic for session content. Throws `ForbiddenException` for authorization failures and `NotFoundException` for missing entities.
-
-### 4. User Stories
-- As a developer, all session business logic is centralized in one service, making the controller a thin HTTP adapter.
-- As a user, RBAC is enforced at the service layer: Admins are blocked, users can only access their own sessions, and roles must have workflow permissions.
-
-### 5. Functions Summary
-- `GetSessionsAsync`: Blocks Admin → throws `ForbiddenException`. Queries sessions by userId filtered through `WorkflowPermissions` join. Returns paginated `SessionListResult` with Material/Workflow names.
-- `GetSessionAsync`: Loads session with all includes (User, Material, Workflow, Prompts, Notes, Files, SessionContents). Throws `NotFoundException` if missing, `ForbiddenException` if not owned or no workflow permission. Compiles prompt via `IPromptCompilationService`.
-- `CreateSessionAsync`: Blocks Admin → throws `ForbiddenException`. Validates material exists (throws `NotFoundException`), workflow is active and role has permission (throws `ForbiddenException`). Creates session with optional GeneralNote.
-- `SaveSessionContentAsync`: Throws `NotFoundException` if session missing or sessionId null. Throws `ForbiddenException` if not owned. Upserts first `SessionContent` record.
-- `UploadFilesAsync`: Blocks Admin → throws `ForbiddenException`. Throws `NotFoundException` if session missing. Throws `ForbiddenException` if not owned. Saves files to disk, creates `File` entities with type detection (Image/Docx/Other), creates optional `FileNote` records per file.
-
-### 6. Integration
-- **Database:** All CRUD via `BlueBitsDbContext` (EF Core, SQLite)
-- **Service:** `IPromptCompilationService.CompilePromptAsync` for dynamic prompt compilation
-- **File System:** `IWebHostEnvironment.ContentRootPath` to resolve `uploads/sessions/{id}/` directory
-
-### 7. Imports Summary
-- **External:** `Microsoft.EntityFrameworkCore`, `Microsoft.AspNetCore.Http`, `IWebHostEnvironment`
-- **Internal:** `BlueBits.Api.Data` (DbContext), `BlueBits.Api.Exceptions` (`NotFoundException`, `ForbiddenException`), `BlueBits.Api.Models` (Session, Note, File as `File = BlueBits.Api.Models.File`), `BlueBits.Api.DTOs.Requests`, `BlueBits.Api.DTOs.Responses`, `BlueBits.Api.Services.Interfaces`
-
-### 8. Additional Info
-- Uses `using File = BlueBits.Api.Models.File` to resolve naming conflict with `System.IO.File`
-- Follows the same pattern as `PromptCompilationService` — injects `BlueBitsDbContext` directly rather than using repositories
-- All error cases throw exceptions (`NotFoundException` → 404, `ForbiddenException` → 403) caught by `ExceptionHandlingMiddleware`
-- Registered as scoped in `ServiceCollectionExtensions.AddPersistence()`
-## 1. File Name and Directory
-`Backend/Extensions/SwaggerExtensions.cs`
-
-### 2. File Type
-Backend — ASP.NET Core extension methods for Swagger/Swashbuckle configuration
-
-### 3. What the file does
-Provides two extension methods: `AddSwaggerWithConfig` (registers SwaggerGen with OpenAPI doc info, XML comments, JWT security definition, and controller-based endpoint grouping) and `UseSwaggerWithUI` (configures Swagger middleware and Swagger UI at `/swagger` route prefix).
-
-### 4. User Stories
-- As a developer, I can call a single extension method to fully configure Swagger with XML docs, JWT auth, and endpoint grouping.
-- As a developer, I can access Swagger UI at `/swagger` in development to explore and test API endpoints.
-
-### 5. Functions Summary
-- `AddSwaggerWithConfig(IServiceCollection)`: Configures SwaggerGen with `OpenApiInfo`, XML doc file path, Bearer JWT security definition + requirement, and endpoint tagging by controller name.
-- `UseSwaggerWithUI(IApplicationBuilder)`: Enables Swagger middleware with route template `swagger/{documentName}/swagger.json` and Swagger UI at `/swagger` pointing to `/swagger/v1/swagger.json`.
-
-### 6. Integration
-Reads the assembly's XML documentation file from the build output directory. Does not call external services or databases.
-
-### 7. Imports Summary
-- `Microsoft.OpenApi.Models` — OpenAPI schema types (`OpenApiInfo`, `OpenApiSecurityScheme`, etc.)
-- `System.Reflection` — `Assembly.GetExecutingAssembly()` to locate the XML doc file
-
-### 8. Additional Info
-- XML doc generation is enabled via `<GenerateDocumentationFile>true</GenerateDocumentationFile>` in `BlueBits.Api.csproj` with `<NoWarn>1591</NoWarn>` to suppress warnings for undocumented public members.
-- Used in `Program.cs` replacing the bare `AddSwaggerGen()` / `UseSwagger()` / `UseSwaggerUI()` calls.
+- Restricted to `[Authorize(Roles = "Admin")]`.
+- Controller is thin — delegates all business logic to `IAdminTemplateService`.
+- PUT endpoint uses `[FromForm]` for the `type` field to work with `multipart/form-data` submissions.
+- The `TemplateUploadResult.StatusCode` property drives the HTTP status code returned to the client.
 ## 1. File Name and Directory
 `Backend/BlueBits.Api.csproj`
 
@@ -968,19 +933,19 @@ Placed after Swagger but before all other middleware to catch every unhandled ex
 Backend — ASP.NET Core extension methods for DI service registration
 
 ### 3. What the file does
-Provides five extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, repositories), `AddApplicationServices` (all 11 business + admin services), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
+Provides five extension methods on `IServiceCollection` that cleanly separate service registration into logical layers: `AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (EF Core DbContext, repositories), `AddApplicationServices` (all 12 business + admin services), `AddAuthLayer` (JWT bearer auth, `WorkflowPolicy` authorization), and `AddApiLayer` (controllers, FluentValidation, Swagger). All called from `Program.cs` for a cleaner entry point.
 
 ### 4. User Stories
 - As a developer, I can call `builder.Services.AddInfrastructure()` to register CORS, compression, rate limiting, and background services in one line.
 - As a developer, I can call `builder.Services.AddPersistence()` to wire up EF Core SQLite and repositories.
-- As a developer, I can call `builder.Services.AddApplicationServices()` to register all 11 business and admin service implementations.
+- As a developer, I can call `builder.Services.AddApplicationServices()` to register all 12 business and admin service implementations.
 - As a developer, I can call `builder.Services.AddAuthLayer()` to configure JWT authentication and role policies.
 - As a developer, I can call `builder.Services.AddApiLayer()` to register controllers, FluentValidation, and Swagger.
 
 ### 5. Functions Summary
 - `AddInfrastructure(IServiceCollection, IConfiguration)`: Registers CORS (`AllowFrontend` policy), response compression (Brotli + Gzip), rate limiting via `AddRateLimiting(configuration)`, and `OrphanFileCleanupService` as a hosted service.
 - `AddPersistence(IServiceCollection, IConfiguration, IWebHostEnvironment)`: Registers `BlueBitsDbContext` with SQLite connection string derived from `ContentRootPath`, `IRepository<>` / `GenericRepository<>` as scoped open generics, and all 9 specific repositories (`IUserRepository`, `IMaterialRepository`, `IWorkflowRepository`, `IWorkflowPermissionRepository`, `IPromptRepository`, `ISessionRepository`, `ISessionContentRepository`, `IFileRepository`, `INoteRepository`) as scoped.
-- `AddApplicationServices(IServiceCollection)`: Registers 11 scoped application services — 6 business services (`IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService`, `IMaterialService`) and 5 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`).
+- `AddApplicationServices(IServiceCollection)`: Registers 12 scoped application services — 6 business services (`IAuthService`, `IPromptService`, `ISessionService`, `IPandocService`, `IMergeService`, `IMaterialService`) and 6 admin services (`IAdminUserService`, `IAdminMaterialService`, `IAdminPermissionService`, `IAdminPromptService`, `IAdminWorkflowService`, `IAdminTemplateService`).
 - `AddAuthLayer(IServiceCollection, IConfiguration)`: Reads JWT settings (`Key`, `Issuer`, `Audience`) from config, configures `AddAuthentication` + `AddJwtBearer` with symmetric key validation, and `AddAuthorization` with `WorkflowPolicy` that blocks Admin but allows all other roles.
 - `AddApiLayer(IServiceCollection)`: Registers controllers with JSON cycle-ignore serialization, configures `HttpJsonOptions` for minimal API serialization, adds FluentValidation auto-validation from the `Program` assembly, and Swagger via `AddSwaggerWithConfig()`.
 
@@ -992,7 +957,7 @@ Delegates to built-in ASP.NET Core middleware (CORS, compression, auth) and exis
 - **Internal:** `BlueBits.Api.Data`, `BlueBits.Api.Repositories`, `BlueBits.Api.Services`, `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Business and admin services were extracted from `AddPersistence` into a dedicated `AddApplicationServices` method (11 total). `AddPersistence` now handles only EF Core DbContext and repositories.
+Centralizes all DI registration logic that was previously inline in `Program.cs`, making the entry point more readable and maintainable. Each layer can be extended or toggled independently. Business and admin services were extracted from `AddPersistence` into a dedicated `AddApplicationServices` method (12 total). `AddPersistence` now handles only EF Core DbContext and repositories.
 ## 1. File Name and Directory
 `Backend/DTOs/Requests/`
 
@@ -1391,7 +1356,7 @@ Part of the 9-repository family. Notes are managed through the `SessionsControll
 Backend — Service interface
 
 ### 3. What the file does
-Defines the `IPandocService` interface for Pandoc document generation. Contains `GenerateDocxAsync` which runs the pandoc CLI, processes equations (`{{{...}}}` → OfficeMath), and merges the result into a final template. Also defines the `PandocResult` record with `Success`, `FileUrl`, `Error`, and `Details` properties.
+Defines the `IPandocService` interface for Pandoc document generation. Contains `GenerateDocxAsync` which runs the pandoc CLI and merges the result into a final template. Also defines the `PandocResult` record with `Success`, `FileUrl`, `Error`, and `Details` properties.
 
 ### 4. User Stories
 - As a developer, I can inject `IPandocService` to generate formatted DOCX documents from markdown without coupling to OpenXML or CLI details.
@@ -1537,23 +1502,20 @@ Registered in `ServiceCollectionExtensions.AddPersistence()` alongside other ser
 Backend — Service implementation
 
 ### 3. What the file does
-Implements `IPandocService`. Contains all Pandoc CLI invocation logic, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) extracted from `PandocEndpoints`. The private `CharFormat` helper class tracks per-character formatting during equation parsing.
+Implements `IPandocService`. Contains all Pandoc CLI invocation logic and template merge (`MergeWithTemplate`) extracted from `PandocEndpoints`.
 
 ### 4. User Stories
-- As a developer, I can call `PandocService.GenerateDocxAsync` to convert markdown to a formatted `.docx` with math equations.
+- As a developer, I can call `PandocService.GenerateDocxAsync` to convert markdown to a formatted `.docx`.
 
 ### 5. Functions Summary
-- `GenerateDocxAsync`: Runs pandoc CLI, post-processes equations, merges with final template, returns result.
-- `ProcessEquations`: Scans paragraphs for `{{{...}}}`, flattens runs into character arrays, replaces equation placeholders with `OfficeMath` elements.
-- `CreateWordRuns`: Rebuilds `WRun` elements from `CharFormat` lists, grouping consecutive characters with identical formatting.
-- `CreateMathRuns`: Creates `MRun` elements for math content, preserving character-level formatting.
+- `GenerateDocxAsync`: Runs pandoc CLI, merges with final template, returns result.
 - `MergeWithTemplate`: Copies the final template, imports via `AltChunk`, inserts after first section-break paragraph.
 
 ### 6. Integration
 Calls the **pandoc** external CLI tool. Uses OpenXML SDK for DOCX manipulation. Does not call backend APIs or database.
 
 ### 7. Imports Summary
-- **External:** `System.Diagnostics`, `DocumentFormat.OpenXml.*` (Wordprocessing, Math, Packaging)
+- **External:** `System.Diagnostics`, `DocumentFormat.OpenXml.*` (Wordprocessing, Packaging)
 - **Internal:** `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
 
 ### 8. Additional Info

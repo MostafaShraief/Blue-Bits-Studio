@@ -790,12 +790,13 @@ Frontend/src/pages/admin/SystemConfig.jsx
 Frontend (React admin page component)
 
 ### 3. What the file does
-Admin configuration panel with three management areas: toggle workflow activation, edit AI prompts per workflow, and manage role-based permissions (add/remove roles) per workflow.
+Admin configuration panel with four management areas: toggle workflow activation, edit AI prompts per workflow, manage role-based permissions (add/remove roles) per workflow, and upload DOTX templates for نظري/عملي lecture types.
 
 ### 4. User Stories
 - As an admin, I can activate/deactivate any workflow server
 - As an admin, I can edit the system prompt text for any workflow
 - As an admin, I can assign or remove roles (TechMember / ScientificMember) per workflow
+- As an admin, I can upload DOTX templates for نظري and عملي lecture types with client-side validation (.dotx only, max 10 MB)
 
 ### 5. Functions Summary
 - `useAdminWorkflows()`, `useAdminPrompts()`, `useAdminPermissions()`: Hooks providing items, loading/error states, validation errors, and CRUD methods (list, toggleActive, updateText, create, delete)
@@ -805,17 +806,23 @@ Admin configuration panel with three management areas: toggle workflow activatio
 - `handleDeletePermission(id)`: Confirms then calls `permissions.delete(id)`, refreshes list
 - `closePermissionModal()`: Closes modal with fade-out animation, clears field errors
 - `getFieldError(field)`: Looks up case-insensitive error for a field from `permFieldErrors`
+- `formatDate(dateStr)`: Formats ISO date string to Arabic locale (ar-EG) with date and time
+- `handleTemplateUpload(name, e)`: Validates file (.dotx, ≤ 10 MB), uploads via `admin.templates.upload()`, refreshes list on success, shows toast on success/error
+- `fetchTemplates`: Calls `admin.templates.fetch()` to load template metadata on mount
 
 ### 6. Integration
-Delegates all API calls to hooks (`useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions`), which use `AdminApi` → `HttpClient` for JWT auth, rate-limit handling (429 toast), and error interception.
+Delegates API calls to hooks (`useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions`), which use `AdminApi` → `HttpClient` for JWT auth, rate-limit handling (429 toast), and error interception. Templates tab calls `admin.templates.*` directly from `AdminApi`.
 
 ### 7. Imports Summary
-- `useState`, `useEffect`, `useMemo` (React)
+- `useState`, `useEffect`, `useMemo`, `useCallback` (React)
 - `useAdminWorkflows`, `useAdminPrompts`, `useAdminPermissions` (`../../hooks/`)
-- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog
+- `admin` from `../../api/AdminApi`
+- `useToast` from `../../contexts/ToastContext`
+- `ApiError` from `../../api/HttpClient`
+- `lucide-react` icons: Settings2, Power, PowerOff, Loader2, AlertCircle, X, Plus, Trash2, FileText, ChevronDown, ChevronUp, Save, Shield, Sparkles, FlaskConical, Crown, Scroll, Server, UserCog, Upload, Calendar
 
 ### 8. Additional Info
-Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern. Inline validation errors shown under the role select in permission modal and under the prompt textarea (via hook `validationErrors`). 429 rate-limit toasts handled automatically by HttpClient.
+Arabic-first UI (`dir="rtl"`). Includes modal with fade/scale animations for adding permissions. Prompts tab uses an accordion expand/collapse pattern. Inline validation errors shown under the role select in permission modal and under the prompt textarea (via hook `validationErrors`). 429 rate-limit toasts handled automatically by HttpClient. Templates tab displays two cards (نظري/عملي) with current file info and upload button; per-card loading state during upload; client-side validation rejects non-.dotx files and files over 10 MB.
 
 ### 9. API
 No direct API calls. Data flows through hooks:
@@ -826,6 +833,8 @@ No direct API calls. Data flows through hooks:
 - `useAdminPermissions.list()` → GET `/api/admin/permissions`
 - `useAdminPermissions.create(data)` → POST `/api/admin/permissions`
 - `useAdminPermissions.delete(id)` → DELETE `/api/admin/permissions/{id}`
+- `admin.templates.fetch()` → GET `/api/admin/templates`
+- `admin.templates.upload(name, file)` → PUT `/api/admin/templates/{name}` with FormData
 
 ## 1. File Name and Directory
 `Frontend/src/pages/admin/UsersManager.jsx`
@@ -1869,7 +1878,7 @@ FormData is built without explicit `Content-Type` headers — the browser sets t
 Frontend — Admin API service module
 
 ### 3. What the file does
-Provides a namespaced interface (`admin.*`) for all admin-related REST API calls using `HttpClient`. Groups endpoints by domain: `users`, `materials`, `permissions`, `prompts`, and `workflows`.
+Provides a namespaced interface (`admin.*`) for all admin-related REST API calls using `HttpClient`. Groups endpoints by domain: `users`, `materials`, `permissions`, `prompts`, `workflows`, and `templates`.
 
 ### 4. User Stories
 - As an admin, I can CRUD users via `admin.users.*`.
@@ -1877,6 +1886,7 @@ Provides a namespaced interface (`admin.*`) for all admin-related REST API calls
 - As an admin, I can list, create, and delete permissions via `admin.permissions.*`.
 - As an admin, I can list and update prompt text via `admin.prompts.*`.
 - As an admin, I can list and toggle workflow active state via `admin.workflows.*`.
+- As an admin, I can fetch template metadata and upload DOTX files via `admin.templates.*`.
 
 ### 5. Functions Summary
 - `admin.users.fetch()`: GET `/api/admin/users`
@@ -1894,6 +1904,8 @@ Provides a namespaced interface (`admin.*`) for all admin-related REST API calls
 - `admin.prompts.updateText(id, promptText)`: PUT `/api/admin/prompts/{id}`
 - `admin.workflows.fetch()`: GET `/api/admin/workflows`
 - `admin.workflows.toggleActive(id, isActive)`: PUT `/api/admin/workflows/{id}/toggle`
+- `admin.templates.fetch()`: GET `/api/admin/templates`
+- `admin.templates.upload(name, file)`: PUT `/api/admin/templates/{name}` with FormData
 
 ### 6. Integration
 Calls the backend REST API at `/api/admin/*` endpoints through the `HttpClient` module which handles JWT auth, error/rate-limit handling, and response parsing.
@@ -1922,6 +1934,8 @@ All functions delegate error handling to `HttpClient` — they return parsed JSO
 | prompts.updateText | `/api/admin/prompts/{id}` | PUT | `{ promptText }` |
 | workflows.fetch | `/api/admin/workflows` | GET | — |
 | workflows.toggleActive | `/api/admin/workflows/{id}/toggle` | PUT | `{ isActive }` |
+| templates.fetch | `/api/admin/templates` | GET | — |
+| templates.upload | `/api/admin/templates/{name}` | PUT | `FormData` (file) |
 
 ## 1. File Name and Directory
 `Frontend/src/hooks/useSessions.js`

@@ -36,10 +36,15 @@ public class PandocService : IPandocService
         Directory.CreateDirectory(uploadDir);
 
         var safeMaterialName = string.IsNullOrWhiteSpace(materialName) ? "Unknown" : string.Join("_", materialName.Split(Path.GetInvalidFileNameChars()));
-        var safeType = string.IsNullOrWhiteSpace(type) ? "Unknown" : string.Join("_", type.Split(Path.GetInvalidFileNameChars()));
+        var typeLabel = type?.ToLower() switch
+        {
+            "theoretical" or "theo" => "النظري",
+            "practical" or "prac" => "العملي",
+            _ => string.IsNullOrWhiteSpace(type) ? "Unknown" : string.Join("_", type.Split(Path.GetInvalidFileNameChars()))
+        };
         var safeLectureNumber = string.IsNullOrWhiteSpace(lectureNumber) ? "Unknown" : string.Join("_", lectureNumber.Split(Path.GetInvalidFileNameChars()));
 
-        var fileName = $"{safeMaterialName} ({safeType}) - {safeLectureNumber}.docx";
+        var fileName = $"{safeMaterialName} ({typeLabel}) - {safeLectureNumber}.docx";
         var tempOutputDocx = Path.Combine(uploadDir, $"temp_{Guid.NewGuid()}.docx");
         var finalOutputDocx = Path.Combine(uploadDir, fileName);
 

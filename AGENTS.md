@@ -97,9 +97,9 @@ ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker compose pull && docker com
 # === Clean up unused Docker resources ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker system prune -f"
 
-# === Full reset (remove containers, rebuild from scratch, keep volumes) ===
+# === Full reset (remove containers, volumes, rebuild from scratch) ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && \
-  docker compose down && \
+  docker compose down -v && \
   git pull origin main && \
   docker compose up -d --build"
 ```
@@ -118,24 +118,6 @@ Workflow: `.github/workflows/deploy.yml` — triggers on push to `main`.
 | `DROPLET_HOST`    | `139.59.157.34`              |
 | `DROPLET_USER`    | `root`                       |
 | `DROPLET_SSH_KEY` | content of `~/.ssh/id_ed25519` (the **full** private key, including `-----BEGIN ...-----` headers) |
-
-### Database Migrations
-
-The app uses EF Core Migrations (instead of `EnsureCreated`). On startup, `MigrateAsync()` applies any pending migrations automatically.
-
-**One-time transition** (existing DB created by old `EnsureCreated`): Seed the initial migration history so `MigrateAsync()` doesn't try to recreate existing tables:
-
-```bash
-ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && sqlite3 Backend/data/bluebits.db \\\"INSERT INTO '__EFMigrationsHistory' VALUES ('20260605215747_InitialCreate', '10.0.8');\\\""
-```
-
-After that, every deploy runs `MigrateAsync()` automatically — just `git pull` and `docker compose up -d --build`.
-
-To add a new migration locally:
-```bash
-export PATH=\"\$PATH:\$HOME/.dotnet/tools\"
-dotnet ef migrations add MigrationName
-```
 
 ### Monitoring with Seq
 

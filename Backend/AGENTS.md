@@ -428,11 +428,10 @@ No database calls. Relies on `IMergeService` for all DOCX processing logic.
 Backend (C# API Endpoint)
 
 ### 3. What the file does
-Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file. Delegates all logic — Pandoc CLI invocation, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) — to `IPandocService`.
+Exposes a POST `/generate` endpoint that converts Markdown text to a formatted `.docx` file. Delegates all logic — Pandoc CLI invocation and template merge (`MergeWithTemplate`) — to `IPandocService`.
 
 ### 4. User Stories
 - As a user, I can submit markdown text and receive a fully formatted Word document based on a professional template.
-- As a user, I can embed LaTeX-style equations in `{{{...}}}` delimiters and have them rendered as editable Office Math objects in the output.
 
 ### 5. Functions Summary
 - `MapPandocEndpoints`: Registers the `POST /generate` route; reads the `GenerateDocxRequest` and delegates to `IPandocService.GenerateDocxAsync`.
@@ -446,7 +445,6 @@ Relies on `IPandocService` for all Pandoc CLI and OpenXML processing.
 ### 8. Additional Info
 - Requires **pandoc** installed on the system PATH.
 - Template `.dotx` files must exist in `Resources/PandocTemplates/`.
-- All OpenXML/math processing moved to `PandocService`.
 - `GenerateDocxRequest` DTO imported from `BlueBits.Api.DTOs.Requests`.
 ## 1. File Name and Directory
 `Backend/Models/File.cs`
@@ -1391,7 +1389,7 @@ Part of the 9-repository family. Notes are managed through the `SessionsControll
 Backend — Service interface
 
 ### 3. What the file does
-Defines the `IPandocService` interface for Pandoc document generation. Contains `GenerateDocxAsync` which runs the pandoc CLI, processes equations (`{{{...}}}` → OfficeMath), and merges the result into a final template. Also defines the `PandocResult` record with `Success`, `FileUrl`, `Error`, and `Details` properties.
+Defines the `IPandocService` interface for Pandoc document generation. Contains `GenerateDocxAsync` which runs the pandoc CLI and merges the result into a final template. Also defines the `PandocResult` record with `Success`, `FileUrl`, `Error`, and `Details` properties.
 
 ### 4. User Stories
 - As a developer, I can inject `IPandocService` to generate formatted DOCX documents from markdown without coupling to OpenXML or CLI details.
@@ -1537,23 +1535,20 @@ Registered in `ServiceCollectionExtensions.AddPersistence()` alongside other ser
 Backend — Service implementation
 
 ### 3. What the file does
-Implements `IPandocService`. Contains all Pandoc CLI invocation logic, equation processing (`ProcessEquations`, `CreateWordRuns`, `CreateMathRuns`), and template merge (`MergeWithTemplate`) extracted from `PandocEndpoints`. The private `CharFormat` helper class tracks per-character formatting during equation parsing.
+Implements `IPandocService`. Contains all Pandoc CLI invocation logic and template merge (`MergeWithTemplate`) extracted from `PandocEndpoints`.
 
 ### 4. User Stories
-- As a developer, I can call `PandocService.GenerateDocxAsync` to convert markdown to a formatted `.docx` with math equations.
+- As a developer, I can call `PandocService.GenerateDocxAsync` to convert markdown to a formatted `.docx`.
 
 ### 5. Functions Summary
-- `GenerateDocxAsync`: Runs pandoc CLI, post-processes equations, merges with final template, returns result.
-- `ProcessEquations`: Scans paragraphs for `{{{...}}}`, flattens runs into character arrays, replaces equation placeholders with `OfficeMath` elements.
-- `CreateWordRuns`: Rebuilds `WRun` elements from `CharFormat` lists, grouping consecutive characters with identical formatting.
-- `CreateMathRuns`: Creates `MRun` elements for math content, preserving character-level formatting.
+- `GenerateDocxAsync`: Runs pandoc CLI, merges with final template, returns result.
 - `MergeWithTemplate`: Copies the final template, imports via `AltChunk`, inserts after first section-break paragraph.
 
 ### 6. Integration
 Calls the **pandoc** external CLI tool. Uses OpenXML SDK for DOCX manipulation. Does not call backend APIs or database.
 
 ### 7. Imports Summary
-- **External:** `System.Diagnostics`, `DocumentFormat.OpenXml.*` (Wordprocessing, Math, Packaging)
+- **External:** `System.Diagnostics`, `DocumentFormat.OpenXml.*` (Wordprocessing, Packaging)
 - **Internal:** `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
 
 ### 8. Additional Info

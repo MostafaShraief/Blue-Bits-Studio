@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Backend/Dockerfile
     image: ghcr.io/mostafashraief/bluebits-backend:latest
+    security_opt:
+      - seccomp=unconfined
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
       - ASPNETCORE_URLS=http://+:8080
@@ -35,6 +37,8 @@ services:
     image: datalust/seq:latest
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=bluebits123
+      - SEQ_BASEURI=http://139.59.157.34/seq/
     volumes:
       - seq-data:/data
     deploy:

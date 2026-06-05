@@ -11,7 +11,7 @@ ENV ASPNETCORE_URLS=http://+:8080
 ENV DOTNET_gcServer=0
 ENV DOTNET_GCConserveMemory=1
 ENV ASPNETCORE_ENVIRONMENT=Docker
-RUN mkdir -p /app/Resources/PandocTemplates /app/uploads /app/App_Data
+RUN mkdir -p /app/Resources/PandocTemplates /app/uploads /app/App_Data /app/data
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080

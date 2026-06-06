@@ -67,9 +67,10 @@ public class AuthController : ControllerBase
 
         var (user, token, workflows) = result.Value;
 
+        HttpContext.Response.Headers["X-Auth-Token"] = token;
+
         return Ok(new LoginResponse
         {
-            Token = token,
             UserId = user.UserId,
             Username = user.Username,
             FirstName = user.FirstName,

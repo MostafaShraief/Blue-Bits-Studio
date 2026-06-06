@@ -200,6 +200,11 @@ export default function ExtractionWizard() {
                     finalPrompt = res?.compiledPrompt || '';
                 }
 
+                const hasAnyNotes = generalNotes.trim() || processedImages.some(img => img.note.trim());
+                if (!hasAnyNotes) {
+                    finalPrompt = finalPrompt ? finalPrompt + '\n\nلا يوجد ملاحظات.' : 'لا يوجد ملاحظات.';
+                }
+
                 setPrompt(finalPrompt);
                 next();
             } catch (err) {

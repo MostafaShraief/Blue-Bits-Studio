@@ -43,7 +43,6 @@ public class PromptService : IPromptService
         if (!string.IsNullOrWhiteSpace(generalNotes))
         {
             sb.AppendLine();
-            sb.AppendLine("--- General User Instructions ---");
             sb.AppendLine(generalNotes);
         }
 

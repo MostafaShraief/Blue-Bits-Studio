@@ -934,7 +934,6 @@ A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة وال
 - As a coordinator, I want a toast notification when I hit a rate limit (429) instead of a confusing error.
 
 ### 5. Functions Summary
-- `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
 - `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 creates a session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
 - `goBack`: Calls `prev()` to go back one step.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
@@ -953,6 +952,7 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - Arabic-first UI with RTL support.
 - RBAC enforced: redirects to `/unauthorized` if user lacks both `LEC_COORD` and `BANK_COORD` workflows.
 - Admins bypass workflow permission checks and see both toggle options.
+- Coordination type (محاضرة / بنك أسئلة) starts unselected — user must explicitly pick one. URL param `?type=lecture` or `?type=bank` still pre-selects.
 - **3 steps:** Step 0 = session metadata, Step 1 = Markdown input, Step 2 = prompt preview + copy + save.
 - Wizard methods destructured from `useWizard`: `{ currentStep, next, prev, goTo, sessionId, setSessionId, createSession }`.
 - Session restore via `?id=` and `?type=bank|lecture` jumps to step 2 (`goTo(2)`) with saved prompt and markdown.

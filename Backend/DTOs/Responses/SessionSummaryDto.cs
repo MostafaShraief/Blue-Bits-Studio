@@ -7,4 +7,5 @@ public class SessionSummaryDto
     public string WorkflowType { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
     public int LectureNumber { get; set; }
+    public string LectureType { get; set; } = string.Empty;
 }

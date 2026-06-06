@@ -66,6 +66,7 @@ export interface SessionSummaryDto {
     workflowType: string;
     createdAt: string;
     lectureNumber: number;
+    lectureType: string;
 }
 
 export interface SessionDetail {

@@ -1034,10 +1034,10 @@ Extracted from the inline DTO originally defined in `AuthController.cs`. `Author
 Backend — Response DTO
 
 ### 3. What the file does
-Defines the `SessionSummaryDto` used for paginated session list responses. Lightweight projection that avoids fetching heavy fields like `QuizData` or `CompiledPrompt`.
+Defines the `SessionSummaryDto` used for paginated session list responses. Lightweight projection that avoids fetching heavy fields like `QuizData` or `CompiledPrompt`. Includes `LectureType` field to distinguish theoretical/practical sessions at a glance.
 
 ### 4. User Stories
-- As a user, I can view a paginated list of my sessions with key metadata (material name, workflow type, creation date, lecture number).
+- As a user, I can view a paginated list of my sessions with key metadata (material name, workflow type, creation date, lecture number, lecture type).
 
 ### 5. Functions Summary
 None — pure data class with auto-properties.

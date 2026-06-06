@@ -172,14 +172,15 @@ Frontend/src/components/common/MaterialAutocomplete.jsx
 Frontend — Reusable React component
 
 ### 3. What the file does
-A controlled autocomplete input for selecting a material from a server-fetched list. As the user types, it filters suggestions, shows success/error inline icons, and validates the selection against the known list. Exposes validity changes to the parent via `onValidChange` callback.
+A controlled autocomplete input for selecting a material from a server-fetched list. As the user types, it filters suggestions, shows success/error inline icons, and validates the selection against the known list. Exposes validity changes to the parent via `onValidChange` callback. Validation state (error messages, icons, border colors) only displays after user interaction (`isTouched`) or when a valid value is matched, never proactively on mount.
 
 ### 4. User Stories
 - As a user filling a form, I type a material name and see matching suggestions filtered in real time.
 - As a form designer, I use `onValidChange` to know whether the selected material is valid without extra logic.
+- As a user, I never see validation errors on the material field before I have interacted with it (fixed proactive validation timing).
 
 ### 5. Functions Summary
-- `MaterialAutocomplete({ value, onChange, label, required, onValidChange })`: Main component — renders label, input with validation icons, dropdown list, and error messages. Manages open/close state, click-outside dismissal, and material fetching on mount.
+- `MaterialAutocomplete({ value, onChange, label, required, onValidChange })`: Main component — renders label, input with validation icons, dropdown list, and error messages. Manages open/close state, click-outside dismissal, and material fetching on mount. Validation errors are gated on `isTouched` (interaction state). `onValidChange` is only reported after interaction or when the value is valid, preventing premature parent-state updates.
 
 ### 6. Integration
 Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/materials` (with client-side caching). No database or external service calls.
@@ -189,7 +190,7 @@ Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/
 - **Internal:** `getDistinctNames` from `../../api/MaterialsApi`
 
 ### 8. Additional Info
-Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component.
+Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component. Validation timing: errors (red border, X icon, error text) only show after blur or typing (`isTouched`), not on focus alone. The `onValidChange` callback is not called on mount to avoid prematurely disabling the parent's proceed button.
 
 ### 9. API
 **Request:** `GET /api/materials` — no body, no params.

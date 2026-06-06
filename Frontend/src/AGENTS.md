@@ -1665,10 +1665,10 @@ No backend calls. Communicates with non-React code via `window` custom events (`
 Frontend (React component)
 
 ### 3. What the file does
-Renders all active toasts as a fixed overlay at the top of the viewport, using `createPortal` to `document.body`. Each toast shows a `lucide-react` icon (CheckCircle/error, XCircle/error, AlertTriangle/warning, Info/info), the message text, and a close button. Animated entrance via `animate-fade-slide-in`.
+Renders all active toasts as a fixed overlay at the top-center of the viewport, using `createPortal` to `document.body`. Each toast shows a `lucide-react` icon (CheckCircle/error, XCircle/error, AlertTriangle/warning, Info/info), the message text, and a close button. Animated entrance via `animate-fade-slide-in`.
 
 ### 4. User Stories
-- As a user, I see stacked toast notifications at the top of the screen with color-coded icons for success, error, warning, and info.
+- As a user, I see stacked toast notifications centered at the top of the screen with color-coded icons for success, error, warning, and info.
 - As a user, I can manually dismiss a toast by clicking its close button.
 
 ### 5. Functions Summary
@@ -1682,10 +1682,10 @@ No backend/database calls. Renders via portal at `document.body` to ensure z-ind
 - **Internal:** `useToast` from `../contexts/ToastContext`
 
 ### 8. Additional Info
-- Arabic-first: button `aria-label` is "إغلاق", RTL-compatible logical positioning (`start-1/2 -translate-x-1/2`).
+- Arabic-first: button `aria-label` is "إغلاق", centered via flexbox (`items-center` + `inset-x-0`).
 - Supports dark mode via Tailwind `dark:` variants (warning uses amber palette).
 - Toasts stack vertically with a 0.5rem gap.
-- Max width is `max-w-sm` (384px), full width with 2rem padding on mobile.
+- Each toast card has `max-w-sm` (384px) with `w-[calc(100%-2rem)]` on mobile.
 
 ## 1. File Name and Directory
 `Frontend/src/api/MaterialsApi.js`

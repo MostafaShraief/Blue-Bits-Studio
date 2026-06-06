@@ -24,7 +24,7 @@ try
 
     app.UseSwaggerWithUI();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
-    app.EnsureDatabaseCreated();
+    await app.EnsureDatabaseCreatedAsync();
     app.UseRateLimiter();
     app.UseCors("AllowFrontend");
     app.UseResponseCompression();

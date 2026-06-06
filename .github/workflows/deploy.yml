@@ -23,6 +23,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Backup existing database on Droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            mkdir -p /opt/bluebits/data
+            if [ -f /opt/bluebits/data/bluebits.db ]; then
+              cp /opt/bluebits/data/bluebits.db /opt/bluebits/data/bluebits.db.bak
+              echo "Database backed up successfully."
+            else
+              echo "No database found to backup. Skipping."
+            fi
+            
       - name: Checkout code
         uses: actions/checkout@v4
 

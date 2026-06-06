@@ -147,6 +147,46 @@ public class SessionService : ISessionService
             throw new ForbiddenException("Role does not have permission for this workflow.");
         }
 
+        // --- Enforce per-user session limit ---
+        var existingCount = await _db.Sessions
+            .CountAsync(s => s.UserId == userId && s.WorkflowId == workflow.WorkflowId);
+
+        if (existingCount >= workflow.MaxSessionsPerUser)
+        {
+            var toPrune = await _db.Sessions
+                .Where(s => s.UserId == userId && s.WorkflowId == workflow.WorkflowId)
+                .OrderBy(s => s.CreatedAt)
+                .Take(existingCount - workflow.MaxSessionsPerUser + 1)
+                .ToListAsync();
+
+            var pruneIds = toPrune.Select(s => s.SessionId).ToList();
+
+            // Delete physical files from disk
+            foreach (var sid in pruneIds)
+            {
+                var dir = Path.Combine(_env.ContentRootPath, "uploads", "sessions", sid.ToString());
+                if (Directory.Exists(dir))
+                {
+                    Directory.Delete(dir, recursive: true);
+                    _logger.LogInformation("Deleted physical files for session {SessionId} (limit pruning)", sid);
+                }
+            }
+
+            // Delete associated DB records (Session rows stay for counting)
+            var files = await _db.Files.Where(f => pruneIds.Contains(f.SessionId)).ToListAsync();
+            _db.Files.RemoveRange(files);
+
+            var notes = await _db.Notes.Where(n => pruneIds.Contains(n.SessionId)).ToListAsync();
+            _db.Notes.RemoveRange(notes);
+
+            var contents = await _db.SessionContents.Where(sc => pruneIds.Contains(sc.SessionId)).ToListAsync();
+            _db.SessionContents.RemoveRange(contents);
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Pruned data for {Count} old session(s) of workflow {SystemCode} for user {UserId}", pruneIds.Count, req.WorkflowSystemCode, userId);
+        }
+
         var session = new Session
         {
             UserId = userId,

@@ -51,7 +51,8 @@ public class SessionService : ISessionService
                 MaterialName = s.Material != null ? s.Material.MaterialName : "Unknown",
                 WorkflowType = s.Workflow.SystemCode,
                 CreatedAt = s.CreatedAt,
-                LectureNumber = s.LectureNumber
+                LectureNumber = s.LectureNumber,
+                LectureType = s.LectureType
             })
             .ToListAsync();
 

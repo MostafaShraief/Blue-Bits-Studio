@@ -151,14 +151,6 @@ function SessionDetailModal({ session, onClose, getSession }) {
                                 </div>
                             </div>
 
-                            {detail.compiledPrompt && (
-                                <div className="pt-3 border-t border-border">
-                                    <p className="text-xs text-text-muted mb-2">النص المُجمّع</p>
-                                    <p className="text-xs text-text bg-surface rounded-xl p-3 whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
-                                        {detail.compiledPrompt}
-                                    </p>
-                                </div>
-                            )}
                         </>
                     ) : (
                         <div className="text-center py-8 text-text-muted">
@@ -262,7 +254,7 @@ export default function History() {
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-text truncate">
                                             {s.materialName || 'بدون اسم'}
-                                            {s.lectureNumber && <> — محاضرة {s.lectureNumber}</>}
+                                            {s.lectureNumber && <> — {s.lectureType === 'Practical' ? 'عملي' : 'نظري'} {s.lectureNumber}</>}
                                             <> ({meta.label})</>
                                         </p>
                                         <p className="text-xs text-text-muted mt-0.5">

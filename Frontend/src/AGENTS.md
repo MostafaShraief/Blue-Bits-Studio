@@ -1094,24 +1094,25 @@ Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BA
 Frontend
 
 ### 3. What the file does
-Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw, merge). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info, loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`.
+Displays a paginated, filterable list of all user workflow sessions (extraction, coordination, quiz, pandoc, draw, merge). Uses `useSessions` hook for data lifecycle. Includes detail modal with session info (workflow type, material, date), loading state, empty state, and rate-limit toast handling. Filter buttons are RBAC-gated via `hasWorkflowAccess`. Session names display the lecture type (نظري/عملي) instead of a hardcoded label.
 
 ### 4. User Stories
 - As a user, I want to browse my past sessions filtered by workflow type so I can quickly resume work.
-- As a user, I want to view session details in a modal (workflow type, material, date, compiled prompt).
+- As a user, I want to view session details in a modal (workflow type, material, date).
 - As a user, I want to delete old/unwanted sessions with a loading indicator.
+- As a user, I can distinguish نظري from عملي sessions at a glance in the session name.
 - As a user, I see a loading spinner while the initial list loads.
 - As a user, I see a warning toast when rate-limited (429).
 
 ### 5. Functions Summary
 - `getSessionRoute(session)`: Maps backend `workflowType` SystemCode + session `id` to a frontend route.
 - `useModalExit(isOpen)`: Custom hook managing modal render state with exit animation (200ms).
-- `SessionDetailModal({ session, onClose, getSession })`: Portal-rendered modal that fetches and displays full session details (workflow type icon, material name, lecture number, creation date, compiled prompt).
+- `SessionDetailModal({ session, onClose, getSession })`: Portal-rendered modal that fetches and displays full session details (workflow type icon, material name, lecture number, creation date).
 - `History` (default export): Main component — consumes `useSessions({ limit: 20 })` for paginated sessions, manages filter/delete/detail state.
 - `handleDelete(id)`: Confirms via `window.confirm`, calls `removeSession` from hook, manages per-item deleting state.
 
 ### 6. Integration
-Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`). Uses `useAuth` for RBAC filter gating.
+Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`). Uses `useAuth` for RBAC filter gating. The session list now includes `lectureType` from `SessionSummaryDto` for dynamic label display.
 
 ### 7. Imports Summary
 - **React hooks**: `useState`, `useMemo`, `useEffect`
@@ -1119,10 +1120,10 @@ Consumes `useSessions` hook (which delegates to `SessionsApi` → `HttpClient`).
 - **Internal**: `Link` from `react-router`; `useAuth` from `../contexts/AuthContext`; `useSessions` from `../hooks/useSessions`; `createPortal` from `react-dom`
 
 ### 8. Additional Info
-Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete. Supports all 8 workflow types including MERGE.
+Arabic-first RTL. Dual-layer RBAC security: (1) filter buttons only shown for permitted workflows, (2) client-side re-filters sessions to block unauthorized ones. Detail modal fetches full session data via `getSession(id)` on open. 429 rate-limit errors produce warning toasts (handled by `useSessions` hook). Per-item loading state on delete. Supports all 8 workflow types including MERGE. Lecture type is displayed in the session name (نظري for Theoretical, عملي for Practical). Compiled text section was removed from the detail modal as users access it directly from session data.
 
 ### 9. API
-- **Read:** Delegated to `useSessions` → `SessionsApi.getSessions(page, limit)` → `GET /api/sessions?page=&limit=`.
+- **Read:** Delegated to `useSessions` → `SessionsApi.getSessions(page, limit)` → `GET /api/sessions?page=&limit=` (now returns `lectureType` in each session summary).
 - **Detail:** `getSession(id)` from `useSessions` → `GET /api/sessions/{id}`.
 - **Delete:** `removeSession(id)` from `useSessions` → `DELETE /api/sessions/{id}`.
 
@@ -1433,7 +1434,7 @@ No imports. These are standalone interface declarations meant to be imported by 
 
 ### 8. Additional Info
 - `Session.compiledPrompt` is an optional string likely populated by a backend endpoint after prompt compilation.
-- `SessionSummaryDto` matches the backend `SessionSummaryDto` response DTO (`id`, `materialName`, `workflowType`, `createdAt`, `lectureNumber`), used for paginated session list responses.
+- `SessionSummaryDto` matches the backend `SessionSummaryDto` response DTO (`id`, `materialName`, `workflowType`, `createdAt`, `lectureNumber`, `lectureType`), used for paginated session list responses. `lectureType` enables the History page to display نظري/عملي labels.
 - `SessionDetail` matches the backend `SessionDetailResult` record, wrapping a `Session` with an optional `compiledPrompt`.
 - `File.fileType` is restricted to `'Image' | 'Docx' | 'Other'`.
 - `Note.noteType` is restricted to `'GeneralNote' | 'FileNote'`.

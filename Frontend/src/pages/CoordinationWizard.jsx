@@ -16,7 +16,7 @@ const STEPS = ['إعداد الجلسة', 'النص', 'المعاينة والن
 
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
-    const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
+    const initialType = searchParams.get('type');
     const id = searchParams.get('id');
     const { autoSave, defaultMaterial } = useSettings();
     const { user, loading } = useContext(AuthContext);
@@ -29,14 +29,6 @@ export default function CoordinationWizard() {
     const canDoLectureCoord = user?.allowedWorkflows?.includes('LEC_COORD') ?? false;
     const canDoBankCoord = user?.allowedWorkflows?.includes('BANK_COORD') ?? false;
 
-    const getInitialWorkflowCode = () => {
-        if (initialType === 'bank' && canDoBankCoord) return 'BANK_COORD';
-        if (initialType === 'lecture' && canDoLectureCoord) return 'LEC_COORD';
-        if (canDoLectureCoord) return 'LEC_COORD';
-        if (canDoBankCoord) return 'BANK_COORD';
-        return 'LEC_COORD';
-    };
-
     useEffect(() => {
         if (loading) return;
         if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
@@ -45,7 +37,7 @@ export default function CoordinationWizard() {
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 
     const [workflowSystemCode, setWorkflowSystemCode] = useState(
-        initialType === 'bank' ? 'BANK_COORD' : 'LEC_COORD'
+        initialType === 'bank' ? 'BANK_COORD' : initialType === 'lecture' ? 'LEC_COORD' : ''
     );
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
@@ -66,14 +58,6 @@ export default function CoordinationWizard() {
             return next;
         });
     };
-
-    useEffect(() => {
-        if (loading) return;
-        if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) return;
-        if (id) return;
-        const code = getInitialWorkflowCode();
-        if (code) setWorkflowSystemCode(code);
-    }, [loading, canDoLectureCoord, canDoBankCoord, id]);
 
     useEffect(() => {
         if (id) {

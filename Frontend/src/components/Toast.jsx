@@ -21,14 +21,14 @@ export default function Toast() {
   const { toasts, removeToast } = useToast();
 
   return createPortal(
-    <div className="fixed top-4 z-[9999] flex flex-col gap-2 pointer-events-none start-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm">
+    <div className="fixed top-4 z-[9999] flex flex-col items-center gap-2 pointer-events-none inset-x-0">
       {toasts.map((toast) => {
         const Icon = ICONS[toast.type] || ICONS.info;
         const style = STYLES[toast.type] || STYLES.info;
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg animate-fade-slide-in ${style}`}
+            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg animate-fade-slide-in w-[calc(100%-2rem)] max-w-sm ${style}`}
             role="alert"
           >
             <Icon className="w-5 h-5 shrink-0 mt-0.5" />

@@ -8,25 +8,25 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
     public CreateUserRequestValidator()
     {
         RuleFor(x => x.Username)
-            .NotEmpty()
-            .Length(3, 20)
-            .Matches(@"^[a-zA-Z0-9._]+$");
+            .NotEmpty().WithMessage("اسم المستخدم مطلوب.")
+            .Length(3, 20).WithMessage("يجب أن يكون طول اسم المستخدم بين 3 و 20 حرفًا.")
+            .Matches(@"^[a-zA-Z0-9._]+$").WithMessage("يجب أن يحتوي اسم المستخدم على أحرف إنجليزية وأرقام ونقاط وشرطات سفلية فقط.");
 
         RuleFor(x => x.Password)
-            .NotEmpty()
-            .Length(6, 100)
-            .Matches(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$");
+            .NotEmpty().WithMessage("كلمة المرور مطلوبة.")
+            .Length(6, 100).WithMessage("يجب أن تكون كلمة المرور بين 6 و 100 حرف.")
+            .Matches(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$").WithMessage("يجب أن تحتوي كلمة المرور على أحرف إنجليزية وأرقام ورموز قياسية بدون مسافات.");
 
-        RuleFor(x => x.FirstName).NotEmpty();
-        RuleFor(x => x.LastName).NotEmpty();
-        RuleFor(x => x.UserRole).NotEmpty();
-        RuleFor(x => x.BatchNumber).GreaterThan(0);
+        RuleFor(x => x.FirstName).NotEmpty().WithMessage("الاسم الأول مطلوب.");
+        RuleFor(x => x.LastName).NotEmpty().WithMessage("الاسم الأخير مطلوب.");
+        RuleFor(x => x.UserRole).NotEmpty().WithMessage("الدور مطلوب.");
+        RuleFor(x => x.BatchNumber).GreaterThan(0).WithMessage("رقم الدفعة يجب أن يكون أكبر من 0.");
 
         When(x => !string.IsNullOrEmpty(x.TelegramUsername), () =>
         {
             RuleFor(x => x.TelegramUsername)
                 .Must(BeValidTelegramUsername)
-                .WithMessage("Telegram username must be 5-32 characters and contain only letters, numbers, and underscores.");
+                .WithMessage("اسم المستخدم في تلغرام يجب أن يكون بين 5 و 32 حرفاً وأن يحتوي على أحرف وأرقام وشرطات سفلية فقط.");
         });
     }
 

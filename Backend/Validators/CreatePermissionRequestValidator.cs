@@ -10,7 +10,7 @@ public class CreatePermissionRequestValidator : AbstractValidator<CreatePermissi
         RuleFor(x => x.roleName)
             .NotEmpty()
             .Must(r => r == "TechMember" || r == "ScientificMember")
-            .WithMessage("Role must be 'TechMember' or 'ScientificMember'.");
+            .WithMessage("يجب أن يكون الدور 'TechMember' أو 'ScientificMember'.");
 
         RuleFor(x => x.workflowId).GreaterThan(0);
     }

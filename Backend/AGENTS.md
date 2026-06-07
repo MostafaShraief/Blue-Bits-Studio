@@ -19,11 +19,13 @@ This backend powers a **Unified Academic Workflow Platform**. It acts as a modul
 4. **Error Logging:** Log exceptions with context: UserID, SystemCode, SessionID, and the exact physical file path if applicable. The `ExceptionHandlingMiddleware` wraps every log call in `LogContext.PushProperty` so these fields become searchable properties in Seq.
 5. **Global Exception Handling:** Use `NotFoundException` for missing-resource errors. Avoid inline `return NotFound()` in favor of throwing `NotFoundException` when the error should propagate through the global `ExceptionHandlingMiddleware`. The middleware returns standardized JSON `{error, statusCode, traceId}` and logs full diagnostic context.
 6. **Log Aggregation:** Backend pushes structured logs to Seq at `http://seq:5341` via `Serilog.Sinks.Seq`. Configured in `appsettings.json` (default) and overridden in `appsettings.Docker.json` for Docker environments. Seq is accessible at `/seq/` behind the nginx reverse proxy.
+7. **Arabic Localization:** All user-facing validation/error messages MUST be in Arabic. This includes controller responses, service exceptions, FluentValidation `.WithMessage()`, DataAnnotation attributes on models (e.g., `[RegularExpression]`, `[StringLength]`), middleware error envelopes, and rate limiting messages. No English strings like "required", "invalid", "not found", "failed", etc. should reach the user.
 
 ## AI Prompt Instructions
 When generating code for this backend:
 - Always use `SystemCode` static constants instead of magic numbers.
 - Ensure endpoints strictly validate the user's role against the `WorkflowPermissions` table before allowing any Session creation.
+- **Arabic Localization:** All user-facing validation/error messages MUST be in Arabic. This includes controller responses, service exceptions, FluentValidation `.WithMessage()`, DataAnnotation attributes on models, middleware error envelopes, and rate limiting messages. No English strings like "required", "invalid", "not found", "failed", etc. should reach the user.
 
 # Files
 

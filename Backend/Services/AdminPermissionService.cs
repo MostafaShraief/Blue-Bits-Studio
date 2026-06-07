@@ -32,13 +32,13 @@ public class AdminPermissionService : IAdminPermissionService
     {
         if (request.roleName != "TechMember" && request.roleName != "ScientificMember")
         {
-            throw new InvalidOperationException("Role must be 'TechMember' or 'ScientificMember'");
+            throw new InvalidOperationException("يجب أن يكون الدور 'TechMember' أو 'ScientificMember'");
         }
 
         var existing = await _permissionRepository.ExistsByRoleAndWorkflowAsync(request.roleName, request.workflowId);
         if (existing)
         {
-            throw new InvalidOperationException("This role-to-workflow mapping already exists");
+            throw new InvalidOperationException("هذا الربط بين الدور والسير موجود مسبقاً");
         }
 
         var permission = new WorkflowPermission

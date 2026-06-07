@@ -7,6 +7,6 @@ public class SaveSessionContentRequestValidator : AbstractValidator<SaveSessionC
 {
     public SaveSessionContentRequestValidator()
     {
-        RuleFor(x => x.ContentBody).NotEmpty();
+        RuleFor(x => x.ContentBody).NotEmpty().WithMessage("محتوى الجلسة مطلوب.");
     }
 }

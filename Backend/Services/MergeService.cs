@@ -24,7 +24,7 @@ public class MergeService : IMergeService
         if (files == null || files.Count == 0)
         {
             _logger.LogWarning("Merge request with no files for material {MaterialName}", materialName);
-            return new MergeResult { Error = "No files uploaded." };
+            return new MergeResult { Error = "لم يتم رفع أي ملفات." };
         }
 
         _logger.LogInformation("Starting merge of {FileCount} files for material {MaterialName}, lecture type {LectureType}", files.Count, materialName, lectureType);
@@ -44,7 +44,7 @@ public class MergeService : IMergeService
         if (!System.IO.File.Exists(templatePath))
         {
             _logger.LogError("Merge template file {TemplateName} not found at {TemplatePath}", templateName, templatePath);
-            return new MergeResult { Error = $"Template file {templateName} not found at {templatePath}." };
+            return new MergeResult { Error = $"ملف القالب {templateName} غير موجود في {templatePath}." };
         }
 
         string finalFileName = $"{materialName} - {typeLabel} - ملف شامل.docx";
@@ -59,7 +59,7 @@ public class MergeService : IMergeService
             if (mainPart?.Document?.Body == null)
             {
                 _logger.LogError("Merge template {TemplateName} has no body", templateName);
-                return new MergeResult { Error = "Invalid template." };
+                return new MergeResult { Error = "القالب غير صالح." };
             }
 
             var body = mainPart.Document.Body;

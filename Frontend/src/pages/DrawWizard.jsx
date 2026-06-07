@@ -117,7 +117,17 @@ export default function DrawWizard() {
     const goNext = async () => {
         setFieldErrors({});
 
-        if (currentStep === 1) {
+        if (currentStep === 0) {
+            const errors = {};
+            if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+            if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+            if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+            if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
+                return;
+            }
+            next();
+        } else if (currentStep === 1) {
             if (!description.trim()) {
                 setFieldErrors({ description: 'الرجاء إدخال وصف الرسم' });
                 return;
@@ -211,8 +221,6 @@ export default function DrawWizard() {
         }
     }, [sessionId, saved, showToast]);
 
-    const canProceedStep0 = materialValid && lectureNumber && lectureType;
-
     const fieldInputClass = (field) =>
         `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
             fieldErrors[field]
@@ -292,8 +300,7 @@ export default function DrawWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!canProceedStep0}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>

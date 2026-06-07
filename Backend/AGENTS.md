@@ -14,15 +14,18 @@ This backend powers a **Unified Academic Workflow Platform**. It acts as a modul
 ## Coding Rules & Patterns
 1. **API Responses:** When authenticating a user, the API must return a list of authorized `SystemCodes` (e.g., `["LEC_EXT", "PANDOC"]`). The frontend relies entirely on this array for UI rendering.
 2. **File Management (Crucial):** Never rely solely on SQLite's `ON DELETE CASCADE` for physical files. Implement and maintain a C# `BackgroundService` (Garbage Collector) that nightly compares database `Files` records against physical disk files and deletes orphans.
+3. **Session Limits:** Per-user session limits are defined in `appsettings.json` under `SessionLimits` (keyed by SystemCode). Values are seeded into `Workflows.MaxSessionsPerUser` at startup. Before creating a session, `SessionService` enforces the limit by deleting associated data (Files, Notes, SessionContent) and physical files from the oldest sessions — Session rows are kept for dashboard counting. A DB trigger `TRG_PruneSessionData` acts as a safety net.
 3. **Admin Endpoints:** Admins cannot execute workflows. Admin endpoints should only provide CRUD for Users, Materials, and toggling `IsActive` on Workflows. Admin cannot delete system Workflows or Prompts (only update text or visibility).
 4. **Error Logging:** Log exceptions with context: UserID, SystemCode, SessionID, and the exact physical file path if applicable. The `ExceptionHandlingMiddleware` wraps every log call in `LogContext.PushProperty` so these fields become searchable properties in Seq.
 5. **Global Exception Handling:** Use `NotFoundException` for missing-resource errors. Avoid inline `return NotFound()` in favor of throwing `NotFoundException` when the error should propagate through the global `ExceptionHandlingMiddleware`. The middleware returns standardized JSON `{error, statusCode, traceId}` and logs full diagnostic context.
 6. **Log Aggregation:** Backend pushes structured logs to Seq at `http://seq:5341` via `Serilog.Sinks.Seq`. Configured in `appsettings.json` (default) and overridden in `appsettings.Docker.json` for Docker environments. Seq is accessible at `/seq/` behind the nginx reverse proxy.
+7. **Arabic Localization:** All user-facing validation/error messages MUST be in Arabic. This includes controller responses, service exceptions, FluentValidation `.WithMessage()`, DataAnnotation attributes on models (e.g., `[RegularExpression]`, `[StringLength]`), middleware error envelopes, and rate limiting messages. No English strings like "required", "invalid", "not found", "failed", etc. should reach the user.
 
 ## AI Prompt Instructions
 When generating code for this backend:
 - Always use `SystemCode` static constants instead of magic numbers.
 - Ensure endpoints strictly validate the user's role against the `WorkflowPermissions` table before allowing any Session creation.
+- **Arabic Localization:** All user-facing validation/error messages MUST be in Arabic. This includes controller responses, service exceptions, FluentValidation `.WithMessage()`, DataAnnotation attributes on models, middleware error envelopes, and rate limiting messages. No English strings like "required", "invalid", "not found", "failed", etc. should reach the user.
 
 # Files
 
@@ -50,7 +53,7 @@ Top-level statements (no named functions). Key logic blocks:
 - Bootstrap logger: minimal Console-only Serilog bootstrap logger (full sink config — colored Console + JSON rolling file `Logs/bluebits-.log` — read from `appsettings.json`)
 - Service registration: delegates to `ServiceCollectionExtensions.AddInfrastructure` (CORS, compression, rate limiting, background services), `AddPersistence` (DbContext, repositories), `AddApplicationServices` (all 12 business + admin services), `AddAuthLayer` (JWT, `WorkflowPolicy`), `AddApiLayer` (controllers, FluentValidation, Swagger)
 - Middleware pipeline: ExceptionHandler → RateLimiter → CORS → ResponseCompression → Auth → StaticFiles → Controllers → Minimal endpoints
-- DB initialization: extracted to `ApplicationBuilderExtensions.EnsureDatabaseCreated` (`db.Database.EnsureCreated()`)
+- DB initialization: extracted to `ApplicationBuilderExtensions.EnsureDatabaseCreated` (creates DB, migrates `MaxSessionsPerUser` column, seeds session limits from `appsettings.json` `SessionLimits` section into `Workflows` table, creates `TRG_PruneSessionData` trigger that deletes Files/Notes/SessionContents when per-user session limit is exceeded)
 - Static files: extracted to `ApplicationBuilderExtensions.ServeUploadedFiles` (serves `./uploads/` at `/uploads`)
 - Fatal exception caught at top-level with `Log.Fatal` / `Log.CloseAndFlush`
 - `MapPandocEndpoints` / `MapMergeEndpoints`: Minimal API groups secured with `WorkflowPolicy`
@@ -366,6 +369,7 @@ Thin controller that delegates all session business logic to `ISessionService`. 
 ### 8. Additional Info
 - All RBAC logic moved to `SessionService` (`Backend/Services/SessionService.cs`)
 - Admin blocks, ownership verification, and workflow permission checks are handled by `SessionService` which throws `ForbiddenException` (handled by `ExceptionHandlingMiddleware` → 403)
+- Session limits enforcement is handled in `SessionService.CreateSessionAsync`: before inserting a new session, checks `Workflow.MaxSessionsPerUser` (seeded from `appsettings.json` `SessionLimits` config), prunes old session data (Files, Notes, SessionContents) and deletes physical files from disk when limit is exceeded. Session rows are preserved for dashboard counting
 - Entity-not-found cases throw `NotFoundException` (handled by middleware → 404)
 - `SaveSessionContentRequest` and `CreateSessionRequest` validated by FluentValidation before reaching controller
 - All endpoints documented with XML `<summary>` / `<param>` / `<returns>` tags for Swagger/OpenAPI generation via Swashbuckle
@@ -395,7 +399,7 @@ Directly interacts with the **SQLite database** via Entity Framework Core. All d
 
 ### 8. Additional Info
 - Uses `using File = BlueBits.Api.Models.File` to resolve naming conflict with `System.IO.File`.
-- Seeds 1 admin user, 8 workflows (via `SystemCode`), 5 RBAC `WorkflowPermission` entries, and 6 prompts.
+- Seeds 1 admin user, 8 workflows (via `SystemCode`) with `MaxSessionsPerUser` values, 5 RBAC `WorkflowPermission` entries, and 6 prompts.
 - Check constraints enforce valid enums for `UserRole`, `LectureType`, `FileType`, `NoteType`, `RoleName`, and numeric ranges for `BatchNumber`, `MaterialYear`, and `LectureNumber`.
 ## 1. File Name and Directory
 `Backend/Endpoints/MergeEndpoints.cs`
@@ -647,6 +651,7 @@ Interacts with the database via Entity Framework Core — no direct API or exter
 
 ### 8. Additional Info
 - `IsActive` is an `int` (used as a boolean flag), defaulting to `1`.
+- `MaxSessionsPerUser` (int, default 5) sets the per-user session limit. Seeded from `appsettings.json` `SessionLimits` config at startup.
 - Navigation collections `Permissions`, `Prompts`, and `Sessions` establish one-to-many relationships.
 - Always reference Workflows by their `SystemCode` (string), never by `WorkflowId`, per backend conventions.
 ## 1. File Name and Directory
@@ -1031,10 +1036,10 @@ Extracted from the inline DTO originally defined in `AuthController.cs`. `Author
 Backend — Response DTO
 
 ### 3. What the file does
-Defines the `SessionSummaryDto` used for paginated session list responses. Lightweight projection that avoids fetching heavy fields like `QuizData` or `CompiledPrompt`.
+Defines the `SessionSummaryDto` used for paginated session list responses. Lightweight projection that avoids fetching heavy fields like `QuizData` or `CompiledPrompt`. Includes `LectureType` field to distinguish theoretical/practical sessions at a glance.
 
 ### 4. User Stories
-- As a user, I can view a paginated list of my sessions with key metadata (material name, workflow type, creation date, lecture number).
+- As a user, I can view a paginated list of my sessions with key metadata (material name, workflow type, creation date, lecture number, lecture type).
 
 ### 5. Functions Summary
 None — pure data class with auto-properties.

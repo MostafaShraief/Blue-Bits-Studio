@@ -7,7 +7,7 @@ public class NotFoundException : Exception
     }
 
     public NotFoundException(string resourceName, object resourceId)
-        : base($"{resourceName} with identifier '{resourceId}' was not found")
+        : base($"لم يتم العثور على {resourceName} بالمعرّف '{resourceId}'")
     {
     }
 }

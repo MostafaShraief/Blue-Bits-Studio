@@ -105,11 +105,12 @@ export default function Login() {
                                     type="text"
                                     value={username}
                                     onChange={(e) => { setUsername(e.target.value); clearFieldError('username'); }}
-                                    className={`w-full ps-10 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.username ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
+                                    className={`w-full pe-10 ps-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.username ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل اسم المستخدم"
                                     required
                                     autoComplete="username"
                                     autoFocus
+                                    dir="ltr"
                                 />
                             </div>
                             {fieldErrors.username && (
@@ -131,10 +132,11 @@ export default function Login() {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
-                                    className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
+                                    className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل كلمة المرور"
                                     required
                                     autoComplete="current-password"
+                                    dir="ltr"
                                 />
                                 <button
                                     type="button"

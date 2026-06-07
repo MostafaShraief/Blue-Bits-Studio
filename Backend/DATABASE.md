@@ -39,7 +39,8 @@ CREATE TABLE "Workflows" (
     "WorkflowId" INTEGER NOT NULL CONSTRAINT "PK_Workflows" PRIMARY KEY AUTOINCREMENT,
     "SystemCode" TEXT NOT NULL UNIQUE, -- The core integration key for C# and Frontend
     "AdminNote" TEXT NOT NULL,         -- Internal name for Admin dashboard
-    "IsActive" INTEGER NOT NULL DEFAULT 1 -- Toggle to 0 to hide system-wide
+    "IsActive" INTEGER NOT NULL DEFAULT 1, -- Toggle to 0 to hide system-wide
+    "MaxSessionsPerUser" INTEGER NOT NULL DEFAULT 5 -- Per-user session limit per workflow
 );
 
 -- WorkflowPermissions Table (Role-Based Access Control Mapping)
@@ -112,35 +113,50 @@ CREATE INDEX "IX_Notes_FileId" ON "Notes" ("FileId");
 ---------------------------------------------------------------------
 -- 3. TRIGGERS (Database-Level Automation)
 ---------------------------------------------------------------------
--- Automatically enforces the "Max 3 Sessions per User per Workflow" rule
-CREATE TRIGGER "TRG_KeepMax3Sessions"
+-- Enforces per-user session limits (reads MaxSessionsPerUser from Workflows table).
+-- Deletes Files, Notes, and SessionContents for the oldest sessions that exceed the limit.
+-- Session rows are preserved for dashboard counting.
+CREATE TRIGGER "TRG_PruneSessionData"
 AFTER INSERT ON "Sessions"
 BEGIN
-    DELETE FROM "Sessions"
-    WHERE "SessionId" NOT IN (
-        SELECT "SessionId" 
-        FROM "Sessions" 
-        WHERE "UserId" = NEW."UserId" 
-          AND "WorkflowId" = NEW."WorkflowId"
-        ORDER BY "CreatedAt" DESC 
-        LIMIT 3
-    )
-    AND "UserId" = NEW."UserId" 
-    AND "WorkflowId" = NEW."WorkflowId";
+    DELETE FROM "Files" WHERE "SessionId" IN (
+        SELECT "SessionId" FROM "Sessions"
+        WHERE "UserId" = NEW."UserId" AND "WorkflowId" = NEW."WorkflowId"
+        ORDER BY "CreatedAt" DESC
+        LIMIT -1 OFFSET (
+            SELECT COALESCE("MaxSessionsPerUser", 5) FROM "Workflows" WHERE "WorkflowId" = NEW."WorkflowId"
+        )
+    );
+    DELETE FROM "Notes" WHERE "SessionId" IN (
+        SELECT "SessionId" FROM "Sessions"
+        WHERE "UserId" = NEW."UserId" AND "WorkflowId" = NEW."WorkflowId"
+        ORDER BY "CreatedAt" DESC
+        LIMIT -1 OFFSET (
+            SELECT COALESCE("MaxSessionsPerUser", 5) FROM "Workflows" WHERE "WorkflowId" = NEW."WorkflowId"
+        )
+    );
+    DELETE FROM "SessionContents" WHERE "SessionId" IN (
+        SELECT "SessionId" FROM "Sessions"
+        WHERE "UserId" = NEW."UserId" AND "WorkflowId" = NEW."WorkflowId"
+        ORDER BY "CreatedAt" DESC
+        LIMIT -1 OFFSET (
+            SELECT COALESCE("MaxSessionsPerUser", 5) FROM "Workflows" WHERE "WorkflowId" = NEW."WorkflowId"
+        )
+    );
 END;
 
 ---------------------------------------------------------------------
 -- 4. INITIAL SEED DATA (System Configuration)
 ---------------------------------------------------------------------
-INSERT INTO "Workflows" ("WorkflowId", "SystemCode", "AdminNote", "IsActive") VALUES 
-(1, 'LEC_EXT', 'Lecture Extraction Workflow', 1),
-(2, 'BANK_EXT', 'Bank Extraction Workflow', 1),
-(3, 'LEC_COORD', 'Lecture Coordination Workflow', 1),
-(4, 'BANK_COORD', 'Bank Coordination Workflow', 1),
-(5, 'PANDOC', 'Pandoc Processing Workflow', 1),
-(6, 'BANK_QS', 'Bank Questions Workflow', 1),
-(7, 'DRAW', 'Draw AI Workflow (Beta)', 1), 
-(8, 'MERGE', 'Merge Workflow (Beta)', 1); 
+INSERT INTO "Workflows" ("WorkflowId", "SystemCode", "AdminNote", "IsActive", "MaxSessionsPerUser") VALUES 
+(1, 'LEC_EXT', 'Lecture Extraction Workflow', 1, 5),
+(2, 'BANK_EXT', 'Bank Extraction Workflow', 1, 5),
+(3, 'LEC_COORD', 'Lecture Coordination Workflow', 1, 5),
+(4, 'BANK_COORD', 'Bank Coordination Workflow', 1, 5),
+(5, 'PANDOC', 'Pandoc Processing Workflow', 1, 5),
+(6, 'BANK_QS', 'Bank Questions Workflow', 1, 10),
+(7, 'DRAW', 'Draw AI Workflow (Beta)', 1, 5), 
+(8, 'MERGE', 'Merge Workflow (Beta)', 1, 5); 
 
 INSERT INTO "WorkflowPermissions" ("RoleName", "WorkflowId") VALUES 
 ('TechMember', 1), 
@@ -254,7 +270,9 @@ const UserSidebar = ({ allowedCodes }) => {
 ## Part 5: Problems and Standard Fixes
 
 ### Critical Issue: The Orphan File Problem (Physical Storage)
-**The Cause:** The SQLite trigger `TRG_KeepMax3Sessions` automatically deletes older sessions in the background. Because of `ON DELETE CASCADE`, it also deletes the corresponding rows in the `Files` table. **However, SQLite cannot delete physical `.jpg` or `.docx` files from your server's hard drive.** Over time, these orphaned files will consume all server disk space.
+**The Cause:** The SQLite trigger `TRG_PruneSessionData` automatically deletes old `Files` rows from the database (preserving Session rows for counting). **However, SQLite cannot delete physical `.jpg` or `.docx` files from your server's hard drive.** Over time, these orphaned files will consume all server disk space.
+
+The backend layer (`SessionService.CreateSessionAsync`) deletes physical files *before* the DB trigger fires, so orphans are prevented in the normal flow. The GC below is a safety net.
 
 **The Fix: The "Garbage Collector" Service (Standard Approach)**
 You must create a C# Background Service (e.g., using `IHostedService` or Quartz.NET) that runs nightly.

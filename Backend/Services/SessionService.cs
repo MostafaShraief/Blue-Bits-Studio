@@ -29,7 +29,7 @@ public class SessionService : ISessionService
         if (role == "Admin")
         {
             _logger.LogWarning("Admin user {UserId} attempted to access session list", userId);
-            throw new ForbiddenException("Admins cannot access session list.");
+            throw new ForbiddenException("لا يمكن للمشرفين الوصول إلى قائمة الجلسات.");
         }
 
         var query = _db.Sessions
@@ -51,7 +51,8 @@ public class SessionService : ISessionService
                 MaterialName = s.Material != null ? s.Material.MaterialName : "Unknown",
                 WorkflowType = s.Workflow.SystemCode,
                 CreatedAt = s.CreatedAt,
-                LectureNumber = s.LectureNumber
+                LectureNumber = s.LectureNumber,
+                LectureType = s.LectureType
             })
             .ToListAsync();
 
@@ -86,7 +87,7 @@ public class SessionService : ISessionService
         if (session.UserId != userId)
         {
             _logger.LogWarning("User {UserId} attempted to access session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
-            throw new ForbiddenException("You do not own this session.");
+            throw new ForbiddenException("هذه الجلسة لا تعود لك.");
         }
 
         var hasPermission = await _db.WorkflowPermissions
@@ -120,7 +121,7 @@ public class SessionService : ISessionService
         if (role == "Admin")
         {
             _logger.LogWarning("Admin user {UserId} attempted to create a session", userId);
-            throw new ForbiddenException("Admins cannot create sessions.");
+            throw new ForbiddenException("لا يمكن للمشرفين إنشاء جلسات.");
         }
 
         var material = await _db.Materials
@@ -138,13 +139,53 @@ public class SessionService : ISessionService
         if (workflow == null || workflow.IsActive == 0)
         {
             _logger.LogWarning("Invalid or inactive workflow {SystemCode} for user {UserId}", req.WorkflowSystemCode, userId);
-            throw new ForbiddenException("Invalid or inactive workflow.");
+            throw new ForbiddenException("السير غير صالح أو غير نشط.");
         }
 
         if (!workflow.Permissions.Any(p => p.RoleName == role))
         {
             _logger.LogWarning("User {UserId} with role {Role} lacks permission for workflow {SystemCode}", userId, role, req.WorkflowSystemCode);
-            throw new ForbiddenException("Role does not have permission for this workflow.");
+            throw new ForbiddenException("ليس لدى هذا الدور صلاحية لهذا السير.");
+        }
+
+        // --- Enforce per-user session limit ---
+        var existingCount = await _db.Sessions
+            .CountAsync(s => s.UserId == userId && s.WorkflowId == workflow.WorkflowId);
+
+        if (existingCount >= workflow.MaxSessionsPerUser)
+        {
+            var toPrune = await _db.Sessions
+                .Where(s => s.UserId == userId && s.WorkflowId == workflow.WorkflowId)
+                .OrderBy(s => s.CreatedAt)
+                .Take(existingCount - workflow.MaxSessionsPerUser + 1)
+                .ToListAsync();
+
+            var pruneIds = toPrune.Select(s => s.SessionId).ToList();
+
+            // Delete physical files from disk
+            foreach (var sid in pruneIds)
+            {
+                var dir = Path.Combine(_env.ContentRootPath, "uploads", "sessions", sid.ToString());
+                if (Directory.Exists(dir))
+                {
+                    Directory.Delete(dir, recursive: true);
+                    _logger.LogInformation("Deleted physical files for session {SessionId} (limit pruning)", sid);
+                }
+            }
+
+            // Delete associated DB records (Session rows stay for counting)
+            var files = await _db.Files.Where(f => pruneIds.Contains(f.SessionId)).ToListAsync();
+            _db.Files.RemoveRange(files);
+
+            var notes = await _db.Notes.Where(n => pruneIds.Contains(n.SessionId)).ToListAsync();
+            _db.Notes.RemoveRange(notes);
+
+            var contents = await _db.SessionContents.Where(sc => pruneIds.Contains(sc.SessionId)).ToListAsync();
+            _db.SessionContents.RemoveRange(contents);
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Pruned data for {Count} old session(s) of workflow {SystemCode} for user {UserId}", pruneIds.Count, req.WorkflowSystemCode, userId);
         }
 
         var session = new Session
@@ -174,7 +215,7 @@ public class SessionService : ISessionService
     public async Task SaveSessionContentAsync(int userId, int? sessionId, SaveSessionContentRequest req)
     {
         if (sessionId == null || sessionId == 0)
-            throw new NotFoundException("Session ID is required.");
+            throw new NotFoundException("معرف الجلسة مطلوب.");
 
         var session = await _db.Sessions
             .Include(s => s.SessionContents)
@@ -189,7 +230,7 @@ public class SessionService : ISessionService
         if (session.UserId != userId)
         {
             _logger.LogWarning("User {UserId} attempted to save content to session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
-            throw new ForbiddenException("You do not own this session.");
+            throw new ForbiddenException("هذه الجلسة لا تعود لك.");
         }
 
         var existingContent = session.SessionContents.FirstOrDefault();
@@ -215,7 +256,7 @@ public class SessionService : ISessionService
         if (role == "Admin")
         {
             _logger.LogWarning("Admin user {UserId} attempted to delete session {SessionId}", userId, sessionId);
-            throw new ForbiddenException("Admins cannot delete sessions.");
+            throw new ForbiddenException("لا يمكن للمشرفين حذف الجلسات.");
         }
 
         var session = await _db.Sessions
@@ -230,7 +271,7 @@ public class SessionService : ISessionService
         if (session.UserId != userId)
         {
             _logger.LogWarning("User {UserId} attempted to delete session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
-            throw new ForbiddenException("You do not own this session.");
+            throw new ForbiddenException("هذه الجلسة لا تعود لك.");
         }
 
         _db.Sessions.Remove(session);
@@ -243,7 +284,7 @@ public class SessionService : ISessionService
         if (role == "Admin")
         {
             _logger.LogWarning("Admin user {UserId} attempted to upload files to session {SessionId}", userId, sessionId);
-            throw new ForbiddenException("Admins cannot upload files.");
+            throw new ForbiddenException("لا يمكن للمشرفين رفع الملفات.");
         }
 
         var session = await _db.Sessions
@@ -260,14 +301,14 @@ public class SessionService : ISessionService
         if (session.UserId != userId)
         {
             _logger.LogWarning("User {UserId} attempted to upload files to session {SessionId} owned by {OwnerId}", userId, sessionId, session.UserId);
-            throw new ForbiddenException("You do not own this session.");
+            throw new ForbiddenException("هذه الجلسة لا تعود لك.");
         }
 
         var files = form.Files.GetFiles("files");
         var notes = form["notes"];
 
         if (files == null || files.Count == 0)
-            throw new NotFoundException("No files uploaded.");
+            throw new NotFoundException("لم يتم رفع أي ملفات.");
 
         var uploadDir = Path.Combine(_env.ContentRootPath, "uploads", "sessions", sessionId.ToString());
         if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);

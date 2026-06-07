@@ -102,7 +102,7 @@ public class SessionsController : ControllerBase
         int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
 
         await _sessionService.SaveSessionContentAsync(userId, sessionId, req);
-        return Ok(new { sessionId, message = "Content saved successfully" });
+        return Ok(new { sessionId, message = "تم حفظ المحتوى بنجاح" });
     }
 
     /// <summary>Deletes a session owned by the current user.</summary>

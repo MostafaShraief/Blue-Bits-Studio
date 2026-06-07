@@ -27,7 +27,18 @@ export default function MergeWizard() {
     const [errorMessage, setErrorMessage] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
 
-    const canProceedStep1 = materialValid && lectureNumber && lectureType;
+    const handleStep0Next = () => {
+        const errors = {};
+        if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+        if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+        if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+        next();
+    };
+
     const canProceedStep2 = files.length > 1;
 
     const handleFileSelect = (e) => {
@@ -195,9 +206,8 @@ export default function MergeWizard() {
             {currentStep === 0 && (
                 <div className="mt-5">
                     <button
-                        onClick={next}
-                        disabled={!canProceedStep1}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        onClick={handleStep0Next}
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>

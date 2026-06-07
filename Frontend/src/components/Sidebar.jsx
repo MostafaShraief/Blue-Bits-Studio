@@ -13,7 +13,6 @@ import {
     Users,
     BookOpen,
     Settings2,
-    X,
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
@@ -68,19 +67,12 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
 
     const sidebarContent = (
         <>
-            <div className="flex items-center justify-between px-4 py-6 border-b border-white/10">
+            <div className="flex items-center justify-center px-4 py-6 border-b border-white/10">
                 <img
                     src="/logos/Horizontal logo.png"
                     alt="Blue Bits Studio"
                     className="h-10 object-contain brightness-0 invert"
                 />
-                <button
-                    onClick={onMobileClose}
-                    className="p-1 rounded-lg hover:bg-white/10 text-white/70 hover:text-white md:hidden"
-                    aria-label="إغلاق القائمة"
-                >
-                    <X size={20} />
-                </button>
             </div>
 
             <nav className="flex-1 flex flex-col gap-1 p-3 mt-2">
@@ -166,11 +158,13 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                 />
             )}
 
-            {isMobileOpen && (
-                <aside className="fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shadow-2xl md:hidden animate-fade-slide-in">
-                    {sidebarContent}
-                </aside>
-            )}
+            <aside
+                className={`fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shadow-2xl md:hidden transition-transform duration-300 ease-out ${
+                    isMobileOpen ? 'translate-x-0' : 'translate-x-full'
+                }`}
+            >
+                {sidebarContent}
+            </aside>
 
             <aside className="hidden md:flex flex-col fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shrink-0">
                 {sidebarContent}

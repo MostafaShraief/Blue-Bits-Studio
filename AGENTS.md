@@ -44,7 +44,7 @@ To understand both frontend and backend, **always** read:
 
 ## Deployment
 
-Read `.deploy.env` at the project root for VPS IP, SSH user, and credentials.
+**ONLY** deploy project when user ask, if he ask, read `.deploy.env` at the project root for VPS IP, SSH user, and credentials.
 
 ### Architecture
 
@@ -97,9 +97,9 @@ ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker compose pull && docker com
 # === Clean up unused Docker resources ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker system prune -f"
 
-# === Full reset (remove containers, volumes, rebuild from scratch) ===
+# === Full reset (remove containers, rebuild from scratch, keep volumes) ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && \
-  docker compose down -v && \
+  docker compose down && \
   git pull origin main && \
   docker compose up -d --build"
 ```

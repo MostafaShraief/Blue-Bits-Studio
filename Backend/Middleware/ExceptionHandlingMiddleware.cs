@@ -66,7 +66,7 @@ public class ExceptionHandlingMiddleware
 
         var response = new
         {
-            error = "Validation failed",
+            error = "فشل التحقق من صحة البيانات",
             statusCode = StatusCodes.Status400BadRequest,
             traceId,
             errors
@@ -157,7 +157,7 @@ public class ExceptionHandlingMiddleware
 
         var response = new
         {
-            error = "An unexpected error occurred",
+            error = "حدث خطأ غير متوقع",
             statusCode = StatusCodes.Status500InternalServerError,
             traceId
         };

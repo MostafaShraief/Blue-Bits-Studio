@@ -52,6 +52,7 @@ public class BlueBitsDbContext : DbContext
             e.ToTable(t => {
                 t.HasCheckConstraint("CHK_LectureNumber", "\"LectureNumber\" > 0");
                 t.HasCheckConstraint("CHK_LectureType", "\"LectureType\" IN ('Theoretical', 'Practical')");
+                t.HasTrigger("TRG_PruneSessionData");
             });
         });
 
@@ -127,7 +128,7 @@ public class BlueBitsDbContext : DbContext
                 BatchNumber = 1,
                 Username = "MostafaShraief",
                 Password = "Admin@123",
-                CreatedAt = DateTime.UtcNow.ToString("O"),
+                CreatedAt = "2026-01-01T00:00:00.0000000Z",
                 TeamJoinDate = null,
                 TelegramUsername = null
             },
@@ -140,7 +141,7 @@ public class BlueBitsDbContext : DbContext
                 BatchNumber = 1,
                 Username = "john_tech",
                 Password = "Tech@2026",
-                CreatedAt = DateTime.UtcNow.ToString("O"),
+                CreatedAt = "2026-01-01T00:00:00.0000000Z",
                 TeamJoinDate = null,
                 TelegramUsername = null
             },
@@ -153,21 +154,21 @@ public class BlueBitsDbContext : DbContext
                 BatchNumber = 1,
                 Username = "SaraSiri",
                 Password = "something",
-                CreatedAt = DateTime.UtcNow.ToString("O"),
+                CreatedAt = "2026-01-01T00:00:00.0000000Z",
                 TeamJoinDate = null,
                 TelegramUsername = null
             }
         );
 
         modelBuilder.Entity<Workflow>().HasData(
-            new Workflow { WorkflowId = 1, SystemCode = "LEC_EXT", AdminNote = "Lecture Extraction Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 2, SystemCode = "BANK_EXT", AdminNote = "Bank Extraction Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 3, SystemCode = "LEC_COORD", AdminNote = "Lecture Coordination Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 4, SystemCode = "BANK_COORD", AdminNote = "Bank Coordination Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 5, SystemCode = "PANDOC", AdminNote = "Pandoc Processing Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 6, SystemCode = "BANK_QS", AdminNote = "Bank Questions Workflow", IsActive = 1 },
-            new Workflow { WorkflowId = 7, SystemCode = "DRAW", AdminNote = "Draw AI Workflow (Beta)", IsActive = 1 },
-            new Workflow { WorkflowId = 8, SystemCode = "MERGE", AdminNote = "Merge Workflow (Beta)", IsActive = 1 }
+            new Workflow { WorkflowId = 1, SystemCode = "LEC_EXT", AdminNote = "Lecture Extraction Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 2, SystemCode = "BANK_EXT", AdminNote = "Bank Extraction Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 3, SystemCode = "LEC_COORD", AdminNote = "Lecture Coordination Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 4, SystemCode = "BANK_COORD", AdminNote = "Bank Coordination Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 5, SystemCode = "PANDOC", AdminNote = "Pandoc Processing Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 6, SystemCode = "BANK_QS", AdminNote = "Bank Questions Workflow", IsActive = 1, MaxSessionsPerUser = 10 },
+            new Workflow { WorkflowId = 7, SystemCode = "DRAW", AdminNote = "Draw AI Workflow (Beta)", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 8, SystemCode = "MERGE", AdminNote = "Merge Workflow (Beta)", IsActive = 1, MaxSessionsPerUser = 5 }
         );
 
         modelBuilder.Entity<WorkflowPermission>().HasData(

@@ -14,12 +14,14 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
         return materials.some(m => m.toLowerCase() === value.trim().toLowerCase());
     }, [value, materials]);
 
-    // Notify parent when validity changes
+    // Notify parent when validity changes — only after interaction or when valid
     useEffect(() => {
         if (onValidChange) {
-            onValidChange(isValidValue);
+            if (isTouched || isValidValue) {
+                onValidChange(isValidValue);
+            }
         }
-    }, [isValidValue, onValidChange]);
+    }, [isValidValue, onValidChange, isTouched]);
 
     // Expose validity through a data attribute for CSS/aria
     const showError = required && isTouched && !isValidValue;
@@ -75,14 +77,14 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
                     type="text"
                     value={value || ''}
                     onChange={handleInputChange}
-                    onFocus={() => { setIsOpen(true); setIsTouched(true); }}
+                    onFocus={() => setIsOpen(true)}
                     onBlur={() => setIsTouched(true)}
                     placeholder="اكتب أو اختر اسم المادة..."
                     className={`w-full rounded-xl border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default ${showError ? 'border-danger ring-2 ring-danger/20' : isValidValue ? 'border-success ring-2 ring-success/20' : 'border-border'}`}
                     required={required}
                 />
-                {/* Validation icon */}
-                {hasInput && (
+                {/* Validation icon — after interaction or when value is valid */}
+                {hasInput && (isTouched || isValidValue) && (
                     <div className="absolute inset-y-0 end-3 flex items-center pointer-events-none">
                         {isValidValue ? (
                             <svg className="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -99,7 +101,7 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
             {showError && (
                 <p className="mt-1.5 text-xs text-danger">يجب اختيار مادة من القائمة المقترحة</p>
             )}
-            {hasInput && !isValidValue && !showError && (
+            {hasInput && isTouched && !isValidValue && !showError && (
                 <p className="mt-1.5 text-xs text-danger">المادة المدخلة غير موجودة — اختر من القائمة</p>
             )}
             {isOpen && filtered.length > 0 && (

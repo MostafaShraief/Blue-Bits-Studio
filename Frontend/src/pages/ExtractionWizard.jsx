@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useContext } from 'react';
+import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router';
 import WizardStepper from '../components/WizardStepper';
 import ImageUploader from '../components/ImageUploader';
@@ -77,6 +77,7 @@ export default function ExtractionWizard() {
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+    const originalVals = useRef({});
 
     useEffect(() => {
         if (id) {
@@ -99,6 +100,13 @@ export default function ExtractionWizard() {
                     }));
                     setImages(loadedImages);
                 }
+                originalVals.current = {
+                    materialName: data.material?.materialName || '',
+                    lectureNumber: String(data.lectureNumber || ''),
+                    lectureType: data.lectureType || '',
+                    workflowSystemCode: data.workflow?.systemCode || '',
+                    generalNotes: notes,
+                };
                 setSessionId(id);
                 setSaved(true);
                 goTo(STEPS.length - 1);
@@ -156,7 +164,29 @@ export default function ExtractionWizard() {
 
     const goNext = useCallback(async () => {
         setFieldErrors({});
-        if (currentStep === 1) {
+        if (currentStep === 0) {
+            const errors = {};
+            if (!workflowSystemCode) errors.workflowSystemCode = 'الرجاء اختيار نوع الاستخراج';
+            if (!materialValid) errors.materialName = 'الرجاء اختيار مادة صالحة';
+            if (!String(lectureNumber).trim()) errors.lectureNumber = 'الرجاء إدخال رقم المحاضرة';
+            if (!lectureType) errors.lectureType = 'الرجاء اختيار نوع المحاضرة';
+            if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
+                return;
+            }
+            next();
+        } else if (currentStep === 1) {
+            if (id) {
+                const o = originalVals.current;
+                if (o.materialName === materialName &&
+                    o.lectureNumber === String(lectureNumber) &&
+                    o.lectureType === lectureType &&
+                    o.workflowSystemCode === workflowSystemCode &&
+                    o.generalNotes === generalNotes) {
+                    next();
+                    return;
+                }
+            }
             setIsLoadingPrompt(true);
             try {
                 const processedImages = await Promise.all(images.map(async (img, i) => {
@@ -200,6 +230,11 @@ export default function ExtractionWizard() {
                     finalPrompt = res?.compiledPrompt || '';
                 }
 
+                const hasAnyNotes = generalNotes.trim() || processedImages.some(img => img.note.trim());
+                if (!hasAnyNotes) {
+                    finalPrompt = finalPrompt ? finalPrompt + '\n\nلا يوجد ملاحظات.' : 'لا يوجد ملاحظات.';
+                }
+
                 setPrompt(finalPrompt);
                 next();
             } catch (err) {
@@ -223,7 +258,7 @@ export default function ExtractionWizard() {
         } else {
             next();
         }
-    }, [currentStep, next, images, materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes, autoSave, setSessionId, showToast]);
+    }, [currentStep, next, images, materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes, autoSave, setSessionId, showToast, materialValid]);
 
     const goBack = useCallback(() => {
         prev();
@@ -238,8 +273,6 @@ export default function ExtractionWizard() {
             console.error("Failed to save session", err);
         }
     }, [sessionId, saved]);
-
-    const canProceedStep1 = materialValid && String(lectureNumber).trim() && workflowSystemCode && lectureType;
 
     const fieldInputClass = (field) =>
         `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
@@ -360,8 +393,7 @@ export default function ExtractionWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!canProceedStep1}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>
@@ -495,7 +527,7 @@ export default function ExtractionWizard() {
                                     : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                             }`}
                         >
-                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                            {saved ? 'تم الحفظ ✓' : (id ? 'تحديث' : 'حفظ الجلسة')}
                         </button>
                     </div>
                 </div>

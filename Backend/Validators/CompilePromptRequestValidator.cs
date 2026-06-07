@@ -7,6 +7,6 @@ public class CompilePromptRequestValidator : AbstractValidator<CompilePromptRequ
 {
     public CompilePromptRequestValidator()
     {
-        RuleFor(x => x.systemCode).NotEmpty();
+        RuleFor(x => x.systemCode).NotEmpty().WithMessage("رمز النظام مطلوب.");
     }
 }

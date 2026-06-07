@@ -46,7 +46,7 @@ public class AdminUserService : IAdminUserService
                     "CreateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
                     request.TelegramUsername, request.UserRole);
                 throw new InvalidOperationException(
-                    $"Telegram username '{request.TelegramUsername}' is already registered with role '{request.UserRole}'");
+                    $"اسم المستخدم في تلغرام '{request.TelegramUsername}' مسجل مسبقاً بدور '{request.UserRole}'");
             }
         }
 
@@ -90,7 +90,7 @@ public class AdminUserService : IAdminUserService
                     "UpdateUser failed: TelegramUsername '{Telegram}' already exists with role {Role}",
                     request.TelegramUsername, request.UserRole);
                 throw new InvalidOperationException(
-                    $"Telegram username '{request.TelegramUsername}' is already registered with role '{request.UserRole}'");
+                    $"اسم المستخدم في تلغرام '{request.TelegramUsername}' مسجل مسبقاً بدور '{request.UserRole}'");
             }
         }
 

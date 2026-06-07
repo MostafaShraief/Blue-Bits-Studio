@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import GuidedCopyLoop from '../components/GuidedCopyLoop';
@@ -35,6 +35,7 @@ export default function DrawWizard() {
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [restoring, setRestoring] = useState(!!id);
+    const originalVals = useRef({});
 
     useEffect(() => {
         if (!id) { setRestoring(false); return; }
@@ -50,6 +51,12 @@ export default function DrawWizard() {
 
                 const notes = data.notes?.filter(n => n.noteType === 'GeneralNote').map(n => n.noteText).join('\n') || '';
                 if (notes) setDescription(notes);
+                originalVals.current = {
+                    materialName: data.material?.materialName || '',
+                    lectureNumber: String(data.lectureNumber || ''),
+                    lectureType: data.lectureType || '',
+                    description: notes,
+                };
 
                 if (data.files?.length > 0) {
                     const loadedImages = data.files.map(img => ({
@@ -117,7 +124,27 @@ export default function DrawWizard() {
     const goNext = async () => {
         setFieldErrors({});
 
-        if (currentStep === 1) {
+        if (currentStep === 0) {
+            const errors = {};
+            if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+            if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+            if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+            if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
+                return;
+            }
+            next();
+        } else if (currentStep === 1) {
+            if (id) {
+                const o = originalVals.current;
+                if (o.materialName === materialName &&
+                    o.lectureNumber === String(lectureNumber) &&
+                    o.lectureType === lectureType &&
+                    o.description === description) {
+                    next();
+                    return;
+                }
+            }
             if (!description.trim()) {
                 setFieldErrors({ description: 'الرجاء إدخال وصف الرسم' });
                 return;
@@ -211,8 +238,6 @@ export default function DrawWizard() {
         }
     }, [sessionId, saved, showToast]);
 
-    const canProceedStep0 = materialValid && lectureNumber && lectureType;
-
     const fieldInputClass = (field) =>
         `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
             fieldErrors[field]
@@ -292,8 +317,7 @@ export default function DrawWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!canProceedStep0}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>
@@ -431,7 +455,7 @@ export default function DrawWizard() {
                                 : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                                 }`}
                         >
-                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                            {saved ? 'تم الحفظ ✓' : (id ? 'تحديث' : 'حفظ الجلسة')}
                         </button>
                     </div>
                 </div>

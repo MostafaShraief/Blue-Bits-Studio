@@ -29,6 +29,6 @@ public class AdminTemplatesController : ControllerBase
         var result = await _adminTemplateService.UploadTemplateAsync(type, file);
         if (!result.Success)
             return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
-        return Ok(new { message = "Template updated successfully." });
+        return Ok(new { message = "تم تحديث القالب بنجاح." });
     }
 }

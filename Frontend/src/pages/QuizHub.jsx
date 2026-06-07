@@ -50,6 +50,7 @@ export default function QuizHub() {
 
   const [promptText, setPromptText] = useState('');
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Button feedback states
   const [copyPromptCopied, setCopyPromptCopied] = useState(false);
@@ -191,9 +192,22 @@ export default function QuizHub() {
     setShowConfirmModal(false);
   };
 
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => {
+        if (!prev[field]) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return next;
+    });
+  };
+
   const handleNextStep0 = async () => {
-    if (!materialValid || !lectureNumber || !lectureType) {
-        alert('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة');
+    const errors = {};
+    if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+    if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+    if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+    if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
         return;
     }
     
@@ -350,7 +364,14 @@ export default function QuizHub() {
         <div data-tour="quiz-metadata" className="bg-surface-card border border-border rounded-2xl p-5 space-y-4 animate-fade-slide-in">
           <h3 className="text-sm font-semibold text-text mb-2">بيانات الجلسة</h3>
 
-          <MaterialAutocomplete value={materialName} onChange={setMaterialName} onValidChange={setMaterialValid} />
+          <MaterialAutocomplete
+            value={materialName}
+            onChange={(v) => { setMaterialName(v); clearFieldError('materialname'); }}
+            onValidChange={(v) => { setMaterialValid(v); if (v) clearFieldError('materialname'); }}
+          />
+          {fieldErrors.materialname && (
+            <p className="text-xs text-danger mt-1">{fieldErrors.materialname}</p>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-text mb-1.5">رقم المحاضرة</label>
@@ -360,9 +381,12 @@ export default function QuizHub() {
               max="99"
               placeholder="مثال: 5"
               value={lectureNumber}
-              onChange={(e) => setLectureNumber(e.target.value)}
+              onChange={(e) => { setLectureNumber(e.target.value); clearFieldError('lecturenumber'); }}
               className="w-full rounded-xl border border-border bg-surface-card px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-default"
             />
+            {fieldErrors.lecturenumber && (
+              <p className="text-xs text-danger mt-1">{fieldErrors.lecturenumber}</p>
+            )}
           </div>
 
           <div>
@@ -374,7 +398,7 @@ export default function QuizHub() {
               ].map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => setLectureType(value)}
+                  onClick={() => { setLectureType(value); clearFieldError('lecturetype'); }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-default ${lectureType === value
                     ? 'border-primary bg-primary-light text-primary'
                     : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
@@ -384,6 +408,9 @@ export default function QuizHub() {
                 </button>
               ))}
             </div>
+            {fieldErrors.lecturetype && (
+              <p className="text-xs text-danger mt-1">{fieldErrors.lecturetype}</p>
+            )}
           </div>
         </div>
       )}
@@ -392,7 +419,7 @@ export default function QuizHub() {
         <div className="mt-5">
           <button
             onClick={handleNextStep0}
-            disabled={isLoadingPrompt || !materialValid || !lectureNumber || !lectureType}
+            disabled={isLoadingPrompt}
             className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
           >
             {isLoadingPrompt ? 'جاري التحضير...' : 'التالي'}

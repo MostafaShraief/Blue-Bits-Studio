@@ -30,14 +30,14 @@ public class AuthController : ControllerBase
 
         if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
         {
-            return Unauthorized(new { message = "Invalid token claims" });
+            return Unauthorized(new { message = "معلومات التوكن غير صالحة" });
         }
 
         var result = await _authService.GetCurrentUserAsync(userId);
 
         if (result == null)
         {
-            return NotFound(new { message = "User not found" });
+            return NotFound(new { message = "المستخدم غير موجود" });
         }
 
         var (user, workflows) = result.Value;
@@ -62,14 +62,15 @@ public class AuthController : ControllerBase
 
         if (result == null)
         {
-            return Unauthorized(new { message = "Invalid username or password" });
+            return Unauthorized(new { message = "اسم المستخدم أو كلمة المرور غير صحيحة" });
         }
 
         var (user, token, workflows) = result.Value;
 
+        HttpContext.Response.Headers["X-Auth-Token"] = token;
+
         return Ok(new LoginResponse
         {
-            Token = token,
             UserId = user.UserId,
             Username = user.Username,
             FirstName = user.FirstName,

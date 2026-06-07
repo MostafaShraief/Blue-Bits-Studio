@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useContext } from 'react';
+import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { Copy } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
@@ -16,7 +16,7 @@ const STEPS = ['إعداد الجلسة', 'النص', 'المعاينة والن
 
 export default function CoordinationWizard() {
     const [searchParams] = useSearchParams();
-    const initialType = searchParams.get('type') === 'bank' ? 'bank' : 'lecture';
+    const initialType = searchParams.get('type');
     const id = searchParams.get('id');
     const { autoSave, defaultMaterial } = useSettings();
     const { user, loading } = useContext(AuthContext);
@@ -29,14 +29,6 @@ export default function CoordinationWizard() {
     const canDoLectureCoord = user?.allowedWorkflows?.includes('LEC_COORD') ?? false;
     const canDoBankCoord = user?.allowedWorkflows?.includes('BANK_COORD') ?? false;
 
-    const getInitialWorkflowCode = () => {
-        if (initialType === 'bank' && canDoBankCoord) return 'BANK_COORD';
-        if (initialType === 'lecture' && canDoLectureCoord) return 'LEC_COORD';
-        if (canDoLectureCoord) return 'LEC_COORD';
-        if (canDoBankCoord) return 'BANK_COORD';
-        return 'LEC_COORD';
-    };
-
     useEffect(() => {
         if (loading) return;
         if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
@@ -45,7 +37,7 @@ export default function CoordinationWizard() {
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 
     const [workflowSystemCode, setWorkflowSystemCode] = useState(
-        initialType === 'bank' ? 'BANK_COORD' : 'LEC_COORD'
+        initialType === 'bank' ? 'BANK_COORD' : initialType === 'lecture' ? 'LEC_COORD' : ''
     );
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
@@ -57,6 +49,7 @@ export default function CoordinationWizard() {
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
     const [saved, setSaved] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
+    const originalVals = useRef({});
 
     const clearFieldError = (field) => {
         setFieldErrors((prev) => {
@@ -66,14 +59,6 @@ export default function CoordinationWizard() {
             return next;
         });
     };
-
-    useEffect(() => {
-        if (loading) return;
-        if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) return;
-        if (id) return;
-        const code = getInitialWorkflowCode();
-        if (code) setWorkflowSystemCode(code);
-    }, [loading, canDoLectureCoord, canDoBankCoord, id]);
 
     useEffect(() => {
         if (id) {
@@ -87,6 +72,13 @@ export default function CoordinationWizard() {
                     setLectureNumber(data.lectureNumber || 1);
                     setLectureType(data.lectureType || '');
                     if (data.workflow?.systemCode) setWorkflowSystemCode(data.workflow.systemCode);
+                    originalVals.current = {
+                        materialName: data.material?.materialName || '',
+                        lectureNumber: String(data.lectureNumber || '1'),
+                        lectureType: data.lectureType || '',
+                        workflowSystemCode: data.workflow?.systemCode || '',
+                        markdownText: notes,
+                    };
                     setSaved(true);
                     goTo(2);
                 }
@@ -103,12 +95,28 @@ export default function CoordinationWizard() {
     const goNext = useCallback(async () => {
         setFieldErrors({});
         if (currentStep === 0) {
-            if (!materialValid || !lectureNumber || !lectureType || !workflowSystemCode) {
-                showToast('الرجاء اختيار مادة صالحة وإدخال جميع البيانات المطلوبة', 'error');
+            const errors = {};
+            if (!workflowSystemCode) errors.workflowsystemcode = 'الرجاء اختيار نوع التنسيق';
+            if (!materialValid) errors.materialname = 'الرجاء اختيار مادة صالحة';
+            if (!lectureNumber) errors.lecturenumber = 'الرجاء إدخال رقم المحاضرة';
+            if (!lectureType) errors.lecturetype = 'الرجاء اختيار نوع المحاضرة';
+            if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
                 return;
             }
             next();
         } else if (currentStep === 1) {
+            if (id) {
+                const o = originalVals.current;
+                if (o.materialName === materialName &&
+                    o.lectureNumber === String(lectureNumber) &&
+                    o.lectureType === lectureType &&
+                    o.workflowSystemCode === workflowSystemCode &&
+                    o.markdownText === markdownText) {
+                    next();
+                    return;
+                }
+            }
             if (!markdownText.trim()) {
                 showToast('الرجاء إدخال نص الـ Markdown', 'error');
                 return;
@@ -297,8 +305,7 @@ export default function CoordinationWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!materialValid || !lectureNumber || !lectureType || !workflowSystemCode}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>
@@ -382,7 +389,7 @@ export default function CoordinationWizard() {
                                     : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                                 }`}
                         >
-                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                            {saved ? 'تم الحفظ ✓' : (id ? 'تحديث' : 'حفظ الجلسة')}
                         </button>
                     </div>
 

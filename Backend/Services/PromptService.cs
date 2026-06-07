@@ -43,19 +43,18 @@ public class PromptService : IPromptService
         if (!string.IsNullOrWhiteSpace(generalNotes))
         {
             sb.AppendLine();
-            sb.AppendLine("--- General User Instructions ---");
             sb.AppendLine(generalNotes);
         }
 
         if (fileNotes != null && fileNotes.Any(fn => !string.IsNullOrWhiteSpace(fn)))
         {
             sb.AppendLine();
-            sb.AppendLine("--- File Specific Notes ---");
+            sb.AppendLine("--- ملاحظات خاصة بالملفات ---");
             for (int i = 0; i < fileNotes.Count; i++)
             {
                 if (!string.IsNullOrWhiteSpace(fileNotes[i]))
                 {
-                    sb.AppendLine($"File {i + 1}: {fileNotes[i]}");
+                    sb.AppendLine($"ملف {i + 1}: {fileNotes[i]}");
                 }
             }
         }

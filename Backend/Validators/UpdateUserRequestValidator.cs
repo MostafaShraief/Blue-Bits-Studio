@@ -10,15 +10,15 @@ public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
         When(x => !string.IsNullOrEmpty(x.Password), () =>
         {
             RuleFor(x => x.Password)
-                .Length(6, 100)
-                .Matches(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$");
+                .Length(6, 100).WithMessage("يجب أن تكون كلمة المرور بين 6 و 100 حرف.")
+                .Matches(@"^[a-zA-Z0-9!@#$%^&*()_+=-]+$").WithMessage("يجب أن تحتوي كلمة المرور على أحرف إنجليزية وأرقام ورموز قياسية بدون مسافات.");
         });
 
         When(x => !string.IsNullOrEmpty(x.TelegramUsername), () =>
         {
             RuleFor(x => x.TelegramUsername)
                 .Must(BeValidTelegramUsername)
-                .WithMessage("Telegram username must be 5-32 characters and contain only letters, numbers, and underscores.");
+                .WithMessage("اسم المستخدم في تلغرام يجب أن يكون بين 5 و 32 حرفاً وأن يحتوي على أحرف وأرقام وشرطات سفلية فقط.");
         });
     }
 

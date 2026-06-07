@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useContext } from 'react';
+import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { Copy } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
@@ -57,6 +57,7 @@ export default function CoordinationWizard() {
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
     const [saved, setSaved] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
+    const originalVals = useRef({});
 
     const clearFieldError = (field) => {
         setFieldErrors((prev) => {
@@ -87,6 +88,13 @@ export default function CoordinationWizard() {
                     setLectureNumber(data.lectureNumber || 1);
                     setLectureType(data.lectureType || '');
                     if (data.workflow?.systemCode) setWorkflowSystemCode(data.workflow.systemCode);
+                    originalVals.current = {
+                        materialName: data.material?.materialName || '',
+                        lectureNumber: String(data.lectureNumber || '1'),
+                        lectureType: data.lectureType || '',
+                        workflowSystemCode: data.workflow?.systemCode || '',
+                        markdownText: notes,
+                    };
                     setSaved(true);
                     goTo(2);
                 }
@@ -109,6 +117,17 @@ export default function CoordinationWizard() {
             }
             next();
         } else if (currentStep === 1) {
+            if (id) {
+                const o = originalVals.current;
+                if (o.materialName === materialName &&
+                    o.lectureNumber === String(lectureNumber) &&
+                    o.lectureType === lectureType &&
+                    o.workflowSystemCode === workflowSystemCode &&
+                    o.markdownText === markdownText) {
+                    next();
+                    return;
+                }
+            }
             if (!markdownText.trim()) {
                 showToast('الرجاء إدخال نص الـ Markdown', 'error');
                 return;
@@ -382,7 +401,7 @@ export default function CoordinationWizard() {
                                     : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                                 }`}
                         >
-                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                            {saved ? 'تم الحفظ ✓' : (id ? 'تحديث' : 'حفظ الجلسة')}
                         </button>
                     </div>
 

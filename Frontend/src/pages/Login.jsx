@@ -71,7 +71,7 @@ export default function Login() {
                     <img
                         src="/logos/Horizontal logo.png"
                         alt="Blue Bits Studio"
-                        className="h-12 object-contain dark:brightness-0 dark:invert"
+                        className="h-12 w-auto object-contain transition-all dark:brightness-0 dark:invert"
                     />
                 </div>
 
@@ -105,7 +105,8 @@ export default function Login() {
                                     type="text"
                                     value={username}
                                     onChange={(e) => { setUsername(e.target.value); clearFieldError('username'); }}
-                                    className={`w-full pe-10 ps-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.username ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
+                                    // Changed ps-4 to ps-10 to properly clear the icon
+                                    className={`w-full pe-4 ps-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.username ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل اسم المستخدم"
                                     required
                                     autoComplete="username"
@@ -132,6 +133,7 @@ export default function Login() {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
+                                    // Changed ps-16 to ps-10 (to match username) and added pe-10 (to clear the eye icon)
                                     className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل كلمة المرور"
                                     required
@@ -141,6 +143,7 @@ export default function Login() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    // Changed start-0 to end-0 to move eye icon to the left side
                                     className="absolute inset-y-0 end-0 pe-3.5 flex items-center text-text-muted hover:text-text transition-colors"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

@@ -172,15 +172,15 @@ Frontend/src/components/common/MaterialAutocomplete.jsx
 Frontend — Reusable React component
 
 ### 3. What the file does
-A controlled autocomplete input for selecting a material from a server-fetched list. As the user types, it filters suggestions, shows success/error inline icons, and validates the selection against the known list. Exposes validity changes to the parent via `onValidChange` callback. Validation state (error messages, icons, border colors) only displays after user interaction (`isTouched`) or when a valid value is matched, never proactively on mount.
+A controlled autocomplete input for selecting a material from a server-fetched list. As the user types, it filters suggestions, shows success/error inline icons, and validates the selection against the known list. Exposes validity changes to the parent via `onValidChange` callback. Validation state (icons, border colors) only displays after user interaction (`isTouched`) or when a valid value is matched, never proactively on mount. Shows one warning text ("المادة المدخلة غير موجودة — اختر من القائمة") when input is non-empty, touched, and invalid.
 
 ### 4. User Stories
 - As a user filling a form, I type a material name and see matching suggestions filtered in real time.
 - As a form designer, I use `onValidChange` to know whether the selected material is valid without extra logic.
-- As a user, I never see validation errors on the material field before I have interacted with it (fixed proactive validation timing).
+- As a user, I see a single warning when I type a non-matching material after interacting with the field.
 
 ### 5. Functions Summary
-- `MaterialAutocomplete({ value, onChange, label, required, onValidChange })`: Main component — renders label, input with validation icons, dropdown list, and error messages. Manages open/close state, click-outside dismissal, and material fetching on mount. Validation errors are gated on `isTouched` (interaction state). `onValidChange` is only reported after interaction or when the value is valid, preventing premature parent-state updates.
+- `MaterialAutocomplete({ value, onChange, label, required, onValidChange })`: Main component — renders label, input with validation icons, dropdown list, and a single warning message. Manages open/close state, click-outside dismissal, and material fetching on mount. Validation state is gated on `isTouched` (interaction state). `onValidChange` is only reported after interaction or when the value is valid, preventing premature parent-state updates.
 
 ### 6. Integration
 Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/materials` (with client-side caching). No database or external service calls.
@@ -190,7 +190,7 @@ Calls `getDistinctNames()` from `MaterialsApi` on mount — this hits `GET /api/
 - **Internal:** `getDistinctNames` from `../../api/MaterialsApi`
 
 ### 8. Additional Info
-Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, error message is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component. Validation timing: errors (red border, X icon, error text) only show after blur or typing (`isTouched`), not on focus alone. The `onValidChange` callback is not called on mount to avoid prematurely disabling the parent's proceed button.
+Arabic-first: label defaults to `"اسم المادة"`, placeholder is `"اكتب أو اختر اسم المادة..."`, warning text is Arabic. Uses logical Tailwind properties (`end-3`). Validation is done client-side by comparing the input value against the fetched materials list (case-insensitive). API failure during fetch is silently caught (sets empty array) — the user sees no dropdown on network/backend error rather than a broken component. Validation timing: errors (red border, X icon, single warning text) only show after blur or typing (`isTouched`), not on focus alone. The `onValidChange` callback is not called on mount to avoid prematurely disabling the parent's proceed button. The "يجب اختيار مادة من القائمة المقترحة" warning was removed — only "المادة المدخلة غير موجودة — اختر من القائمة" remains for invalid input.
 
 ### 9. API
 **Request:** `GET /api/materials` — no body, no params.
@@ -283,7 +283,7 @@ No direct backend API calls. Works with React Router's `<Outlet>` to render chil
 - **Internal:** `Sidebar` (`./Sidebar`), `TourOverlay` (`./TourOverlay`)
 
 ### 8. Additional Info
-Uses `ms-64` (logical margin-inline-start) for sidebar offset on `md:` screens, consistent with RTL compatibility. The `h-dvh` and `overflow-hidden` ensure no double scrollbars.
+Uses `ms-64` (logical margin-inline-start) for sidebar offset on `md:` screens, consistent with RTL compatibility. The `h-dvh` and `overflow-hidden` ensure no double scrollbars. Mobile header logo uses `dark:brightness-0 dark:invert` instead of unconditional `brightness-0 invert` to preserve original blue logo colors in light mode.
 
 ### 9. API
 No request/response handling. Acts as a passive shell — data fetching is delegated to child route components rendered via `<Outlet>`.
@@ -499,6 +499,7 @@ No direct API calls. Reads `user` and `loading` from `AuthContext` (backend auth
 
 ### 8. Additional Info
 NAV_ITEMS array centralizes all route definitions with `systemCode` for RBAC and `role` for admin/member filtering. Extraction and Coordination check two possible SystemCodes (LEC_EXT/BANK_EXT, LEC_COORD/BANK_COORD). History (HIST) bypasses systemCode check and only requires an authenticated user.
+Mobile sidebar `<aside>` includes `flex flex-col` so the profile section (with `nav.flex-1` above it) stays pinned to the bottom, matching the desktop sidebar behavior.
 
 ### 9. API
 No direct request/response handling. Relies on AuthContext to provide user object with `role`, `allowedWorkflows` array, `firstName`, `lastName`, and `username` — populated by the backend after login.
@@ -694,7 +695,7 @@ Defines the app-wide CSS foundation using Tailwind v4's CSS-first config (`@impo
 
 ### 5. Functions Summary
 No JavaScript functions — pure CSS. Key custom properties and keyframe animations:
-- `@theme tokens`: `--font-sans`, `--color-*` palette (primary, cyan, success, danger, sidebar, surface, text, border)
+- `@theme tokens`: `--font-sans`, `--color-*` palette (primary, cyan, success, danger, purple, orange, sidebar, surface, text, border)
 - `.transition-default`: Generic 0.2s ease transition utility
 - `.animate-fade-slide-in`: Wizard step entry animation (opacity + translateY)
 - `.animate-copy-flash`: Copy-to-clipboard scale pulse
@@ -1090,7 +1091,7 @@ Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `api
 - **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services. Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors (red border + error text) instead of disabling the button. `clearFieldError` is wired to each field's onChange/onClick. **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. The `workflowSystemCode` state is auto-set from the `?type=` URL param via `getInitialWorkflowCode()` on mount, pre-selecting the extraction type (محاضرة/بنك أسئلة) for quick procedure navigation. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services. Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors (red border + error text) instead of disabling the button. `clearFieldError` is wired to each field's onChange/onClick. **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
 
 ### 9. API
 - **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
@@ -1169,7 +1170,7 @@ Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No di
 - **Icons:** `LogIn`, `User`, `Lock`, `Loader2`, `AlertCircle`, `Eye`, `EyeOff` from `lucide-react`
 
 ### 8. Additional Info
-Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
+Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Password eye toggle positioned on the right (`start`) side alongside the lock icon, consistent with RTL conventions. Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
 
 ### 9. API
 - **Endpoint:** `POST /auth/login`

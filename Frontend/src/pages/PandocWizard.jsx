@@ -28,6 +28,7 @@ export default function PandocWizard() {
     const [mdText, setMdText] = useState('');
     const [status, setStatus] = useState('idle');
     const [downloadUrl, setDownloadUrl] = useState(null);
+    const [isSinglePage, setIsSinglePage] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const fileInputRef = useRef(null);
 
@@ -112,6 +113,7 @@ export default function PandocWizard() {
                 materialName,
                 lectureType,
                 lectureNumber,
+                isSinglePage,
             );
 
             setDownloadUrl(window.location.origin + (result.fileUrl || result.downloadUrl));
@@ -209,6 +211,32 @@ export default function PandocWizard() {
                         {fieldErrors.lecturetype && (
                             <p className="text-xs text-danger mt-1">{fieldErrors.lecturetype}</p>
                         )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-text mb-2">نوع المستند الناتج</label>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setIsSinglePage(false)}
+                                className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${!isSinglePage
+                                        ? 'border-primary bg-primary-light text-primary'
+                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                    }`}
+                            >
+                                <div className="font-semibold">مستند كامل مع قالب</div>
+                                <div className="text-xs mt-0.5 opacity-75">غلاف وتنسيق نهائي</div>
+                            </button>
+                            <button
+                                onClick={() => setIsSinglePage(true)}
+                                className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${isSinglePage
+                                        ? 'border-primary bg-primary-light text-primary'
+                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                    }`}
+                            >
+                                <div className="font-semibold">صفحة بيضاء فردية</div>
+                                <div className="text-xs mt-0.5 opacity-75">بالتنسيق الأساسي</div>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

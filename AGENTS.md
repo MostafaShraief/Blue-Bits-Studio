@@ -49,11 +49,12 @@ To understand both frontend and backend, **always** read:
 ### Architecture
 
 ```
-User → nginx:80 (proxy)
+User → nginx:443 (TLS termination, self-signed cert)
          ├── /api/*       → backend:8080  (.NET)
          ├── /uploads/*   → backend:8080  (static files)
          ├── /seq/*       → seq:80        (log viewer, stripped prefix)
          └── /            → frontend:80   (nginx serving React SPA)
+HTTP (80) → 301 redirect → HTTPS (443)
 ```
 
 All containers run via Docker Compose on a single VPS. Images are pushed to GHCR. CI/CD builds on push to `main`.
@@ -79,10 +80,14 @@ All containers run via Docker Compose on a single VPS. Images are pushed to GHCR
 ### Quick Commands
 
 ```bash
+# === Generate self-signed TLS certificate (run once before first deploy) ===
+./setup-certs.sh
+
 # === Manual deploy (pull latest code, rebuild, restart) ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && \
   git pull origin main && \
   echo 'GHCR_NAMESPACE=${VPS_USER}' > .env && \
+  ./setup-certs.sh && \
   docker compose up -d --build --remove-orphans"
 
 # === Restart a single service ===

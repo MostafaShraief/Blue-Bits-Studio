@@ -23,6 +23,7 @@ import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { getSession, createSession, saveSessionContent } from '../api/SessionsApi';
 import { compilePrompt } from '../api/PromptsApi';
 import { useSettings } from '../contexts/SettingsContext';
+import { useToast } from '../contexts/ToastContext';
 
 const STEPS = ['إعداد الجلسة', 'محرر JSON'];
 
@@ -52,13 +53,10 @@ export default function QuizHub() {
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Button feedback states
-  const [copyPromptCopied, setCopyPromptCopied] = useState(false);
-  const [copyTextCopied, setCopyTextCopied] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'updated'
-
-  // Confirm modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null);
+  const [deletingIndex, setDeletingIndex] = useState(null);
+  const { showToast } = useToast();
 
   // Load session from URL param on mount
   useEffect(() => {
@@ -149,8 +147,7 @@ export default function QuizHub() {
 
       setSessionId(currentSessionId);
       setHasUnsavedChanges(false);
-      setSaveStatus(sessionId ? 'updated' : 'saved');
-      setTimeout(() => setSaveStatus(null), 2000);
+      showToast(sessionId ? 'تم تحديث البنك بنجاح' : 'تم حفظ البنك بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save session:', err);
       alert(err.message || 'فشل في حفظ البنك. يجب اختيار مادة صالحة.');
@@ -267,15 +264,12 @@ export default function QuizHub() {
     return { correct, total: formQuizData.length };
   };
 
-  const copyTextOrAlert = async (text, setCopiedState) => {
+  const copyTextOrAlert = async (text, successMessage = 'تم النسخ') => {
     try {
       await navigator.clipboard.writeText(text);
-      if (setCopiedState) {
-        setCopiedState(true);
-        setTimeout(() => setCopiedState(false), 2000);
-      }
+      showToast(successMessage, 'success');
     } catch {
-      alert('تعذر النسخ تلقائياً. انسخ يدوياً من النص.');
+      showToast('تعذر النسخ تلقائياً. انسخ يدوياً من النص.', 'error');
     }
   };
 
@@ -290,7 +284,7 @@ export default function QuizHub() {
       })
       .join('\n---\n\n');
 
-    copyTextOrAlert(text, setCopyTextCopied);
+    copyTextOrAlert(text, 'تم نسخ النص');
   };
 
   const downloadJson = () => {
@@ -345,9 +339,23 @@ export default function QuizHub() {
   };
 
   const removeQuestion = (qIdx) => {
-    const updated = [...formQuizData];
-    updated.splice(qIdx, 1);
-    syncQuizData(updated);
+    setDeleteConfirmIndex(qIdx);
+  };
+
+  const confirmDelete = () => {
+    const idx = deleteConfirmIndex;
+    setDeleteConfirmIndex(null);
+    setDeletingIndex(idx);
+    setTimeout(() => {
+      const updated = [...formQuizData];
+      updated.splice(idx, 1);
+      syncQuizData(updated);
+      setDeletingIndex(null);
+    }, 300);
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmIndex(null);
   };
 
   // Step 0: Session Setup
@@ -460,11 +468,11 @@ export default function QuizHub() {
                 
                 {/* Copy Generation Prompt Button */}
                 <button
-                  onClick={() => copyTextOrAlert(promptText, setCopyPromptCopied)}
+                  onClick={() => copyTextOrAlert(promptText, 'تم نسخ البرومبت')}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface-hover transition-default"
                 >
                   <Wand2 size={18} />
-                  {copyPromptCopied ? 'تم النسخ' : 'نسخ برومبت التوليد'}
+                  نسخ برومبت التوليد
                 </button>
               </div>
 
@@ -498,8 +506,8 @@ export default function QuizHub() {
             <div className="flex items-center gap-2">
               {/* Unsaved indicator - beside save button */}
               {hasUnsavedChanges && (
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-full border border-amber-200/50 dark:border-amber-800/30">
-                  <Circle size={6} fill="currentColor" className="text-amber-500" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/50 px-3 py-1 rounded-full border border-amber-400 dark:border-amber-700">
+                  <Circle size={6} fill="currentColor" className="text-amber-700 dark:text-amber-400" />
                   <span>تغييرات غير محفوظة</span>
                 </div>
               )}
@@ -509,7 +517,7 @@ export default function QuizHub() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-default shadow-sm shadow-green-600/20"
               >
                 <Save size={16} />
-                {isSaving ? 'جاري الحفظ...' : saveStatus === 'saved' ? 'تم الحفظ' : saveStatus === 'updated' ? 'تم التحديث' : sessionId ? 'تحديث البنك' : 'حفظ البنك'}
+                {isSaving ? 'جاري الحفظ...' : sessionId ? 'تحديث البنك' : 'حفظ البنك'}
               </button>
               <button
                 onClick={copyToClipboard}
@@ -517,7 +525,7 @@ export default function QuizHub() {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-text-secondary hover:bg-surface transition-default disabled:opacity-50"
               >
                 <Clipboard size={16} />
-                {copyTextCopied ? 'تم النسخ' : 'نسخ الكل كنص'}
+                نسخ الكل كنص
               </button>
             </div>
           </div>
@@ -549,7 +557,7 @@ export default function QuizHub() {
                 {formQuizData.map((q, qIdx) => {
                   if (viewMode === 'preview') {
                     return (
-                      <div key={qIdx} className="bg-surface-card rounded-2xl border border-border overflow-hidden shadow-sm hover:border-primary/20 transition-all">
+                      <div key={qIdx} className={`bg-surface-card rounded-2xl border border-border overflow-hidden shadow-sm hover:border-primary/20 ${deletingIndex === qIdx ? 'opacity-0 scale-95 duration-300' : 'transition-all'}`}>
                         <div className="bg-surface px-6 py-3 flex items-center justify-between border-b border-border">
                           <div className="flex items-center gap-3">
                             <span className="text-primary font-mono font-bold">#{qIdx + 1}</span>
@@ -558,7 +566,7 @@ export default function QuizHub() {
                             </span>
                           </div>
                           <button
-                            onClick={() => removeQuestion(qIdx)}
+                            onClick={() => setDeleteConfirmIndex(qIdx)}
                             className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                             title="حذف السؤال"
                           >
@@ -766,6 +774,15 @@ export default function QuizHub() {
               <ArrowLeft size={18} />
               رجوع للإعداد
             </button>
+            {viewMode === 'preview' && (
+              <button
+                onClick={handleAddQuestions}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+              >
+                <Plus size={18} />
+                إضافة سؤال
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -814,6 +831,48 @@ export default function QuizHub() {
                 className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors"
               >
                 نعم، رجوع
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Question Confirm Modal */}
+      {deleteConfirmIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={cancelDelete}
+          />
+          <div className="relative bg-surface-card rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-scaleIn">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-text">تأكيد الحذف</h2>
+              <button
+                onClick={cancelDelete}
+                className="p-2 rounded-lg hover:bg-surface-hover text-text-muted hover:text-text transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={24} className="text-red-600 dark:text-red-400" />
+              </div>
+              <p className="text-text mb-2">هل أنت متأكد من حذف هذا السؤال؟</p>
+              <p className="text-sm text-text-secondary">لا يمكن التراجع عن هذا الإجراء.</p>
+            </div>
+            <div className="flex gap-3 px-5 pb-5">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 py-2.5 rounded-xl border border-border text-text font-medium hover:bg-surface-hover transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+              >
+                نعم، حذف
               </button>
             </div>
           </div>

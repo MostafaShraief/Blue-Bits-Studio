@@ -89,6 +89,29 @@ else
     log "✓ /opt/bluebits created."
 fi
 
+# --- 3b. Generate self-signed TLS certificate ---
+CERT_DIR="/opt/bluebits/certs"
+if [[ -f "$CERT_DIR/bluebits.crt" ]]; then
+    log "✓ TLS certificate already exists, skipping."
+else
+    log "Generating self-signed TLS certificate for $VPS_IP..."
+    # Check if .deploy.env exists for VPS_IP, otherwise use default
+    DEPLOY_ENV="/opt/bluebits/.deploy.env"
+    if [[ -f "$DEPLOY_ENV" ]]; then
+        IP=$(grep -oP 'DROPLET_HOST=\K.*' "$DEPLOY_ENV" || echo "139.59.157.34")
+    else
+        IP="139.59.157.34"
+    fi
+    mkdir -p "$CERT_DIR"
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$CERT_DIR/bluebits.key" \
+        -out "$CERT_DIR/bluebits.crt" \
+        -subj "/C=US/ST=State/L=City/O=Blue Bits Studio/CN=$IP" \
+        -addext "subjectAltName=IP:$IP"
+    chmod 600 "$CERT_DIR/bluebits.key"
+    log "✓ Self-signed TLS certificate generated for $IP."
+fi
+
 # --- 4. Configure UFW ---
 if command -v ufw &>/dev/null; then
     ufw --force reset

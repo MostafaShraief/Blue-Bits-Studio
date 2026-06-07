@@ -49,10 +49,8 @@ export default function ExtractionWizard() {
 
     useEffect(() => {
         if (loading) return;
-        if (id) {
-            setWorkflowSystemCode(getInitialWorkflowCode());
-        }
-    }, [loading, canDoLecture, canDoBank, id]);
+        setWorkflowSystemCode(getInitialWorkflowCode());
+    }, [loading, canDoLecture, canDoBank, initialType]);
 
     const [fieldErrors, setFieldErrors] = useState({});
 

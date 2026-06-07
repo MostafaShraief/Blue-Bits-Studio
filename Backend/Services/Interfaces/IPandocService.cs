@@ -2,7 +2,7 @@ namespace BlueBits.Api.Services.Interfaces;
 
 public interface IPandocService
 {
-    Task<PandocResult> GenerateDocxAsync(string markdownText, string templateName, string materialName, string type, string lectureNumber, string contentRootPath, CancellationToken cancellationToken = default);
+    Task<PandocResult> GenerateDocxAsync(string markdownText, string templateName, string materialName, string type, string lectureNumber, string contentRootPath, bool isSinglePage, CancellationToken cancellationToken = default);
 }
 
 public record PandocResult

@@ -57,7 +57,7 @@ export default function Layout() {
                     <img
                         src="/logos/Horizontal logo.png"
                         alt="Blue Bits Studio"
-                        className="h-8 object-contain brightness-0 invert shrink-0"
+                        className="h-8 w-auto object-contain transition-all dark:brightness-0 dark:invert shrink-0"
                     />
                 </div>
 

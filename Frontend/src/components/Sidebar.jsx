@@ -71,7 +71,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                 <img
                     src="/logos/Horizontal logo.png"
                     alt="Blue Bits Studio"
-                    className="h-10 object-contain brightness-0 invert"
+                    className="h-10 w-auto object-contain brightness-0 invert transition-all"
                 />
             </div>
 
@@ -159,7 +159,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
             )}
 
             <aside
-                className={`fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shadow-2xl md:hidden transition-transform duration-300 ease-out ${
+                className={`fixed inset-y-0 inset-s-0 z-50 w-64 bg-sidebar text-white shadow-2xl md:hidden flex flex-col transition-transform duration-300 ease-out ${
                     isMobileOpen ? 'translate-x-0' : 'translate-x-full'
                 }`}
             >

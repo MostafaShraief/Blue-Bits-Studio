@@ -11,6 +11,7 @@ public class QueuedPandocRequest
     public required string Type { get; init; }
     public required string LectureNumber { get; init; }
     public required string ContentRootPath { get; init; }
+    public bool IsSinglePage { get; init; }
     public required TaskCompletionSource<PandocResult> CompletionSource { get; init; }
     public CancellationToken CancellationToken { get; init; }
 }
@@ -41,6 +42,7 @@ public class PandocQueueService : BackgroundService
         string type,
         string lectureNumber,
         string contentRootPath,
+        bool isSinglePage,
         CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<PandocResult>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -52,6 +54,7 @@ public class PandocQueueService : BackgroundService
             Type = type,
             LectureNumber = lectureNumber,
             ContentRootPath = contentRootPath,
+            IsSinglePage = isSinglePage,
             CompletionSource = tcs,
             CancellationToken = cancellationToken
         };
@@ -99,6 +102,7 @@ public class PandocQueueService : BackgroundService
                     request.Type,
                     request.LectureNumber,
                     request.ContentRootPath,
+                    request.IsSinglePage,
                     request.CancellationToken);
 
                 request.CompletionSource.TrySetResult(result);

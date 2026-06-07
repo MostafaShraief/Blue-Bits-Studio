@@ -6,7 +6,7 @@ COPY Backend/ .
 RUN dotnet publish --configuration Release --self-contained false -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
-RUN apt-get update && apt-get install -y pandoc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y pandoc curl && rm -rf /var/lib/apt/lists/*
 ENV ASPNETCORE_URLS=http://+:8080
 ENV DOTNET_gcServer=0
 ENV DOTNET_GCConserveMemory=1

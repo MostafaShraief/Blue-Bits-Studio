@@ -1,7 +1,8 @@
 # Required GitHub Secrets (set in repo: Settings > Secrets and variables > Actions):
-#   DROPLET_HOST        - DigitalOcean Droplet IP address
-#   DROPLET_USER        - SSH username for the Droplet (usually "root")
-#   DROPLET_SSH_KEY     - Private SSH key for Droplet access (copy full key including headers)
+#   DROPLET_HOST            - DigitalOcean Droplet IP address
+#   DROPLET_USER            - SSH username for the Droplet (usually "root")
+#   DROPLET_SSH_KEY         - Private SSH key for Droplet access (copy full key including headers)
+#   DROPLET_SSH_PASSPHRASE  - Passphrase for the SSH key (leave empty if no passphrase)
 
 name: Deploy to Droplet
 
@@ -29,6 +30,7 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
+          passphrase: ${{ secrets.DROPLET_SSH_PASSPHRASE }}
           script: |
             mkdir -p /opt/bluebits/data
             if [ -f /opt/bluebits/data/bluebits.db ]; then
@@ -84,6 +86,7 @@ jobs:
           script: |
             cd /opt/bluebits
             git pull origin main
+            echo "GHCR_NAMESPACE=${{ env.REPO_OWNER_LOWER }}" > .env
             mkdir -p Backend/data Backend/uploads
             docker compose pull
             docker compose up -d --remove-orphans

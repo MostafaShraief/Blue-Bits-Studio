@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Backend/Dockerfile
-    image: ghcr.io/mostafashraief/bluebits-backend:latest
+    image: ghcr.io/${GHCR_NAMESPACE}/bluebits-backend:latest
     security_opt:
       - seccomp=unconfined
     environment:
@@ -18,15 +18,28 @@ services:
       resources:
         limits:
           memory: 512M
+    healthcheck:
+      test: curl --fail http://localhost:8080/swagger/index.html || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     restart: unless-stopped
 
   frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
-    image: ghcr.io/mostafashraief/bluebits-frontend:latest
+    image: ghcr.io/${GHCR_NAMESPACE}/bluebits-frontend:latest
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -54,9 +67,18 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - backend
-      - frontend
-      - seq
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      seq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:

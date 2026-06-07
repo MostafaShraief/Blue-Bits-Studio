@@ -82,6 +82,7 @@ All containers run via Docker Compose on a single VPS. Images are pushed to GHCR
 # === Manual deploy (pull latest code, rebuild, restart) ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && \
   git pull origin main && \
+  echo 'GHCR_NAMESPACE=${VPS_USER}' > .env && \
   docker compose up -d --build --remove-orphans"
 
 # === Restart a single service ===
@@ -92,7 +93,10 @@ ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker compose logs --tail=50 bac
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker compose logs --tail=50 -f"   # follow all
 
 # === Pull latest images from GHCR and restart ===
-ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker compose pull && docker compose up -d --remove-orphans"
+ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && \
+  echo 'GHCR_NAMESPACE=${VPS_USER}' > .env && \
+  docker compose pull && \
+  docker compose up -d --remove-orphans"
 
 # === Clean up unused Docker resources ===
 ssh ${VPS_USER}@${VPS_IP} "cd /opt/bluebits && docker system prune -f"
@@ -113,11 +117,12 @@ Workflow: `.github/workflows/deploy.yml` — triggers on push to `main`.
 
 **Required GitHub Secrets** (set in repo → Settings → Secrets and variables → Actions):
 
-| Secret            | Value                        |
-|:------------------|:-----------------------------|
-| `DROPLET_HOST`    | `139.59.157.34`              |
-| `DROPLET_USER`    | `root`                       |
-| `DROPLET_SSH_KEY` | content of `~/.ssh/id_ed25519` (the **full** private key, including `-----BEGIN ...-----` headers) |
+| Secret                     | Value                        |
+|:---------------------------|:-----------------------------|
+| `DROPLET_HOST`             | `139.59.157.34`              |
+| `DROPLET_USER`             | `root`                       |
+| `DROPLET_SSH_KEY`          | content of `~/.ssh/id_ed25519` (the **full** private key, including `-----BEGIN ...-----` headers) |
+| `DROPLET_SSH_PASSPHRASE`   | Passphrase for the SSH key (leave empty if none) |
 
 ### Monitoring with Seq
 

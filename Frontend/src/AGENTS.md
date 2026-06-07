@@ -1170,7 +1170,7 @@ Calls `AuthContext.login()` which POSTs to `/auth/login` backend endpoint. No di
 - **Icons:** `LogIn`, `User`, `Lock`, `Loader2`, `AlertCircle`, `Eye`, `EyeOff` from `lucide-react`
 
 ### 8. Additional Info
-Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
+Arabic-first (RTL) with Tailwind v4 styling, dark mode support, and logical property classes (`ms-`, `pe-`, `start`, `end`). Password eye toggle positioned on the right (`start`) side alongside the lock icon, consistent with RTL conventions. Logo inverts in dark mode. Per-field errors are rendered as `<p className="text-xs text-danger mt-1">` below the input with red border via `border-danger`. Field names are normalized to lowercase (e.g. backend `Username` → `username`).
 
 ### 9. API
 - **Endpoint:** `POST /auth/login`

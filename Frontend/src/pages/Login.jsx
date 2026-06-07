@@ -132,7 +132,7 @@ export default function Login() {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
-                                    className={`w-full ps-10 pe-10 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
+                                    className={`w-full ps-16 pe-4 py-3 rounded-xl border bg-surface text-sm text-text placeholder:text-text-muted text-start focus:outline-none focus:ring-2 transition-default ${fieldErrors.password ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-border focus:ring-primary/30 focus:border-primary'}`}
                                     placeholder="أدخل كلمة المرور"
                                     required
                                     autoComplete="current-password"
@@ -141,7 +141,7 @@ export default function Login() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 end-0 pe-3.5 flex items-center text-text-muted hover:text-text transition-colors"
+                                    className="absolute inset-y-0 start-0 ps-10 flex items-center text-text-muted hover:text-text transition-colors"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>

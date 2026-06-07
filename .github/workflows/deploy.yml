@@ -91,6 +91,7 @@ jobs:
             git pull origin main
             echo "GHCR_NAMESPACE=${{ env.REPO_OWNER_LOWER }}" > .env
             mkdir -p Backend/data Backend/uploads
+            chmod +x setup-certs.sh && ./setup-certs.sh
             docker compose pull
             docker compose up -d --remove-orphans
             docker system prune -f

@@ -49,10 +49,8 @@ export default function ExtractionWizard() {
 
     useEffect(() => {
         if (loading) return;
-        if (id) {
-            setWorkflowSystemCode(getInitialWorkflowCode());
-        }
-    }, [loading, canDoLecture, canDoBank, id]);
+        setWorkflowSystemCode(getInitialWorkflowCode());
+    }, [loading, canDoLecture, canDoBank, initialType]);
 
     const [fieldErrors, setFieldErrors] = useState({});
 
@@ -69,7 +67,7 @@ export default function ExtractionWizard() {
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState(searchParams.get('lectureType') || '');
+    const [lectureType, setLectureType] = useState('');
 
     const [images, setImages] = useState([]);
     const [generalNotes, setGeneralNotes] = useState('');

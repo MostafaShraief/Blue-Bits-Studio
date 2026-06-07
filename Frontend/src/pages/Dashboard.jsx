@@ -46,12 +46,12 @@ const SYSTEM_CODE_LABELS = {
 
 const WORKFLOW_CONFIG = {
     LEC_EXT: {
-        to: '/extraction?type=lecture&lectureType=Theoretical', label: 'محاضرة جديدة', icon: FileSearch,
+        to: '/extraction?type=lecture', label: 'محاضرة جديدة', icon: FileSearch,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     BANK_EXT: {
-        to: '/extraction?type=bank&lectureType=Theoretical', label: 'بنك جديد', icon: FlaskConical,
+        to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
         iconCls: 'text-cyan',
     },

@@ -51,7 +51,7 @@ const WORKFLOW_CONFIG = {
         iconCls: 'text-primary',
     },
     BANK_EXT: {
-        to: '/extraction?type=bank', label: 'بنك أسئلة', icon: FlaskConical,
+        to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-purple/20 bg-purple/5 hover:bg-purple/10 hover:border-purple/40',
         iconCls: 'text-purple',
     },

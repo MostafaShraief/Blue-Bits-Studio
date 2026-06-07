@@ -69,7 +69,7 @@ export default function ExtractionWizard() {
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
     const [lectureNumber, setLectureNumber] = useState('');
-    const [lectureType, setLectureType] = useState('');
+    const [lectureType, setLectureType] = useState(searchParams.get('lectureType') || '');
 
     const [images, setImages] = useState([]);
     const [generalNotes, setGeneralNotes] = useState('');

@@ -1830,6 +1830,101 @@ Consumed by `AdminWorkflowsController`. Implemented by `AdminWorkflowService`.
 ### 8. Additional Info
 Created as part of admin service extraction.
 ## 1. File Name and Directory
+`nginx.conf`
+
+### 2. File Type
+Infrastructure — nginx reverse proxy configuration
+
+### 3. What the file does
+Configures nginx as the entry-point reverse proxy. Terminates TLS on port 443 with a self-signed certificate, redirects all HTTP (port 80) traffic to HTTPS, and proxies requests to backend (:8080), frontend (:80), and seq (:80) upstreams with security headers including HSTS.
+
+### 4. User Stories
+- As a user, all traffic to the app is encrypted via HTTPS.
+- As a user, HTTP requests are automatically redirected to HTTPS.
+
+### 5. Functions Summary
+- `server listen 80`: Redirects all HTTP traffic to HTTPS (301).
+- `server listen 443 ssl http2`: TLS-terminating proxy with SSL config (TLSv1.2/1.3, strong ciphers, session cache, HSTS). Proxies `/api/` → backend, `/uploads/` → backend, `/seq/` → seq, `/` → frontend.
+
+### 6. Integration
+Terminates external HTTPS traffic. Proxies to internal Docker Compose services.
+
+### 7. Imports Summary
+None — plain nginx config.
+
+### 8. Additional Info
+Self-signed certificate files (`bluebits.crt`, `bluebits.key`) are mounted from `./certs/` at `/etc/nginx/certs/`. Generated via `setup-certs.sh` or `setup-server.sh`.
+## 1. File Name and Directory
+`docker-compose.yml`
+
+### 2. File Type
+Infrastructure — Docker Compose orchestration
+
+### 3. What the file does
+Orchestrates 4 containers (backend, frontend, seq, nginx). The nginx service now exposes port 443 and mounts the `./certs/` directory for TLS termination.
+
+### 4. User Stories
+- As an operator, I can deploy the entire stack with HTTPS support via `docker compose up -d --build`.
+
+### 5. Functions Summary
+- `nginx.ports`: Now exposes both `80:80` and `443:443`.
+- `nginx.volumes`: Added `./certs:/etc/nginx/certs:ro` bind mount.
+
+### 6. Integration
+Orchestrates all 4 services into a single Docker Compose stack.
+
+### 7. Imports Summary
+None — plain YAML.
+
+### 8. Additional Info
+Certificates must exist in `./certs/` before deploying. Run `./setup-certs.sh` first.
+## 1. File Name and Directory
+`setup-certs.sh`
+
+### 2. File Type
+Infrastructure — shell script (certificate generator)
+
+### 3. What the file does
+Generates a self-signed TLS certificate and key using OpenSSL for the droplet IP (default: 139.59.157.34). Skips if certs already exist. Idempotent.
+
+### 4. User Stories
+- As an operator, I can run `./setup-certs.sh` once before deploying to generate TLS certificates.
+
+### 5. Functions Summary
+- Openssl command: generates RSA 2048-bit key + x509 self-signed cert valid for 3650 days with SAN IP.
+
+### 6. Integration
+Outputs `certs/bluebits.crt` and `certs/bluebits.key` consumed by nginx at runtime.
+
+### 7. Imports Summary
+None — pure bash + openssl.
+
+### 8. Additional Info
+Certificate directory is gitignored (`.gitignore`). The `setup-server.sh` script also generates these certs during initial server setup.
+## 1. File Name and Directory
+`setup-server.sh`
+
+### 2. File Type
+Infrastructure — shell script (one-time VPS setup)
+
+### 3. What the file does
+One-time server initialization. A new step (3b) generates a self-signed TLS certificate inside `/opt/bluebits/certs/` using the `DROPLET_HOST` from `.deploy.env` or the default IP.
+
+### 4. User Stories
+- As an operator, running `setup-server.sh` provisions Docker, UFW with port 443, and generates a TLS certificate for HTTPS.
+
+### 5. Functions Summary
+- Step 3b: Reads `DROPLET_HOST` from `.deploy.env` (or uses default), runs `openssl req` to generate cert+key, sets restrictive permissions on key.
+
+### 6. Integration
+Generates certs used by the nginx container at `/etc/nginx/certs/`.
+
+### 7. Imports Summary
+None — pure bash + openssl.
+
+### 8. Additional Info
+UFW rule for port 443 was already present. Certificate generation is idempotent — skips if `bluebits.crt` already exists.
+## 1. File Name and Directory
 `Backend/Services/AdminWorkflowService.cs`
 
 ### 2. File Type

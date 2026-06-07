@@ -64,6 +64,7 @@ update-*
 *.cjs
 *.sh
 !setup-server.sh
+!setup-certs.sh
 App_Data/
 Tests/
 inspect_proj/
@@ -73,3 +74,7 @@ test_merged_*
 test_trimmed.docx
 nul
 *.db-journal
+
+# Self-signed certificates (generated at deploy time)
+certs/
+!certs/.gitkeep

@@ -695,7 +695,7 @@ Defines the app-wide CSS foundation using Tailwind v4's CSS-first config (`@impo
 
 ### 5. Functions Summary
 No JavaScript functions — pure CSS. Key custom properties and keyframe animations:
-- `@theme tokens`: `--font-sans`, `--color-*` palette (primary, cyan, success, danger, sidebar, surface, text, border)
+- `@theme tokens`: `--font-sans`, `--color-*` palette (primary, cyan, success, danger, purple, sidebar, surface, text, border)
 - `.transition-default`: Generic 0.2s ease transition utility
 - `.animate-fade-slide-in`: Wizard step entry animation (opacity + translateY)
 - `.animate-copy-flash`: Copy-to-clipboard scale pulse

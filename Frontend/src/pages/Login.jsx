@@ -71,7 +71,7 @@ export default function Login() {
                     <img
                         src="/logos/Horizontal logo.png"
                         alt="Blue Bits Studio"
-                        className="h-12 object-contain dark:brightness-0 dark:invert"
+                        className="h-12 w-auto object-contain transition-all dark:brightness-0 dark:invert"
                     />
                 </div>
 

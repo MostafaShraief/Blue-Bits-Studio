@@ -71,7 +71,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                 <img
                     src="/logos/Horizontal logo.png"
                     alt="Blue Bits Studio"
-                    className="h-10 object-contain brightness-0 invert"
+                    className="h-10 w-auto object-contain brightness-0 invert transition-all"
                 />
             </div>
 

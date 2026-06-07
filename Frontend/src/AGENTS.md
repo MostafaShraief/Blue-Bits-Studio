@@ -283,7 +283,7 @@ No direct backend API calls. Works with React Router's `<Outlet>` to render chil
 - **Internal:** `Sidebar` (`./Sidebar`), `TourOverlay` (`./TourOverlay`)
 
 ### 8. Additional Info
-Uses `ms-64` (logical margin-inline-start) for sidebar offset on `md:` screens, consistent with RTL compatibility. The `h-dvh` and `overflow-hidden` ensure no double scrollbars.
+Uses `ms-64` (logical margin-inline-start) for sidebar offset on `md:` screens, consistent with RTL compatibility. The `h-dvh` and `overflow-hidden` ensure no double scrollbars. Mobile header logo uses `dark:brightness-0 dark:invert` instead of unconditional `brightness-0 invert` to preserve original blue logo colors in light mode.
 
 ### 9. API
 No request/response handling. Acts as a passive shell — data fetching is delegated to child route components rendered via `<Outlet>`.

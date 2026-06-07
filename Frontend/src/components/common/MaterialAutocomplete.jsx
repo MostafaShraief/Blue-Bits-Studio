@@ -98,9 +98,6 @@ export default function MaterialAutocomplete({ value, onChange, label = 'اسم 
                     </div>
                 )}
             </div>
-            {showError && (
-                <p className="mt-1.5 text-xs text-danger">يجب اختيار مادة من القائمة المقترحة</p>
-            )}
             {hasInput && isTouched && !isValidValue && !showError && (
                 <p className="mt-1.5 text-xs text-danger">المادة المدخلة غير موجودة — اختر من القائمة</p>
             )}

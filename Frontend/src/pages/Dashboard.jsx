@@ -52,8 +52,8 @@ const WORKFLOW_CONFIG = {
     },
     BANK_EXT: {
         to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
-        cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
-        iconCls: 'text-cyan',
+        cls: 'border-purple/20 bg-purple/5 hover:bg-purple/10 hover:border-purple/40',
+        iconCls: 'text-purple',
     },
     PANDOC: {
         to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
@@ -89,7 +89,7 @@ const WORKFLOW_CONFIG = {
 
 const STAT_CARD_CONFIG = {
     LEC_EXT: { label: 'محاضرات', icon: BookOpen, bgClass: 'bg-primary/10', textClass: 'text-primary' },
-    BANK_EXT: { label: 'بنوك أسئلة', icon: FlaskConical, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
+    BANK_EXT: { label: 'بنوك أسئلة', icon: FlaskConical, bgClass: 'bg-purple/10', textClass: 'text-purple' },
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-success/10', textClass: 'text-success' },
     LEC_COORD: { label: 'تنسيق محاضرات', icon: AlignRight, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
     BANK_COORD: { label: 'تنسيق بنوك', icon: AlignRight, bgClass: 'bg-primary/10', textClass: 'text-primary' },

@@ -24,6 +24,7 @@ public class PandocService : IPandocService
         string type,
         string lectureNumber,
         string contentRootPath,
+        bool isSinglePage,
         CancellationToken cancellationToken = default)
     {
         var appData = Path.Combine(contentRootPath, "App_Data");
@@ -35,10 +36,6 @@ public class PandocService : IPandocService
         var resolvedTemplateName = string.IsNullOrEmpty(templateName) ? "Pandoc-Theo.dotx" : templateName;
         var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", resolvedTemplateName);
         templatePath = Path.GetFullPath(templatePath);
-
-        var finalTemplateName = resolvedTemplateName.Replace(".dotx", "-Final-Step.dotx");
-        var finalTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", finalTemplateName);
-        finalTemplatePath = Path.GetFullPath(finalTemplatePath);
 
         var uploadDir = Path.Combine(contentRootPath, "uploads", "pandoc");
         Directory.CreateDirectory(uploadDir);
@@ -52,11 +49,12 @@ public class PandocService : IPandocService
         };
         var safeLectureNumber = string.IsNullOrWhiteSpace(lectureNumber) ? "Unknown" : string.Join("_", lectureNumber.Split(Path.GetInvalidFileNameChars()));
 
-        var fileName = $"{safeMaterialName} ({typeLabel}) - {safeLectureNumber}.docx";
+        var fileName = isSinglePage
+            ? $"{safeMaterialName} ({typeLabel}) - {safeLectureNumber} (أبيض).docx"
+            : $"{safeMaterialName} ({typeLabel}) - {safeLectureNumber}.docx";
         var tempOutputDocx = Path.Combine(uploadDir, $"temp_{Guid.NewGuid()}.docx");
-        var finalOutputDocx = Path.Combine(uploadDir, fileName);
 
-        _logger.LogInformation("Starting DOCX generation for material {MaterialName}, Lecture {LectureNumber}, type {Type}", materialName, lectureNumber, type);
+        _logger.LogInformation("Starting DOCX generation for material {MaterialName}, Lecture {LectureNumber}, type {Type}, singlePage={IsSinglePage}", materialName, lectureNumber, type, isSinglePage);
 
         var process = new Process
         {
@@ -83,9 +81,27 @@ public class PandocService : IPandocService
             return new PandocResult { Success = false, Error = "فشل إنشاء المستند", Details = error };
         }
 
+        string finalOutputDocx;
+        if (isSinglePage)
+        {
+            finalOutputDocx = Path.Combine(uploadDir, fileName);
+            if (File.Exists(finalOutputDocx))
+                File.Delete(finalOutputDocx);
+            File.Move(tempOutputDocx, finalOutputDocx);
+
+            _logger.LogInformation("Single-page DOCX generation completed for {MaterialName} Lecture {LectureNumber}. Output: {FileName}", materialName, lectureNumber, fileName);
+            return new PandocResult { Success = true, FileUrl = $"/uploads/pandoc/{Uri.EscapeDataString(fileName)}" };
+        }
+
+        var finalTemplateName = resolvedTemplateName.Replace(".dotx", "-Final-Step.dotx");
+        var finalTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", finalTemplateName);
+        finalTemplatePath = Path.GetFullPath(finalTemplatePath);
+
+        var finalOutputDocxFull = Path.Combine(uploadDir, fileName);
+
         try
         {
-            MergeWithTemplate(tempOutputDocx, finalTemplatePath, finalOutputDocx);
+            MergeWithTemplate(tempOutputDocx, finalTemplatePath, finalOutputDocxFull);
         }
         catch (Exception ex)
         {

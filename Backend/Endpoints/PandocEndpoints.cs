@@ -26,6 +26,7 @@ public static class PandocEndpoints
                 req.Type,
                 req.LectureNumber,
                 env.ContentRootPath,
+                req.IsSinglePage,
                 httpContext.RequestAborted);
 
             if (!result.Success)

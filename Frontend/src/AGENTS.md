@@ -499,6 +499,7 @@ No direct API calls. Reads `user` and `loading` from `AuthContext` (backend auth
 
 ### 8. Additional Info
 NAV_ITEMS array centralizes all route definitions with `systemCode` for RBAC and `role` for admin/member filtering. Extraction and Coordination check two possible SystemCodes (LEC_EXT/BANK_EXT, LEC_COORD/BANK_COORD). History (HIST) bypasses systemCode check and only requires an authenticated user.
+Mobile sidebar `<aside>` includes `flex flex-col` so the profile section (with `nav.flex-1` above it) stays pinned to the bottom, matching the desktop sidebar behavior.
 
 ### 9. API
 No direct request/response handling. Relies on AuthContext to provide user object with `role`, `allowedWorkflows` array, `firstName`, `lastName`, and `username` — populated by the backend after login.

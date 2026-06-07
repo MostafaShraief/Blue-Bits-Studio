@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useContext } from 'react';
+import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router';
 import WizardStepper from '../components/WizardStepper';
 import ImageUploader from '../components/ImageUploader';
@@ -77,6 +77,7 @@ export default function ExtractionWizard() {
     const [prompt, setPrompt] = useState('');
     const [saved, setSaved] = useState(false);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+    const originalVals = useRef({});
 
     useEffect(() => {
         if (id) {
@@ -99,6 +100,13 @@ export default function ExtractionWizard() {
                     }));
                     setImages(loadedImages);
                 }
+                originalVals.current = {
+                    materialName: data.material?.materialName || '',
+                    lectureNumber: String(data.lectureNumber || ''),
+                    lectureType: data.lectureType || '',
+                    workflowSystemCode: data.workflow?.systemCode || '',
+                    generalNotes: notes,
+                };
                 setSessionId(id);
                 setSaved(true);
                 goTo(STEPS.length - 1);
@@ -157,6 +165,17 @@ export default function ExtractionWizard() {
     const goNext = useCallback(async () => {
         setFieldErrors({});
         if (currentStep === 1) {
+            if (id) {
+                const o = originalVals.current;
+                if (o.materialName === materialName &&
+                    o.lectureNumber === String(lectureNumber) &&
+                    o.lectureType === lectureType &&
+                    o.workflowSystemCode === workflowSystemCode &&
+                    o.generalNotes === generalNotes) {
+                    next();
+                    return;
+                }
+            }
             setIsLoadingPrompt(true);
             try {
                 const processedImages = await Promise.all(images.map(async (img, i) => {
@@ -500,7 +519,7 @@ export default function ExtractionWizard() {
                                     : 'bg-cyan text-white hover:bg-cyan/80 shadow-lg shadow-cyan/25'
                             }`}
                         >
-                            {saved ? 'تم الحفظ ✓' : 'حفظ الجلسة'}
+                            {saved ? 'تم الحفظ ✓' : (id ? 'تحديث' : 'حفظ الجلسة')}
                         </button>
                     </div>
                 </div>

@@ -933,9 +933,11 @@ A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة وال
 - As a coordinator, I want to save my session or copy the prompt, so I can resume later or use it immediately.
 - As a coordinator, I want to see per-field validation errors under inputs when the backend rejects my session data.
 - As a coordinator, I want a toast notification when I hit a rate limit (429) instead of a confusing error.
+- As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
-- `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 creates a session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
+- `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
 - `goBack`: Calls `prev()` to go back one step.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
 - `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
@@ -946,7 +948,7 @@ A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة وال
 Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt` (POST) through HttpClient. Uses `useWizard` hook's `createSession` (which delegates to `useSessions` → `SessionsApi`) for session creation (POST).
 
 ### 7. Imports Summary
-- **External:** `react` (useState, useCallback, useEffect, useContext), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
+- **External:** `react` (useState, useCallback, useEffect, useContext, useRef), `react-router` (useSearchParams, useNavigate), `lucide-react` (Copy icon).
 - **Internal:** `WizardStepper`, `PromptPreview`, `MaterialAutocomplete`, `useWizard`, `useToast`, `AuthContext`, `useSettings`, `SessionsApi.getSession`, `PromptsApi.compilePrompt`, `HttpClient.RateLimitError`.
 
 ### 8. Additional Info
@@ -958,6 +960,7 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - Wizard methods destructured from `useWizard`: `{ currentStep, next, prev, goTo, sessionId, setSessionId, createSession }`.
 - Session restore via `?id=` and `?type=bank|lecture` jumps to step 2 (`goTo(2)`) with saved prompt and markdown.
 - `goNext` branches on `currentStep` — step 0→1 validates fields (no API), step 1→2 creates session + compiles prompt.
+- **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef`. If user goes back and clicks "التالي" without changing anything, the API calls are skipped. Button label shows "تحديث" (Update) instead of "حفظ الجلسة" when editing an existing session.
 - 429 errors trigger warning toast via `RateLimitError` from HttpClient.
 - `fieldInputClass` utility provides consistent input styling with error-state red border.
 - FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
@@ -1012,13 +1015,14 @@ A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompt
 - As a user, I can preview the compiled prompt and copy it to Google AI Studio.
 - As a user, I see inline Arabic validation errors under form fields when the backend rejects data.
 - As a user, I see a warning toast when rate-limited (429).
+- As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
 - `DrawWizard()`: Main component rendering the 2-step wizard flow.
 - `addImage(file)`: Adds an image (max 3) to the images state.
 - `removeImage(index)`: Removes an image by index and revokes its object URL.
 - `updateImageNote(index, text)`: Updates the note for an image at given index.
-- `handleNext()`: Validates all fields, creates a session via `SessionsApi.createSession`, uploads files via `SessionsApi.uploadFiles`, compiles prompt (auto-save: fetch from DB; otherwise via `PromptsApi.compilePrompt`), then advances to step 1.
+- `goNext`: Advances step; on step 1→2, diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, uploads files via `uploadFiles`, compiles prompt. Catches 400 validation errors and 429 rate-limit errors.
 - `handleSave()`: Re-fetches session to confirm persistence, sets saved state.
 - `clearFieldError(field)`: Clears a single field validation error on input change.
 
@@ -1026,7 +1030,7 @@ A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompt
 Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession`, `SessionsApi.uploadFiles` (multipart), and `PromptsApi.compilePrompt`. Each uses `HttpClient` which handles JWT auth, 401 logout, 429 rate-limit, and 400 validation errors.
 
 ### 7. Imports Summary
-- **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback)
+- **External:** `react-router` (useSearchParams), `react` (useState, useEffect, useCallback, useRef)
 - **Internal components:** WizardStepper, PromptPreview, GuidedCopyLoop, ImageUploader, PasteButton, PasteImageButton, MaterialAutocomplete
 - **New API modules:** `useWizard` hook (returns `currentStep`, `next`, `prev`, `goTo`, `sessionId`, `setSessionId`), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`
 - **Contexts:** `useSettings` from `SettingsContext`, `useToast` from `ToastContext`
@@ -1039,6 +1043,7 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 - Supports both auto-save (persisted session) and stateless prompt compilation.
 - 429 errors show a warning toast with Arabic retry-after message (vs generic error toast).
 - FluentValidation field errors from 400 responses are normalized to lowercase keys and displayed under each input with red border styling, matching the Login.jsx pattern.
+- **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
 
 ### 9. API
 - `SessionsApi.getSession(id)` → GET `/api/sessions/{id}` — returns session data with `compiledPrompt`, `notes[]`, `files[]`.
@@ -1060,13 +1065,14 @@ Refactored 3-step wizard that uses `useWizard` hook for step navigation, `Sessio
 - As a user, I can upload images with per-image notes and add general notes to build the extraction prompt.
 - As a user, I see inline field validation errors under inputs when the backend rejects data.
 - As a user, I see an Arabic warning toast when rate-limited (429).
+- As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
 - `ExtractionWizard` (default export): Main component; uses `useWizard` for step state, `SessionsApi.createSession`/`getSession`/`uploadFiles`, `PromptsApi.compilePrompt` for API calls, `useToast` for error toasts.
 - `addImage`: Appends a file to the images array with an object URL.
 - `removeImage`: Removes an image by index and revokes its object URL.
 - `updateImageNote`: Updates the note for a specific image.
-- `goNext`: Advances step; on step 1→2, creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
+- `goNext`: Advances step; on step 1→2, diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
 - `goBack`: Calls `prev()` from useWizard.
 - `handleSave`: Marks session as saved by re-fetching via `getSession`.
 - `clearFieldError(field)`: Removes a field-specific validation error on input change.
@@ -1075,11 +1081,11 @@ Refactored 3-step wizard that uses `useWizard` hook for step navigation, `Sessio
 Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `apiUploadFiles`) and `PromptsApi` (`apiCompilePrompt`) — all through HttpClient which handles JWT auth, 401 auto-redirect, and typed errors. Uses `ToastContext` for 429 Arabic toast warnings and 400 validation toasts.
 
 ### 7. Imports Summary
-- **External:** `useState`, `useCallback`, `useEffect`, `useContext` (React), `useSearchParams`, `Link`, `useNavigate` (React Router).
+- **External:** `useState`, `useCallback`, `useEffect`, `useContext`, `useRef` (React), `useSearchParams`, `Link`, `useNavigate` (React Router).
 - **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services. **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
 
 ### 9. API
 - **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.

@@ -71,7 +71,7 @@ public class PandocQueueService : BackgroundService
             {
                 Success = false,
                 Error = "لم يكتمل التحويل خلال المهلة المحددة",
-                Details = "The Pandoc generation request was queued but timed out after 5 minutes. This may be due to a large document or high server load. Please try again."
+                Details = "تمت إضافة طلب إنشاء المستند إلى قائمة الانتظار ولكن المهلة الزمنية انتهت بعد 5 دقائق. قد يكون السبب حجم المستند الكبير أو ارتفاع تحميل الخادم. يرجى المحاولة مرة أخرى."
             };
         }
     }
@@ -109,7 +109,7 @@ public class PandocQueueService : BackgroundService
                 {
                     Success = false,
                     Error = "تم إلغاء الطلب",
-                    Details = "The Pandoc generation request was cancelled."
+                    Details = "تم إلغاء طلب إنشاء المستند."
                 });
             }
             catch (Exception ex)
@@ -120,7 +120,7 @@ public class PandocQueueService : BackgroundService
                 request.CompletionSource.TrySetResult(new PandocResult
                 {
                     Success = false,
-                    Error = "Pandoc generation failed",
+                    Error = "فشل إنشاء المستند",
                     Details = ex.Message
                 });
             }

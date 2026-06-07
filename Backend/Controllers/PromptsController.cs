@@ -35,7 +35,7 @@ public class PromptsController : ControllerBase
         var prompt = await _promptService.GetPromptForSessionAsync(sessionId, systemCode);
 
         if (prompt == null)
-            return NotFound("Prompt not found for this workflow.");
+            return NotFound("لم يتم العثور على الموجه لهذا السير.");
 
         return Ok(new { prompt.PromptText, prompt.PromptName });
     }
@@ -52,7 +52,7 @@ public class PromptsController : ControllerBase
         if (User.IsInRole("Admin")) return Forbid();
 
         if (string.IsNullOrWhiteSpace(req.systemCode))
-            return BadRequest("systemCode is required.");
+            return BadRequest("رمز النظام مطلوب.");
 
         var compiled = await _promptService.CompilePromptAsync(
             req.systemCode,

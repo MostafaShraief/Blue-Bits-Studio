@@ -7,6 +7,6 @@ public class UpdatePromptRequestValidator : AbstractValidator<UpdatePromptReques
 {
     public UpdatePromptRequestValidator()
     {
-        RuleFor(x => x.PromptText).NotEmpty();
+        RuleFor(x => x.PromptText).NotEmpty().WithMessage("نص الموجه مطلوب.");
     }
 }

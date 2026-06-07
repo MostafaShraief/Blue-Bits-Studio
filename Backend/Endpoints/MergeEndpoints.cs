@@ -13,7 +13,7 @@ public static class MergeEndpoints
             IMergeService mergeService,
             IWebHostEnvironment env) =>
         {
-            if (!request.HasFormContentType) return Results.BadRequest(new { error = "Expected form data." });
+            if (!request.HasFormContentType) return Results.BadRequest(new { error = "بيانات النموذج متوقعة." });
 
             var form = await request.ReadFormAsync();
             var files = form.Files.GetFiles("files");

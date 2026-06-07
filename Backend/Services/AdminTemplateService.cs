@@ -56,14 +56,14 @@ public class AdminTemplateService : IAdminTemplateService
     {
         var def = _templateDefs.FirstOrDefault(d => d.Type == templateType);
         if (def == default)
-            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid template type. Must be 'Theo', 'Prac', 'Theo-Final', or 'Prac-Final'.", StatusCode = 400 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "نوع القالب غير صالح. يجب أن يكون 'Theo' أو 'Prac' أو 'Theo-Final' أو 'Prac-Final'.", StatusCode = 400 };
 
         var ext = Path.GetExtension(file.FileName);
         if (!".dotx".Equals(ext, StringComparison.OrdinalIgnoreCase))
-            return new TemplateUploadResult { Success = false, ErrorMessage = "Only .dotx files are accepted.", StatusCode = 400 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "يتم قبول ملفات .dotx فقط.", StatusCode = 400 };
 
         if (file.Length > 10 * 1024 * 1024)
-            return new TemplateUploadResult { Success = false, ErrorMessage = "File size must not exceed 10 MB.", StatusCode = 400 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "حجم الملف يجب ألا يتجاوز 10 ميغابايت.", StatusCode = 400 };
 
         byte[] fileBytes;
         using (var ms = new MemoryStream())
@@ -79,13 +79,13 @@ public class AdminTemplateService : IAdminTemplateService
         }
         catch
         {
-            return new TemplateUploadResult { Success = false, ErrorMessage = "Invalid .dotx file format.", StatusCode = 400 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "تنسيق ملف .dotx غير صالح.", StatusCode = 400 };
         }
 
         if (!await _writeLock.WaitAsync(_timeout))
         {
             _logger.LogWarning("Semaphore timeout for template upload (type: {TemplateType})", templateType);
-            return new TemplateUploadResult { Success = false, ErrorMessage = "Another upload is in progress. Please try again.", StatusCode = 409 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "يوجد رفع آخر قيد التقدم. يرجى المحاولة مرة أخرى.", StatusCode = 409 };
         }
 
         try
@@ -109,7 +109,7 @@ public class AdminTemplateService : IAdminTemplateService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to upload template {TemplateType}", templateType);
-            return new TemplateUploadResult { Success = false, ErrorMessage = "An error occurred while uploading the template.", StatusCode = 500 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "حدث خطأ أثناء رفع القالب.", StatusCode = 500 };
         }
         finally
         {

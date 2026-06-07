@@ -80,7 +80,7 @@ public class PandocService : IPandocService
         {
             var error = await process.StandardError.ReadToEndAsync();
             _logger.LogError("Pandoc CLI failed for {MaterialName} Lecture {LectureNumber}. ExitCode: {ExitCode}, Error: {Error}", materialName, lectureNumber, process.ExitCode, error);
-            return new PandocResult { Success = false, Error = "Pandoc generation failed", Details = error };
+            return new PandocResult { Success = false, Error = "فشل إنشاء المستند", Details = error };
         }
 
         try
@@ -90,7 +90,7 @@ public class PandocService : IPandocService
         catch (Exception ex)
         {
             _logger.LogError(ex, "OpenXML post-processing failed for {MaterialName} Lecture {LectureNumber}", materialName, lectureNumber);
-            return new PandocResult { Success = false, Error = "Post-processing failed", Details = ex.Message };
+            return new PandocResult { Success = false, Error = "فشلت المعالجة اللاحقة", Details = ex.Message };
         }
         finally
         {

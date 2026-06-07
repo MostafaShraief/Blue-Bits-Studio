@@ -54,7 +54,7 @@ public static class RateLimitingExtensions
             {
                 context.HttpContext.Response.Headers.RetryAfter = windowSeconds.ToString();
                 context.HttpContext.Response.ContentType = "application/json";
-                var body = new { error = "Too many requests. Please try again later.", statusCode = 429 };
+                var body = new { error = "طلبات كثيرة جداً. يرجى المحاولة مرة أخرى لاحقاً.", statusCode = 429 };
                 return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(body, cancellationToken));
             };
         });

@@ -4,9 +4,18 @@ const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const [exitingIds, setExitingIds] = useState(new Set());
 
   const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setExitingIds(prev => new Set([...prev, id]));
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      setExitingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 300);
   }, []);
 
   const showToast = useCallback((message, type = 'error') => {
@@ -22,7 +31,7 @@ export function ToastProvider({ children }) {
   }, [showToast]);
 
   return (
-    <ToastContext.Provider value={{ toasts, showToast, removeToast }}>
+    <ToastContext.Provider value={{ toasts, showToast, removeToast, exitingIds }}>
       {children}
     </ToastContext.Provider>
   );

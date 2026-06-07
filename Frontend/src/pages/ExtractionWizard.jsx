@@ -164,7 +164,18 @@ export default function ExtractionWizard() {
 
     const goNext = useCallback(async () => {
         setFieldErrors({});
-        if (currentStep === 1) {
+        if (currentStep === 0) {
+            const errors = {};
+            if (!workflowSystemCode) errors.workflowSystemCode = 'الرجاء اختيار نوع الاستخراج';
+            if (!materialValid) errors.materialName = 'الرجاء اختيار مادة صالحة';
+            if (!String(lectureNumber).trim()) errors.lectureNumber = 'الرجاء إدخال رقم المحاضرة';
+            if (!lectureType) errors.lectureType = 'الرجاء اختيار نوع المحاضرة';
+            if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
+                return;
+            }
+            next();
+        } else if (currentStep === 1) {
             if (id) {
                 const o = originalVals.current;
                 if (o.materialName === materialName &&
@@ -247,7 +258,7 @@ export default function ExtractionWizard() {
         } else {
             next();
         }
-    }, [currentStep, next, images, materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes, autoSave, setSessionId, showToast]);
+    }, [currentStep, next, images, materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes, autoSave, setSessionId, showToast, materialValid]);
 
     const goBack = useCallback(() => {
         prev();
@@ -262,8 +273,6 @@ export default function ExtractionWizard() {
             console.error("Failed to save session", err);
         }
     }, [sessionId, saved]);
-
-    const canProceedStep1 = materialValid && String(lectureNumber).trim() && workflowSystemCode && lectureType;
 
     const fieldInputClass = (field) =>
         `w-full rounded-xl border px-4 py-3 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 transition-default ${
@@ -384,8 +393,7 @@ export default function ExtractionWizard() {
 
                     <button
                         onClick={goNext}
-                        disabled={!canProceedStep1}
-                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
+                        className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                     >
                         التالي
                     </button>

@@ -925,7 +925,7 @@ No API interaction.
 Frontend (React component)
 
 ### 3. What the file does
-A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata (step 0), paste reviewed Markdown text (step 1), then compile and preview/copy the prompt (step 2). Uses `useWizard({ totalSteps: 3 })` for step management and session lifecycle. Follows the same 3-step pattern as ExtractionWizard.
+A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة والنسخ`) for coordinating lecture/question-bank formatting. Users select a workflow type, enter session metadata (step 0), paste reviewed Markdown text (step 1), then compile and preview/copy the prompt (step 2). Uses `useWizard({ totalSteps: 3 })` for step management and session lifecycle. Follows the same 3-step pattern as ExtractionWizard. Step 0 validates required fields (workflowSystemCode, material, lectureNumber, lectureType) client-side on "التالي" click with per-field Arabic errors (replaced generic toast).
 
 ### 4. User Stories
 - As a coordinator, I want to select a material, lecture number, and type (Theoretical/Practical), so the system knows the context.
@@ -933,11 +933,12 @@ A 3-step wizard (`إعداد الجلسة`, `النص`, `المعاينة وال
 - As a coordinator, I want to save my session or copy the prompt, so I can resume later or use it immediately.
 - As a coordinator, I want to see per-field validation errors under inputs when the backend rejects my session data.
 - As a coordinator, I want a toast notification when I hit a rate limit (429) instead of a confusing error.
+- As a coordinator, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors instead of a generic toast.
 - As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
 - `getInitialWorkflowCode`: Determines default workflow from URL param `type` respecting user permissions.
-- `goNext`: Unified step-advance handler. Step 0→1 validates metadata fields only. Step 1→2 diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
+- `goNext`: Unified step-advance handler. Step 0→1 validates required fields (workflowSystemCode, material, lectureNumber, lectureType) client-side, sets per-field Arabic errors if invalid; step 1→2 diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, compiles the prompt (auto-save path: fetch compiled from DB; else stateless via `compilePrompt`), then advances. Catches 400 with `err.errors` and sets `fieldErrors` for inline display. Catches `RateLimitError` and shows warning toast.
 - `goBack`: Calls `prev()` to go back one step.
 - `handleCopy`: Copies prompt text to clipboard with a fallback using `document.execCommand`.
 - `handleSave`: Refetches session via `getSession` to mark as saved, shows success toast.
@@ -959,9 +960,10 @@ Calls REST APIs via `SessionsApi.getSession` (GET) and `PromptsApi.compilePrompt
 - **3 steps:** Step 0 = session metadata, Step 1 = Markdown input, Step 2 = prompt preview + copy + save.
 - Wizard methods destructured from `useWizard`: `{ currentStep, next, prev, goTo, sessionId, setSessionId, createSession }`.
 - Session restore via `?id=` and `?type=bank|lecture` jumps to step 2 (`goTo(2)`) with saved prompt and markdown.
-- `goNext` branches on `currentStep` — step 0→1 validates fields (no API), step 1→2 creates session + compiles prompt.
+- `goNext` branches on `currentStep` — step 0→1 validates fields client-side with per-field Arabic errors (replaced generic toast), step 1→2 creates session + compiles prompt.
 - **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef`. If user goes back and clicks "التالي" without changing anything, the API calls are skipped. Button label shows "تحديث" (Update) instead of "حفظ الجلسة" when editing an existing session.
 - 429 errors trigger warning toast via `RateLimitError` from HttpClient.
+- Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors instead of a generic toast. `clearFieldError` wired to each field's onChange/onClick.
 - `fieldInputClass` utility provides consistent input styling with error-state red border.
 - FluentValidation field errors from 400 responses are rendered as red text under each input (field names lowercased for matching).
 
@@ -1008,13 +1010,14 @@ Arabic-first UI with RTL layout. Admin users are no longer redirected — they s
 Frontend
 
 ### 3. What the file does
-A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompts that generate Python drawing code. Combines session metadata + image upload + description into one unified input step, then previews/copies the compiled prompt. Uses `useWizard` hook for step/session management, `SessionsApi` for CRUD, `PromptsApi.compilePrompt` for stateless compilation.
+A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompts that generate Python drawing code. Combines session metadata + image upload + description into one unified input step, then previews/copies the compiled prompt. Uses `useWizard` hook for step/session management, `SessionsApi` for CRUD, `PromptsApi.compilePrompt` for stateless compilation. Step 0 validates required fields (material, lectureNumber, lectureType) client-side on "التالي" click with per-field Arabic errors.
 
 ### 4. User Stories
 - As a user, I can create a drawing session by selecting a material, lecture number, lecture type, uploading reference images, and writing a description — all in one step.
 - As a user, I can preview the compiled prompt and copy it to Google AI Studio.
 - As a user, I see inline Arabic validation errors under form fields when the backend rejects data.
 - As a user, I see a warning toast when rate-limited (429).
+- As a user, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors before advancing.
 - As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
@@ -1022,7 +1025,7 @@ A 2-step wizard (`البرومبت` → `النتيجة`) for creating AI prompt
 - `addImage(file)`: Adds an image (max 3) to the images state.
 - `removeImage(index)`: Removes an image by index and revokes its object URL.
 - `updateImageNote(index, text)`: Updates the note for an image at given index.
-- `goNext`: Advances step; on step 1→2, diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, uploads files via `uploadFiles`, compiles prompt. Catches 400 validation errors and 429 rate-limit errors.
+- `goNext`: Advances step; on step 0→1 validates required fields (material, lectureNumber, lectureType) client-side and sets per-field errors if invalid; on step 1→2 diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `createSession`, uploads files via `uploadFiles`, compiles prompt. Catches 400 validation errors and 429 rate-limit errors.
 - `handleSave()`: Re-fetches session to confirm persistence, sets saved state.
 - `clearFieldError(field)`: Clears a single field validation error on input change.
 
@@ -1043,6 +1046,7 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 - Supports both auto-save (persisted session) and stateless prompt compilation.
 - 429 errors show a warning toast with Arabic retry-after message (vs generic error toast).
 - FluentValidation field errors from 400 responses are normalized to lowercase keys and displayed under each input with red border styling, matching the Login.jsx pattern.
+- Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors. `clearFieldError` wired to each field's onChange/onClick.
 - **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
 
 ### 9. API
@@ -1058,13 +1062,14 @@ Calls backend REST APIs via `SessionsApi.createSession`, `SessionsApi.getSession
 Frontend (React page component)
 
 ### 3. What the file does
-Refactored 3-step wizard that uses `useWizard` hook for step navigation, `SessionsApi` + `PromptsApi` via HttpClient for all backend calls. Steps: session metadata entry → image uploads + notes → prompt preview + guided copy loop. Integrates `ToastContext` for 429 rate-limit warnings and FluentValidation field error binding.
+Refactored 3-step wizard that uses `useWizard` hook for step navigation, `SessionsApi` + `PromptsApi` via HttpClient for all backend calls. Steps: session metadata entry → image uploads + notes → prompt preview + guided copy loop. Integrates `ToastContext` for 429 rate-limit warnings and FluentValidation field error binding. Step 0 validates all required fields client-side on "التالي" click, showing per-field Arabic error messages before advancing.
 
 ### 4. User Stories
 - As a user, I can select extraction type (lecture/bank), pick a material, enter lecture number & type, then proceed.
 - As a user, I can upload images with per-image notes and add general notes to build the extraction prompt.
 - As a user, I see inline field validation errors under inputs when the backend rejects data.
 - As a user, I see an Arabic warning toast when rate-limited (429).
+- As a user, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors before advancing.
 - As a user resuming a past session, re-saving is skipped if no fields changed (update-on-diff).
 
 ### 5. Functions Summary
@@ -1072,7 +1077,7 @@ Refactored 3-step wizard that uses `useWizard` hook for step navigation, `Sessio
 - `addImage`: Appends a file to the images array with an object URL.
 - `removeImage`: Removes an image by index and revokes its object URL.
 - `updateImageNote`: Updates the note for a specific image.
-- `goNext`: Advances step; on step 1→2, diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
+- `goNext`: Advances step; on step 0→1 validates required fields client-side (workflowSystemCode, material, lectureNumber, lectureType) and sets per-field errors if invalid; on step 1→2 diff-checks original vs current values when editing a past session — skips API calls if unchanged; otherwise creates session via `apiCreateSession`, uploads files via `apiUploadFiles`, compiles prompt via `apiCompilePrompt` (or fetches from DB in auto-save mode). Catches 400 validation errors and 429 rate-limit errors.
 - `goBack`: Calls `prev()` from useWizard.
 - `handleSave`: Marks session as saved by re-fetching via `getSession`.
 - `clearFieldError(field)`: Removes a field-specific validation error on input change.
@@ -1085,7 +1090,7 @@ Calls backend REST API via `SessionsApi` (`apiCreateSession`, `getSession`, `api
 - **Internal:** `WizardStepper`, `ImageUploader`, `PromptPreview`, `GuidedCopyLoop`, `PasteButton`, `PasteImageButton`, `MaterialAutocomplete`, `useWizard` (hooks), `getSession`/`createSession`/`uploadFiles` from `SessionsApi`, `compilePrompt` from `PromptsApi`, `useToast` from `ToastContext`, `useSettings` from `SettingsContext`, `AuthContext`, `formatRateLimitError` from `errorFormatter`.
 
 ### 8. Additional Info
-Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services. **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
+Enforces RBAC: redirects to `/unauthorized` if user lacks both `LEC_EXT` and `BANK_EXT` permissions. Admins bypass permission checks. Field errors from backend 400 responses are normalized from PascalCase to camelCase and rendered under respective inputs with red border + Arabic error text. 429 errors trigger Arabic `warning` toast via `formatRateLimitError`. Session restoration via `?id=` query param. Session restore reads `data.material?.materialName` (nested `material` object) and `data.workflow?.systemCode` (nested `workflow` object), not top-level fields. No inline `fetch` calls — all API communication goes through HttpClient-based services. Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors (red border + error text) instead of disabling the button. `clearFieldError` is wired to each field's onChange/onClick. **Update-on-diff:** When resuming a past session (`?id=`), original field values are stored in a `useRef` and compared before re-saving. Button shows "تحديث" (Update) instead of "حفظ الجلسة" when editing.
 
 ### 9. API
 - **`POST /api/sessions`** — `apiCreateSession({ materialName, lectureNumber, lectureType, workflowSystemCode, generalNotes })` → returns `{ id, sessionId }`.
@@ -1182,14 +1187,16 @@ Frontend/src/pages/MergeWizard.jsx
 Frontend — Page component (Wizard)
 
 ### 3. What the file does
-A 3-step wizard that lets users set session metadata (material, type, lecture number), upload and reorder multiple .docx files, then merge them into a single combined Word document for download.
+A 3-step wizard that lets users set session metadata (material, type, lecture number), upload and reorder multiple .docx files, then merge them into a single combined Word document for download. Step 0 validates required fields (material, lectureNumber, lectureType) client-side on "التالي" click with per-field Arabic errors.
 
 ### 4. User Stories
 - As a user, I want to merge several .docx files in a specific order into one file.
 - As a user, I want to reorder, add, or remove files before merging, and download the result.
+- As a user, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors before advancing.
 
 ### 5. Functions Summary
 - `MergeWizard`: Main component — manages 3-step wizard via `useWizard` hook (session setup → file upload/reorder → merge & download)
+- `handleStep0Next`: Validates step 0 fields (material, lectureNumber, lectureType) client-side, sets per-field Arabic errors, and only advances if all valid.
 - `handleFileSelect`: Filters and appends selected .docx files to state
 - `removeFile`: Removes a file by index
 - `moveFile`: Swaps file position (move up/down) for reordering
@@ -1206,7 +1213,7 @@ Calls backend via `MergeApi.execute` (which wraps `HttpClient.httpPost`): sends 
 - **Internal:** `WizardStepper` (step indicator), `MaterialAutocomplete` (material name selector), `MergeApi` from `api/MergeApi`, `ApiError` and `RateLimitError` from `api/HttpClient`, `useWizard` from `hooks/useWizard`, `useToast` from `contexts/ToastContext`, `useSettings` from `contexts/SettingsContext`
 
 ### 8. Additional Info
-Arabic-first RTL interface. Uses `useWizard({ totalSteps: 3 })` for step management (`currentStep`, `next`, `prev`, `goTo`). Uses `useToast` for 429 rate-limit warning toasts. Per-field validation errors from `ApiError.errors` are normalized to lowercase and bound under inputs with `border-danger` styling. Status machine: idle → loading → success/error. Download URL is served directly from the backend server (`/uploads/...`), no client-side blob creation.
+Arabic-first RTL interface. Uses `useWizard({ totalSteps: 3 })` for step management (`currentStep`, `next`, `prev`, `goTo`). Uses `useToast` for 429 rate-limit warning toasts. Per-field validation errors from `ApiError.errors` are normalized to lowercase and bound under inputs with `border-danger` styling. Status machine: idle → loading → success/error. Download URL is served directly from the backend server (`/uploads/...`), no client-side blob creation. Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors. `clearFieldError` wired to each field's onChange/onClick.
 
 ### 9. API
 **Request:** `POST /api/merge/execute` with `Content-Type: multipart/form-data`
@@ -1251,13 +1258,15 @@ Frontend/src/pages/PandocWizard.jsx
 frontend
 
 ### 3. What the file does
-Three-step wizard that lets users prepare a session, paste/upload Markdown content, and generate a formatted Word document via Pandoc backend conversion.
+Three-step wizard that lets users prepare a session, paste/upload Markdown content, and generate a formatted Word document via Pandoc backend conversion. Step 0 validates required fields (material, lectureNumber, lectureType) client-side on "التالي" click with per-field Arabic errors.
 
 ### 4. User Stories
 - As a user, I can select a material, lecture number, and type, then paste or upload a `.md` file.
 - As a user, I can click "إنشاء ملف Word" to convert my Markdown to a `.docx` and download it.
+- As a user, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors before advancing.
 
 ### 5. Functions Summary
+- `handleStep0Next`: Validates step 0 fields (material, lectureNumber, lectureType) client-side, sets per-field Arabic errors, and only advances if all valid.
 - `handleFileOpen`: Reads a selected `.md` file and sets its content as markdown text.
 - `handleDrop`: Handles drag-and-drop of `.md` files into the textarea.
 - `handleGenerate`: Creates a session via `SessionsApi`, saves markdown content, calls `PandocApi.generate`, and provides download link. Handles 429 with warning toast and 400 errors with per-field validation display.
@@ -1270,7 +1279,7 @@ Calls backend REST APIs via `SessionsApi` (createSession, getSession, saveSessio
 External: `react-router` (useSearchParams), `react` (useEffect, useState, useRef), `lucide-react` (icons). Internal: `useWizard` (step management), `useToast` (notifications), `PandocApi`, `SessionsApi`, `SettingsContext`, `HttpClient` (ApiError, RateLimitError), `errorFormatter` (formatRateLimitError).
 
 ### 8. Additional Info
-Arabic-first UI with RTL layout. Uses `useWizard` for step navigation and `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported. 429 responses show a warning toast with formatted Arabic retry-after message. 400 FluentValidation errors are normalized to lowercase keys and rendered inline under each input field, cleared on user interaction.
+Arabic-first UI with RTL layout. Uses `useWizard` for step navigation and `WizardStepper` for step progress. Session loading is supported via `?id=` query param for resuming existing sessions. Drag-and-drop file upload is supported. 429 responses show a warning toast with formatted Arabic retry-after message. 400 FluentValidation errors are normalized to lowercase keys and rendered inline under each input field, cleared on user interaction. Step 0 "التالي" button is always clickable; client-side validation runs on click and sets per-field Arabic errors. `clearFieldError` wired to each field's onChange/onClick.
 
 ### 9. API
 **Create Session:** `POST /api/sessions` (via `SessionsApi.createSession`) with `{ materialName, lectureNumber, lectureType, workflowSystemCode: 'PANDOC' }` → returns `{ id, sessionId }`. **Save Content:** `POST /api/sessions/save` (via `SessionsApi.saveSessionContent`) with `{ sessionId, contentBody }`. **Generate:** `POST /api/pandoc/generate` (via `PandocApi.generate`) with `{ markdownText, templateName, materialName, type, lectureNumber }` → returns `{ fileUrl }`. **Fetch Session:** `GET /api/sessions/{id}` (via `SessionsApi.getSession`) → returns session data with `sessionContents[0].contentBody`. **429:** `HttpClient` throws `RateLimitError` → caught and shown as warning toast via `formatRateLimitError`. **400:** `HttpClient` throws `ApiError` with `errors` map (flattened via `formatValidationErrors`) → normalized to lowercase and rendered per-field.
@@ -1282,18 +1291,20 @@ Arabic-first UI with RTL layout. Uses `useWizard` for step navigation and `Wizar
 Frontend
 
 ### 3. What the file does
-A dual-mode Quiz Hub page with a 2-step wizard: (1) Session setup — enter lecture metadata (material, number, type) and compile a prompt; (2) JSON Editor — upload/edit/add/remove questions, preview them, take a quiz, and save/load sessions to/from the backend.
+A dual-mode Quiz Hub page with a 2-step wizard: (1) Session setup — enter lecture metadata (material, number, type) and compile a prompt; (2) JSON Editor — upload/edit/add/remove questions, preview them, take a quiz, and save/load sessions to/from the backend. Step 0 validates required fields (material, lectureNumber, lectureType) client-side on "التالي" click with per-field Arabic errors (replaced `alert`).
 
 ### 4. User Stories
 - As a user, I can enter lecture metadata to prepare a generation prompt and proceed to the editor.
 - As a user, I can upload, edit, add, remove, preview, quiz-test, and save/update JSON question banks.
+- As a user, clicking "التالي" in step 0 validates all fields and shows per-field Arabic errors instead of an alert.
 
 ### 5. Functions Summary
 - `loadSession`: Fetches a saved session by ID and populates all state.
 - `handleSaveSession`: Saves or updates the quiz session to the backend.
 - `goNext`/`goBack`/`goToStep`: Navigates wizard steps.
 - `handleConfirmModalConfirm`/`handleConfirmModalCancel`: Confirmation modal for unsaved changes.
-- `handleNextStep0`: Validates metadata, compiles prompt, advances to editor.
+- `handleNextStep0`: Validates step 0 fields (material, lectureNumber, lectureType) client-side with per-field Arabic errors (replaced `alert`), compiles prompt on success, advances to editor.
+- `clearFieldError`: Removes a specific field error on input change.
 - `safeParseQuizArray`: Parses JSON string and validates it's an array.
 - `setQuizFromArray`: Sets quiz data and resets answers/submission.
 - `handleFileUpload`: Reads uploaded JSON file and parses into quiz data.
@@ -1319,7 +1330,7 @@ Calls backend APIs via `SessionsApi` (`getSession`, `createSession`, `saveSessio
 - **Internal**: `WizardStepper`, `MaterialAutocomplete`, `saveQuizSession`/`fetchSession`/`createSession`/`compilePromptStateless`, `useSettings`
 
 ### 8. Additional Info
-Uses a 2-step wizard (`WizardStepper`). Two view modes: `preview` (inline editing of questions) and `quiz` (interactive test with scoring). Tracks unsaved changes with `beforeunload` and a custom confirmation modal. Handles `sessionId` from URL `?id=` query param for loading existing sessions.
+Uses a 2-step wizard (`WizardStepper`). Two view modes: `preview` (inline editing of questions) and `quiz` (interactive test with scoring). Tracks unsaved changes with `beforeunload` and a custom confirmation modal. Handles `sessionId` from URL `?id=` query param for loading existing sessions. Step 0 "التالي" button is always clickable (only disabled during loading); client-side validation runs on click and sets per-field Arabic errors (replaced `alert`). `clearFieldError` wired to each field's onChange/onClick. Added `fieldErrors` state and error display for all three fields.
 
 ### 9. API
 - `fetchSession(id)` → returns `{ sessionContents: [{ contentBody }], material, lectureNumber, lectureType }`

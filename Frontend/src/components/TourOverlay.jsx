@@ -11,6 +11,7 @@ export default function TourOverlay() {
     const { isActive, currentStep, stopTour, nextStep, prevStep, currentStepIndex, totalSteps } = useTour();
     const [targetRect, setTargetRect] = useState(null);
     const [isAbove, setIsAbove] = useState(false);
+    const [cardWidth, setCardWidth] = useState(0);
     const cardRef = useRef(null);
     const dir = isRTL() ? 'rtl' : 'ltr';
 
@@ -18,6 +19,8 @@ export default function TourOverlay() {
         if (!isActive || !currentStep) return;
 
         const currentSelector = currentStep.selector;
+        let retryCount = 0;
+        const maxRetries = 5;
 
         const updatePosition = () => {
             const el = document.querySelector(currentSelector);
@@ -28,12 +31,15 @@ export default function TourOverlay() {
                 setTimeout(() => {
                     setTargetRect(el.getBoundingClientRect());
                 }, 400);
+            } else if (retryCount < maxRetries) {
+                retryCount++;
+                setTimeout(updatePosition, 500);
             } else {
                 setTargetRect(null);
             }
         };
 
-        const timer = setTimeout(updatePosition, 100);
+        const timer = setTimeout(updatePosition, 200);
         window.addEventListener('resize', updatePosition);
         window.addEventListener('scroll', updatePosition, { passive: true });
 
@@ -51,6 +57,8 @@ export default function TourOverlay() {
     const measureCard = useCallback(() => {
         if (!cardRef.current || !targetRect) return;
         const cardHeight = cardRef.current.offsetHeight;
+        const cardW = cardRef.current.offsetWidth;
+        setCardWidth(cardW);
         const margin = 20;
         const spaceBelow = window.innerHeight - targetRect.bottom;
         const spaceAbove = targetRect.top;
@@ -67,27 +75,47 @@ export default function TourOverlay() {
 
     if (!isActive || !currentStep) return null;
 
-    const gap = 12;
+    const gap = 14;
     const rtl = dir === 'rtl';
 
-    const overlayStyle = targetRect ? {
-        position: 'fixed',
-        top: isAbove
+    let overlayStyle;
+    let arrowOffset = 24;
+
+    if (targetRect) {
+        const targetCenter = targetRect.left + targetRect.width / 2;
+        const vpWidth = window.innerWidth;
+        const cardMaxW = Math.min(420, vpWidth - gap * 2);
+        const halfCard = cardWidth > 0 ? cardWidth / 2 : cardMaxW / 2;
+
+        let cardLeft = targetCenter - halfCard;
+        cardLeft = Math.max(gap, Math.min(cardLeft, vpWidth - cardMaxW - gap));
+
+        const topPos = isAbove
             ? Math.max(gap, targetRect.top - (cardRef.current?.offsetHeight || 200) - gap)
-            : targetRect.bottom + gap,
-        ...(rtl
-            ? { right: Math.max(gap, window.innerWidth - targetRect.right) }
-            : { left: Math.max(gap, targetRect.left) }
-        ),
-        zIndex: 9999,
-        maxWidth: '350px'
-    } : {
-        position: 'fixed',
-        bottom: '2rem',
-        ...(rtl ? { right: '2rem' } : { left: '2rem' }),
-        zIndex: 9999,
-        maxWidth: '350px'
-    };
+            : targetRect.bottom + gap;
+
+        overlayStyle = {
+            position: 'fixed',
+            top: topPos,
+            left: cardLeft,
+            zIndex: 9999,
+            maxWidth: `${cardMaxW}px`,
+            width: '100%',
+        };
+
+        const cardLeftEdge = cardLeft;
+        arrowOffset = targetCenter - cardLeftEdge;
+        arrowOffset = Math.max(20, Math.min(arrowOffset, cardMaxW - 20));
+    } else {
+        overlayStyle = {
+            position: 'fixed',
+            bottom: '2rem',
+            insetInlineStart: '2rem',
+            zIndex: 9999,
+            maxWidth: '420px',
+            width: 'calc(100% - 2rem)',
+        };
+    }
 
     const arrowStyle = targetRect ? {
         position: 'absolute',
@@ -96,7 +124,7 @@ export default function TourOverlay() {
         backgroundColor: 'var(--color-surface-card)',
         transform: 'rotate(45deg)',
         transformOrigin: 'center',
-        ...(rtl ? { right: '24px' } : { left: '24px' }),
+        insetInlineStart: `${arrowOffset - 7}px`,
         top: isAbove ? 'auto' : '-7px',
         bottom: isAbove ? '-7px' : 'auto',
         borderTopWidth: isAbove ? '0' : '2px',
@@ -108,31 +136,32 @@ export default function TourOverlay() {
 
     const card = (
         <div
+            key={currentStepIndex}
             ref={cardRef}
             style={overlayStyle}
-            className="bg-surface-card border-2 border-primary/40 shadow-2xl shadow-primary/20 rounded-2xl p-5 w-full animate-fade-in"
+            className="bg-surface-card border-2 border-primary/40 shadow-2xl shadow-primary/20 rounded-2xl p-5 w-full animate-fade-slide-in"
             dir="rtl"
         >
             <div className="flex items-start justify-between mb-3">
                 <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs shrink-0">
                         {currentStepIndex + 1}
                     </span>
-                    {currentStep.title}
+                    <span className="leading-tight">{currentStep.title}</span>
                 </h3>
                 <button
                     onClick={stopTour}
-                    className="p-1 rounded-lg hover:bg-surface-hover text-text-muted transition-colors"
+                    className="p-1 rounded-lg hover:bg-surface-hover text-text-muted transition-colors shrink-0"
                 >
                     <X size={18} />
                 </button>
             </div>
 
-            <p className="text-sm text-text-secondary leading-relaxed mb-5">
+            <p className="text-sm text-text-secondary leading-relaxed mb-5 whitespace-pre-line">
                 {currentStep.content}
             </p>
 
-            <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center justify-between mt-auto gap-2">
                 <div className="flex gap-2">
                     <button
                         onClick={prevStep}
@@ -148,7 +177,7 @@ export default function TourOverlay() {
                         {currentStepIndex === totalSteps - 1 ? 'إنهاء الجولة' : 'التالي'}
                     </button>
                 </div>
-                <span className="text-xs font-bold text-text-muted bg-surface-hover px-2 py-1 rounded-md">
+                <span className="text-xs font-bold text-text-muted bg-surface-hover px-2 py-1 rounded-md shrink-0">
                     {currentStepIndex + 1} / {totalSteps}
                 </span>
             </div>

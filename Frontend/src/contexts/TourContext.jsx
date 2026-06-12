@@ -56,20 +56,21 @@ const TOUR_DATA = {
                 }, 100);
             } catch (e) {}
         }},
-        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-preview"]', title: 'توليد ونسخ الموجه (Prompt)', content: 'يقوم النظام بدمج معلوماتك مع الموجه الأساسي. استخدم أزرار "التالي" و"السابق" (النسخ الموجه Guided Copy Loop) لنسخ الموجهات مجزأة، لتجنب تجاوز حد استيعاب الذكاء الاصطناعي.' },
-        { path: '/coordination', selector: '[data-tour="coordination-input"]', title: 'مرحلة التنسيق', content: 'بعد تصحيح النص في Obsidian، ألصقه هنا مع تحديد نوع المحتوى كـ "محاضرة" للحصول على موجه التنسيق.', autoFill: () => {
+        { path: '/extraction?type=lecture', selector: '[data-tour="extraction-preview"]', title: 'توليد ونسخ الموجه (Prompt)', content: 'يقوم النظام بدمج معلوماتك مع الموجه الأساسي. استخدم النسخ الموجه (Guided Copy Loop) لنسخ الموجهات ولصقها مع الصور واحداً تلو الآخر إلى AI Studio. بعد استخراج النص، قم بتدقيقه قبل الانتقال إلى الخطوة التالية.' },
+        { path: '/coordination', selector: '[data-tour="coordination-type"]', title: 'مرحلة التنسيق', content: 'انتقل إلى قسم التنسيق (Coordination). الصق النص النهائي واختر نوع التنسيق كـ "محاضرة".', autoFill: () => {
             const btn = findButtonByText('محاضرة');
             if (btn) btn.click();
             const textArea = document.querySelector('textarea');
             if (textArea) setNativeInputValue(textArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
         }},
-        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'نقوم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
+        { path: '/coordination', selector: '[data-tour="coordination-preview"]', title: 'تنسيق النص عبر AI Studio', content: 'انسخ موجه التنسيق واذهب إلى AI Studio مرة أخرى لتنسيق النص. سيقوم AI Studio بإخراج النص بشكل منسق.' },
+        { path: '/pandoc', selector: '[data-tour="pandoc-metadata"]', title: 'التحويل النهائي - التسمية', content: 'بعد أخذ النص المنسق، انتقل إلى قسم Pandoc. قم أولاً بتحديد بيانات الملف النهائي واسمه.', autoFill: () => {
             const matName = document.querySelector('input[placeholder*="اسم المادة"]');
             const lecNum = document.querySelector('input[placeholder*="مثال: 5"]');
             if (matName) setNativeInputValue(matName, 'مقدمة في قواعد البيانات');
             if (lecNum) setNativeInputValue(lecNum, '1');
         }},
-        { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'نلصق هنا النص المنسق من الخطوة السابقة.', autoFill: () => {
+        { path: '/pandoc', selector: '[data-tour="pandoc-input"]', title: 'التحويل النهائي - إدراج النص', content: 'الآن الصق النص المنسق من AI Studio.', autoFill: () => {
             const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('التالي'));
             if (nextBtn && !nextBtn.disabled) nextBtn.click();
             
@@ -78,7 +79,7 @@ const TOUR_DATA = {
                 if (contentArea) setNativeInputValue(contentArea, '# الفصل الأول: مقدمة في قواعد البيانات\n\nتعتبر قواعد البيانات من أهم المكونات في أي نظام برمجي.\n\n## أنواع قواعد البيانات:\n1. قواعد البيانات العلائقية (SQL)\n2. قواعد البيانات غير العلائقية (NoSQL)');
             }, 300);
         }},
-        { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط أخيراً على إنشاء ملف Word لتحويل النص عبر Pandoc.', autoFill: () => {
+        { path: '/pandoc', selector: '[data-tour="pandoc-generate"]', title: 'التحويل النهائي - التنفيذ', content: 'نضغط على "تحويل" للحصول على ملف Word (.docx) جاهز.', autoFill: () => {
             const createBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('إنشاء المستند'));
             if (createBtn && !createBtn.disabled) createBtn.click();
             
@@ -238,12 +239,12 @@ export const TourProvider = ({ children }) => {
 
     useEffect(() => {
         if (!isActive || !currentStep) return;
-        
+
         const expectedPath = currentStep.path.split('?')[0];
         const expectedSearch = currentStep.path.split('?')[1] ? `?${currentStep.path.split('?')[1]}` : '';
-        
+
         const timer = setTimeout(() => {
-            if (window.location.pathname !== expectedPath || (expectedSearch && window.location.search !== expectedSearch)) {
+            if (location.pathname !== expectedPath || (expectedSearch && location.search !== expectedSearch)) {
                 stopTour();
                 return;
             }
@@ -255,7 +256,7 @@ export const TourProvider = ({ children }) => {
                     console.error("AutoFill error:", e);
                 }
             }
-        }, 300);
+        }, 1000);
 
         return () => clearTimeout(timer);
     }, [currentStepIndex, isActive, currentWorkflow, location.pathname, location.search]);

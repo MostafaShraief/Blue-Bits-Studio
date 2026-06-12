@@ -33,7 +33,7 @@ public class PandocService : IPandocService
         var tempMd = Path.Combine(appData, $"{Guid.NewGuid()}.md");
         await File.WriteAllTextAsync(tempMd, markdownText);
 
-        var resolvedTemplateName = string.IsNullOrEmpty(templateName) ? "Pandoc-Theo.dotx" : templateName;
+        var resolvedTemplateName = string.IsNullOrEmpty(templateName) ? "Pandoc.dotx" : templateName;
         var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", resolvedTemplateName);
         templatePath = Path.GetFullPath(templatePath);
 
@@ -93,7 +93,12 @@ public class PandocService : IPandocService
             return new PandocResult { Success = true, FileUrl = $"/uploads/pandoc/{Uri.EscapeDataString(fileName)}" };
         }
 
-        var finalTemplateName = resolvedTemplateName.Replace(".dotx", "-Final-Step.dotx");
+        var finalTemplateName = type?.ToLower() switch
+        {
+            "theoretical" or "theo" => "Pandoc-Theo-Final-Step.dotx",
+            "practical" or "prac" => "Pandoc-Prac-Final-Step.dotx",
+            _ => "Pandoc-Theo-Final-Step.dotx"
+        };
         var finalTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", finalTemplateName);
         finalTemplatePath = Path.GetFullPath(finalTemplatePath);
 

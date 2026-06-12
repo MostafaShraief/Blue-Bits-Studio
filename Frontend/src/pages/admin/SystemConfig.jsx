@@ -26,7 +26,6 @@ import {
     Server,
     UserCog,
     Upload,
-    Calendar
 } from 'lucide-react';
 
 export default function SystemConfig() {
@@ -152,14 +151,6 @@ export default function SystemConfig() {
         if (!key) return null;
         const msg = permFieldErrors[key];
         return Array.isArray(msg) ? msg[0] : msg;
-    };
-
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '—';
-        return new Date(dateStr).toLocaleDateString('ar-EG', {
-            year: 'numeric', month: 'long', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
     };
 
     const handleTemplateUpload = async (name, e) => {
@@ -457,50 +448,55 @@ export default function SystemConfig() {
             {activeTab === 'templates' && (
                 <div className="space-y-5">
                     <div className="text-sm text-text-muted ps-1">
-                        قم برفع قوالب DOTX للمحاضرات النظرية والعملية — كل نوع يتضمن قالب Pandoc للتنسيق والقالب النهائي للدمج
+                        قم برفع قوالب DOTX — قالب Pandoc موحد للصفحة البيضاء، وقوالب نهائية منفصلة للدمج (نظري/عملي)
                     </div>
 
                     {[
                         {
-                            type: 'Theo', displayName: 'نظري', label: 'القالب النظري',
+                            type: 'Pandoc', displayName: 'قالب Pandoc', label: 'قالب Pandoc',
                             iconColor: 'bg-primary/15 text-primary',
+                            description: 'القالب الموحد للصفحة البيضاء عبر Pandoc (للمحاضرات النظرية والعملية)',
                             purposes: [
-                                { typeKey: 'Theo', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
-                                { typeKey: 'Theo-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                                { typeKey: 'Pandoc', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب الموحد لتنسيق جميع المحاضرات عبر Pandoc' },
                             ],
                         },
                         {
-                            type: 'Prac', displayName: 'عملي', label: 'القالب العملي',
-                            iconColor: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
+                            type: 'Theo-Final', displayName: 'نظري', label: 'القالب النظري النهائي للدمج',
+                            iconColor: 'bg-primary/15 text-primary',
+                            description: 'القالب النهائي المستخدم في دمج المحاضرات النظرية',
                             purposes: [
-                                { typeKey: 'Prac', purpose: 'Pandoc', label: 'قالب Pandoc', hint: 'القالب المستخدم لتنسيق المحاضرة عبر Pandoc' },
-                                { typeKey: 'Prac-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النهائية' },
+                                { typeKey: 'Theo-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات النظرية' },
                             ],
                         },
-                    ].map((lecture) => {
-                        const pandocTemplate = (templates || []).find(t => t.type === lecture.purposes[0].typeKey);
-                        const mergeTemplate = (templates || []).find(t => t.type === lecture.purposes[1].typeKey);
-
+                        {
+                            type: 'Prac-Final', displayName: 'عملي', label: 'القالب العملي النهائي للدمج',
+                            iconColor: 'bg-cyan/15 text-cyan-600 dark:text-cyan-400',
+                            description: 'القالب النهائي المستخدم في دمج المحاضرات العملية',
+                            purposes: [
+                                { typeKey: 'Prac-Final', purpose: 'Merge', label: 'القالب النهائي للدمج', hint: 'القالب المستخدم في دمج المحاضرات العملية' },
+                            ],
+                        },
+                    ].map((item) => {
                         return (
                             <div
-                                key={lecture.type}
+                                key={item.type}
                                 className="bg-surface-card border border-border rounded-2xl p-5 hover:shadow-lg hover:shadow-primary/5 transition-all"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${lecture.iconColor}`}>
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.iconColor}`}>
                                             <FileText size={22} strokeWidth={1.8} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-text">{lecture.label}</h3>
-                                            <p className="text-xs text-text-muted mt-0.5">{lecture.displayName === 'نظري' ? 'القوالب الخاصة بالمحاضرات النظرية' : 'القوالب الخاصة بالمحاضرات العملية'}</p>
+                                            <h3 className="font-bold text-text">{item.label}</h3>
+                                            <p className="text-xs text-text-muted mt-0.5">{item.description}</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="mt-4 pt-4 border-t border-border space-y-5">
-                                    {lecture.purposes.map((purpose) => {
-                                        const template = purpose.purpose === 'Pandoc' ? pandocTemplate : mergeTemplate;
+                                    {item.purposes.map((purpose) => {
+                                        const template = (templates || []).find(t => t.type === purpose.typeKey);
                                         const isUploading = uploading[purpose.typeKey];
 
                                         return (
@@ -513,16 +509,10 @@ export default function SystemConfig() {
                                                 </div>
 
                                                 <div className="bg-surface rounded-xl p-3">
-                                                    {template?.fileName ? (
-                                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                                                            <div className="flex items-center gap-2 text-sm text-text">
-                                                                <FileText size={16} className="text-text-muted shrink-0" />
-                                                                <span dir="ltr">{template.fileName}</span>
-                                                            </div>
-                                                            <span className="text-xs text-text-muted flex items-center gap-1.5">
-                                                                <Calendar size={14} />
-                                                                {formatDate(template.lastModified)}
-                                                            </span>
+                                                    {template ? (
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-2.5 h-2.5 rounded-full bg-success shrink-0" />
+                                                            <span className="text-sm text-text font-medium">القالب موجود</span>
                                                         </div>
                                                     ) : (
                                                         <p className="text-sm text-text-muted mb-3">لم يتم رفع قالب بعد</p>

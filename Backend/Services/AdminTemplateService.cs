@@ -11,9 +11,8 @@ public class AdminTemplateService : IAdminTemplateService
 
     private static readonly (string Type, string DisplayName, string FileName, string LectureType, string Purpose)[] _templateDefs =
     [
-        ("Theo", "نظري", "Pandoc-Theo.dotx", "Theo", "Pandoc"),
+        ("Pandoc", "قالب Pandoc", "Pandoc.dotx", "", "Pandoc"),
         ("Theo-Final", "نظري", "Pandoc-Theo-Final-Step.dotx", "Theo", "Merge"),
-        ("Prac", "عملي", "Pandoc-Prac.dotx", "Prac", "Pandoc"),
         ("Prac-Final", "عملي", "Pandoc-Prac-Final-Step.dotx", "Prac", "Merge"),
     ];
 
@@ -56,7 +55,7 @@ public class AdminTemplateService : IAdminTemplateService
     {
         var def = _templateDefs.FirstOrDefault(d => d.Type == templateType);
         if (def == default)
-            return new TemplateUploadResult { Success = false, ErrorMessage = "نوع القالب غير صالح. يجب أن يكون 'Theo' أو 'Prac' أو 'Theo-Final' أو 'Prac-Final'.", StatusCode = 400 };
+            return new TemplateUploadResult { Success = false, ErrorMessage = "نوع القالب غير صالح. يجب أن يكون 'Pandoc' أو 'Theo-Final' أو 'Prac-Final'.", StatusCode = 400 };
 
         var ext = Path.GetExtension(file.FileName);
         if (!".dotx".Equals(ext, StringComparison.OrdinalIgnoreCase))

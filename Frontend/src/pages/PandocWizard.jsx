@@ -110,7 +110,7 @@ export default function PandocWizard() {
 
             const result = await PandocApi.generate(
                 mdText,
-                lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx',
+                'Pandoc.dotx',
                 materialName,
                 lectureType,
                 lectureNumber,
@@ -328,7 +328,7 @@ export default function PandocWizard() {
                                 <p className="text-sm text-text">
                                     جاهز لتحويل الملف باستخدام{' '}
                                     <span className="font-mono text-primary">
-                                        {lectureType === 'Theoretical' ? 'Pandoc-Theo.dotx' : 'Pandoc-Prac.dotx'}
+                                        Pandoc.dotx
                                     </span>
                                 </p>
 

@@ -13,6 +13,7 @@ import { compilePrompt as apiCompilePrompt } from '../api/PromptsApi';
 import { useToast } from '../contexts/ToastContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 import { formatRateLimitError } from '../utils/errorFormatter';
 
 const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
@@ -76,9 +77,11 @@ export default function ExtractionWizard() {
     const [saved, setSaved] = useState(false);
     const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
     const originalVals = useRef({});
+    const [restoring, setRestoring] = useState(!!id);
 
     useEffect(() => {
         if (id) {
+            setRestoring(true);
             getSession(id).then(data => {
                 if (!data) return;
                 if (data.material?.materialName) setMaterialName(data.material.materialName);
@@ -108,7 +111,7 @@ export default function ExtractionWizard() {
                 setSessionId(id);
                 setSaved(true);
                 goTo(STEPS.length - 1);
-            });
+            }).finally(() => setRestoring(false));
         }
     }, [id]);
 
@@ -278,6 +281,17 @@ export default function ExtractionWizard() {
                 ? 'border-danger focus:ring-danger/30 focus:border-danger bg-surface-card'
                 : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
         }`;
+
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

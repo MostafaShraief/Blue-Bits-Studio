@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2, X, Info, Layers } from 'lucide-react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useSessions } from '../hooks/useSessions';
 
@@ -178,8 +178,22 @@ export default function History() {
         removeSession,
     } = useSessions({ limit: 20 });
 
+    const navigate = useNavigate();
+
     const [detailSession, setDetailSession] = useState(null);
     const [deleting, setDeleting] = useState(null);
+    const [viewingId, setViewingId] = useState(null);
+
+    const handleViewSession = useCallback(async (session) => {
+        const linkTo = getSessionRoute(session);
+        setViewingId(session.id);
+        try {
+            await getSession(session.id);
+            navigate(linkTo);
+        } catch {
+            setViewingId(null);
+        }
+    }, [getSession, navigate]);
 
     const visibleFilters = useMemo(() => {
         return FILTERS.filter(f => f.systemCode === null || hasWorkflowAccess(f.systemCode));
@@ -277,13 +291,14 @@ export default function History() {
                                         >
                                             <Info size={13} />
                                         </button>
-                                        <Link
-                                            to={linkTo}
-                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default bg-surface-card"
+                                        <button
+                                            onClick={() => handleViewSession(s)}
+                                            disabled={viewingId === s.id}
+                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default bg-surface-card disabled:opacity-50"
                                         >
-                                            <Eye size={13} />
-                                            عرض الجلسة
-                                        </Link>
+                                            {viewingId === s.id ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
+                                            {viewingId === s.id ? 'جارٍ التحميل...' : 'عرض الجلسة'}
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(s.id)}
                                             disabled={isDeleting}

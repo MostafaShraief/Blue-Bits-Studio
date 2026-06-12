@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { Copy } from 'lucide-react';
+import { Copy, Loader2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
@@ -50,6 +50,7 @@ export default function CoordinationWizard() {
     const [saved, setSaved] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const originalVals = useRef({});
+    const [restoring, setRestoring] = useState(!!id);
 
     const clearFieldError = (field) => {
         setFieldErrors((prev) => {
@@ -88,7 +89,7 @@ export default function CoordinationWizard() {
                 } else {
                     showToast(err.message || 'فشل في تحميل الجلسة', 'error');
                 }
-            });
+            }).finally(() => setRestoring(false));
         }
     }, [id]);
 
@@ -203,6 +204,17 @@ export default function CoordinationWizard() {
                 ? 'border-danger focus:ring-danger/30 focus:border-danger bg-surface-card'
                 : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
         }`;
+
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

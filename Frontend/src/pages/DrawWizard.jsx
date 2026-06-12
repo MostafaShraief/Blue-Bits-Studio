@@ -13,6 +13,7 @@ import { getSession, createSession, uploadFiles } from '../api/SessionsApi';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
 import { ApiError, RateLimitError } from '../api/HttpClient';
+import { Loader2 } from 'lucide-react';
 
 const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -245,7 +246,16 @@ export default function DrawWizard() {
                 : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
         }`;
 
-    if (restoring) return null;
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

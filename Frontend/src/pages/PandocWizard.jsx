@@ -31,6 +31,7 @@ export default function PandocWizard() {
     const [isSinglePage, setIsSinglePage] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const fileInputRef = useRef(null);
+    const [restoring, setRestoring] = useState(!!id);
 
     useEffect(() => {
         if (id) {
@@ -47,7 +48,7 @@ export default function PandocWizard() {
                     }
                     goTo(STEPS.length - 1);
                 }
-            });
+            }).finally(() => setRestoring(false));
         }
     }, [id, goTo]);
 
@@ -135,6 +136,17 @@ export default function PandocWizard() {
             setStatus('error');
         }
     };
+
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

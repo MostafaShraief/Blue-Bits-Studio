@@ -13,7 +13,6 @@ const getSessionRoute = (session) => {
         case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
         case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
         case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
         case 'MERGE': return `/merge?id=${id}`;
         default: return '/';
@@ -28,7 +27,6 @@ const FILTERS = [
     { value: 'LEC_COORD', label: 'تنسيق', systemCode: 'LEC_COORD' },
     { value: 'BANK_COORD', label: 'تنسيق بنوك', systemCode: 'BANK_COORD' },
     { value: 'DRAW', label: 'رسم', systemCode: 'DRAW' },
-    { value: 'PANDOC', label: 'Pandoc', systemCode: 'PANDOC' },
     { value: 'MERGE', label: 'دمج', systemCode: 'MERGE' },
 ];
 
@@ -38,7 +36,6 @@ const TYPE_META = {
     LEC_COORD: { label: 'تنسيق محاضرة', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
     BANK_COORD: { label: 'تنسيق بنك', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
     BANK_QS: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
-    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     MERGE: { label: 'دمج ملفات', icon: Layers, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 };

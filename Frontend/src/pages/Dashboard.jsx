@@ -26,7 +26,6 @@ const getSessionRoute = (session) => {
         case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
         case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
         case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'PANDOC': return `/pandoc?id=${id}`;
         case 'DRAW': return `/draw?id=${id}`;
         case 'MERGE': return `/merge?id=${id}`;
         default: return '/';
@@ -39,7 +38,6 @@ const SYSTEM_CODE_LABELS = {
     LEC_COORD: 'تنسيق محاضرة',
     BANK_COORD: 'تنسيق بنك',
     BANK_QS: 'اختبار',
-    PANDOC: 'تحويل Pandoc',
     DRAW: 'رسم',
     MERGE: 'دمج ملفات',
 };
@@ -55,7 +53,12 @@ const WORKFLOW_CONFIG = {
         cls: 'border-purple/20 bg-purple/5 hover:bg-purple/10 hover:border-purple/40',
         iconCls: 'text-purple',
     },
-    PANDOC: {
+    PANDOC_FULL: {
+        to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
+        cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
+        iconCls: 'text-success',
+    },
+    PANDOC_BLANK: {
         to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
@@ -94,7 +97,8 @@ const STAT_CARD_CONFIG = {
     LEC_COORD: { label: 'تنسيق محاضرات', icon: AlignRight, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
     BANK_COORD: { label: 'تنسيق بنوك', icon: AlignRight, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     BANK_QS: { label: 'اختبارات', icon: FileJson, bgClass: 'bg-orange/10', textClass: 'text-orange' },
-    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    PANDOC_FULL: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    PANDOC_BLANK: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
 };
 
 const ADMIN_LINKS = [
@@ -104,7 +108,7 @@ const ADMIN_LINKS = [
 ];
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0, BANK_COORD: 0, MERGE: 0 });
+    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, LEC_COORD: 0, BANK_COORD: 0, MERGE: 0 });
     const [recent, setRecent] = useState([]);
     const { user, hasWorkflowAccess } = useAuth();
     const isAdmin = user?.role === 'Admin';
@@ -142,7 +146,6 @@ export default function Dashboard() {
                     BANK_EXT: sessions.filter((s) => s.workflowType === 'BANK_EXT').length,
                     BANK_QS: sessions.filter((s) => s.workflowType === 'BANK_QS').length,
                     DRAW: sessions.filter((s) => s.workflowType === 'DRAW').length,
-                    PANDOC: sessions.filter((s) => s.workflowType === 'PANDOC').length,
                     LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD').length,
                     BANK_COORD: sessions.filter((s) => s.workflowType === 'BANK_COORD').length,
                     MERGE: sessions.filter((s) => s.workflowType === 'MERGE').length,

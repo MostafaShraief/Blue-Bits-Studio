@@ -1,11 +1,12 @@
-import { useSearchParams } from 'react-router';
-import { useEffect, useState, useRef } from 'react';
+import { useSearchParams, Navigate } from 'react-router';
+import { useEffect, useState, useRef, useContext } from 'react';
 import { FileOutput, Upload, Loader2, File, Download, AlertCircle } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PasteButton from '../components/PasteButton';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import { useWizard } from '../hooks/useWizard';
 import { useToast } from '../contexts/ToastContext';
+import { AuthContext } from '../contexts/AuthContext';
 import { PandocApi } from '../api/PandocApi';
 import { createSession as apiCreateSession, getSession as fetchSessionApi, saveSessionContent as apiSaveContent } from '../api/SessionsApi';
 import { useSettings } from '../contexts/SettingsContext';
@@ -32,6 +33,23 @@ export default function PandocWizard() {
     const [fieldErrors, setFieldErrors] = useState({});
     const fileInputRef = useRef(null);
     const [restoring, setRestoring] = useState(!!id);
+    const { user } = useContext(AuthContext);
+    const isAdmin = user?.role === 'Admin';
+
+    const canDoFull = user?.allowedWorkflows?.includes('PANDOC_FULL') || false;
+    const canDoBlank = user?.allowedWorkflows?.includes('PANDOC_BLANK') || false;
+    const showAnyOption = canDoFull || canDoBlank || isAdmin;
+
+    const docTypeOptions = [
+        { value: false, label: 'مستند كامل مع قالب', sub: 'غلاف وتنسيق نهائي', enabled: canDoFull || isAdmin },
+        { value: true, label: 'صفحة بيضاء فردية', sub: 'بالتنسيق الأساسي', enabled: canDoBlank || isAdmin },
+    ].filter(o => o.enabled);
+
+    useEffect(() => {
+        if (docTypeOptions.length === 1) {
+            setIsSinglePage(docTypeOptions[0].value);
+        }
+    }, []);
 
     useEffect(() => {
         if (id) {
@@ -100,7 +118,7 @@ export default function PandocWizard() {
                 materialName,
                 lectureNumber: Number(lectureNumber),
                 lectureType,
-                workflowSystemCode: 'PANDOC',
+                workflowSystemCode: isSinglePage ? 'PANDOC_BLANK' : 'PANDOC_FULL',
                 generalNotes: '',
             });
 
@@ -146,6 +164,10 @@ export default function PandocWizard() {
                 </div>
             </div>
         );
+    }
+
+    if (!showAnyOption) {
+        return <Navigate to="/unauthorized" replace />;
     }
 
     return (
@@ -228,26 +250,19 @@ export default function PandocWizard() {
                     <div>
                         <label className="block text-sm font-medium text-text mb-2">نوع المستند الناتج</label>
                         <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsSinglePage(false)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${!isSinglePage
-                                        ? 'border-primary bg-primary-light text-primary'
-                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                    }`}
-                            >
-                                <div className="font-semibold">مستند كامل مع قالب</div>
-                                <div className="text-xs mt-0.5 opacity-75">غلاف وتنسيق نهائي</div>
-                            </button>
-                            <button
-                                onClick={() => setIsSinglePage(true)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${isSinglePage
-                                        ? 'border-primary bg-primary-light text-primary'
-                                        : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
-                                    }`}
-                            >
-                                <div className="font-semibold">صفحة بيضاء فردية</div>
-                                <div className="text-xs mt-0.5 opacity-75">بالتنسيق الأساسي</div>
-                            </button>
+                            {docTypeOptions.map(({ value, label, sub }) => (
+                                <button
+                                    key={String(value)}
+                                    onClick={() => setIsSinglePage(value)}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-medium border transition-default ${isSinglePage === value
+                                            ? 'border-primary bg-primary-light text-primary'
+                                            : 'border-border bg-surface-card text-text-secondary hover:border-primary/40'
+                                        }`}
+                                >
+                                    <div className="font-semibold">{label}</div>
+                                    <div className="text-xs mt-0.5 opacity-75">{sub}</div>
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

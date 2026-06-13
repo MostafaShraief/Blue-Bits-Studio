@@ -165,10 +165,11 @@ public class BlueBitsDbContext : DbContext
             new Workflow { WorkflowId = 2, SystemCode = "BANK_EXT", AdminNote = "Bank Extraction Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
             new Workflow { WorkflowId = 3, SystemCode = "LEC_COORD", AdminNote = "Lecture Coordination Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
             new Workflow { WorkflowId = 4, SystemCode = "BANK_COORD", AdminNote = "Bank Coordination Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
-            new Workflow { WorkflowId = 5, SystemCode = "PANDOC", AdminNote = "Pandoc Processing Workflow", IsActive = 1, MaxSessionsPerUser = 5 },
             new Workflow { WorkflowId = 6, SystemCode = "BANK_QS", AdminNote = "Bank Questions Workflow", IsActive = 1, MaxSessionsPerUser = 10 },
             new Workflow { WorkflowId = 7, SystemCode = "DRAW", AdminNote = "Draw AI Workflow (Beta)", IsActive = 1, MaxSessionsPerUser = 5 },
-            new Workflow { WorkflowId = 8, SystemCode = "MERGE", AdminNote = "Merge Workflow (Beta)", IsActive = 1, MaxSessionsPerUser = 5 }
+            new Workflow { WorkflowId = 8, SystemCode = "MERGE", AdminNote = "Merge Workflow (Beta)", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 9, SystemCode = "PANDOC_FULL", AdminNote = "Pandoc Full Document with Template", IsActive = 1, MaxSessionsPerUser = 5 },
+            new Workflow { WorkflowId = 10, SystemCode = "PANDOC_BLANK", AdminNote = "Pandoc Single Blank Page", IsActive = 1, MaxSessionsPerUser = 5 }
         );
 
         modelBuilder.Entity<WorkflowPermission>().HasData(
@@ -176,10 +177,11 @@ public class BlueBitsDbContext : DbContext
             new WorkflowPermission { PermissionId = 2, RoleName = "TechMember", WorkflowId = 2 },
             new WorkflowPermission { PermissionId = 3, RoleName = "TechMember", WorkflowId = 3 },
             new WorkflowPermission { PermissionId = 4, RoleName = "TechMember", WorkflowId = 4 },
-            new WorkflowPermission { PermissionId = 5, RoleName = "TechMember", WorkflowId = 5 },
             new WorkflowPermission { PermissionId = 7, RoleName = "TechMember", WorkflowId = 7 },
             new WorkflowPermission { PermissionId = 8, RoleName = "TechMember", WorkflowId = 8 },
-            new WorkflowPermission { PermissionId = 10, RoleName = "ScientificMember", WorkflowId = 6 }
+            new WorkflowPermission { PermissionId = 10, RoleName = "ScientificMember", WorkflowId = 6 },
+            new WorkflowPermission { PermissionId = 11, RoleName = "TechMember", WorkflowId = 9 },
+            new WorkflowPermission { PermissionId = 12, RoleName = "TechMember", WorkflowId = 10 }
         );
 
         modelBuilder.Entity<Prompt>().HasData(
@@ -187,8 +189,8 @@ public class BlueBitsDbContext : DbContext
             new Prompt { PromptId = 2, WorkflowId = 2, SystemCode = "PROMPT_BANK_EXT", PromptName = "Bank Extraction", PromptText = "You are an AI extracting banks..." },
             new Prompt { PromptId = 3, WorkflowId = 3, SystemCode = "PROMPT_LEC_COORD", PromptName = "Lecture Coordination", PromptText = "Coordinate this lecture..." },
             new Prompt { PromptId = 4, WorkflowId = 4, SystemCode = "PROMPT_BANK_COORD", PromptName = "Bank Coordination", PromptText = "Coordinate this bank..." },
-            new Prompt { PromptId = 5, WorkflowId = 6, SystemCode = "PROMPT_DRAW_AI", PromptName = "Draw Using AI", PromptText = "Generate markdown/mermaid drawings..." },
-            new Prompt { PromptId = 6, WorkflowId = 5, SystemCode = "PROMPT_BANK_QS", PromptName = "Bank Questions", PromptText = "Generate quiz questions for the bank..." }
+            new Prompt { PromptId = 5, WorkflowId = 7, SystemCode = "PROMPT_DRAW_AI", PromptName = "Draw Using AI", PromptText = "Generate markdown/mermaid drawings..." },
+            new Prompt { PromptId = 6, WorkflowId = 6, SystemCode = "PROMPT_BANK_QS", PromptName = "Bank Questions", PromptText = "Generate quiz questions for the bank..." }
         );
     }
 }

@@ -58,7 +58,8 @@ export default function App() {
                                 <Route element={<ProtectedRoute />}>
                                     <Route path="coordination" element={<CoordinationWizard />} />
                                 </Route>
-                                <Route element={<ProtectedRoute requiredCode="PANDOC" />}>
+                                {/* Pandoc is handled by PandocWizard double-gate logic */}
+                                <Route element={<ProtectedRoute />}>
                                     <Route path="pandoc" element={<PandocWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="DRAW" />}>

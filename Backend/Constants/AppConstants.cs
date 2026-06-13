@@ -6,7 +6,8 @@ public static class AppWorkflows
     public const string BankExtraction = "BANK_EXT";
     public const string LectureCoordination = "LEC_COORD";
     public const string BankCoordination = "BANK_COORD";
-    public const string Pandoc = "PANDOC";
+    public const string PandocFullDocument = "PANDOC_FULL";
+    public const string PandocBlankPage = "PANDOC_BLANK";
     public const string BankQuestions = "BANK_QS";
     public const string Draw = "DRAW";
     public const string Merge = "MERGE";

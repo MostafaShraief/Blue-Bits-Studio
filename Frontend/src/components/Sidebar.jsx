@@ -22,7 +22,7 @@ const NAV_ITEMS = [
     { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null, role: 'Member' },
     { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT', role: 'Member' },
     { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'LEC_COORD', role: 'Member' },
-    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC', role: 'Member' },
+    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC_FULL', role: 'Member' },
     { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE', role: 'Member' },
     { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW', role: 'Member' },
     { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS', role: 'Member' },
@@ -84,6 +84,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                     const isHistory = systemCode === 'HIST';
                     const isExtraction = systemCode === 'LEC_EXT';
                     const isCoordination = systemCode === 'LEC_COORD';
+                    const isPandoc = systemCode === 'PANDOC_FULL';
 
                     let isAuthorized = true;
                     if (!isAdmin) {
@@ -93,6 +94,8 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                             isAuthorized = user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT');
                         } else if (isCoordination) {
                             isAuthorized = user?.allowedWorkflows?.includes('LEC_COORD') || user?.allowedWorkflows?.includes('BANK_COORD');
+                        } else if (isPandoc) {
+                            isAuthorized = user?.allowedWorkflows?.includes('PANDOC_FULL') || user?.allowedWorkflows?.includes('PANDOC_BLANK');
                         } else if (systemCode) {
                             isAuthorized = user?.allowedWorkflows?.includes(systemCode);
                         }

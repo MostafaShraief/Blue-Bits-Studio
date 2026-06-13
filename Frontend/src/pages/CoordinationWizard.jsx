@@ -11,6 +11,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { getSession } from '../api/SessionsApi';
 import { compilePrompt } from '../api/PromptsApi';
 import { RateLimitError } from '../api/HttpClient';
+import { EXTERNAL_LINKS, INTERNAL_ROUTES } from '../config/links';
 
 const STEPS = ['إعداد الجلسة', 'النص', 'المعاينة والنسخ'];
 
@@ -32,7 +33,7 @@ export default function CoordinationWizard() {
     useEffect(() => {
         if (loading) return;
         if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
-            navigate('/unauthorized', { replace: true });
+            navigate(INTERNAL_ROUTES.UNAUTHORIZED, { replace: true });
         }
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 
@@ -369,7 +370,7 @@ export default function CoordinationWizard() {
                     <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
                         <p><strong>خطوات التنفيذ:</strong></p>
                         <ol className="list-decimal list-inside space-y-1">
-                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
+                            <li>افتح <a href={EXTERNAL_LINKS.AI_STUDIO} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
                             <li>قم بلصق البرومبت في حقل الإدخال لإنشاء النتيجة.</li>
                             <li>بعد الحصول على النتيجة، انتقل إلى قسم <strong className="text-primary">محوّل Pandoc</strong> في التطبيق والصقها هناك لتحويلها إلى ملف Word.</li>
                         </ol>

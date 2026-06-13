@@ -17,20 +17,7 @@ import {
 } from 'lucide-react';
 import { getSessions } from '../api/SessionsApi';
 import { useAuth } from '../contexts/AuthContext';
-
-const getSessionRoute = (session) => {
-    const { workflowType, id } = session;
-    switch (workflowType) {
-        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
-        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
-        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
-        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
-        case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'DRAW': return `/draw?id=${id}`;
-        case 'MERGE': return `/merge?id=${id}`;
-        default: return '/';
-    }
-};
+import { INTERNAL_ROUTES, getSessionRoute } from '../config/links';
 
 const SYSTEM_CODE_LABELS = {
     LEC_EXT: 'استخراج محاضرة',
@@ -44,47 +31,47 @@ const SYSTEM_CODE_LABELS = {
 
 const WORKFLOW_CONFIG = {
     LEC_EXT: {
-        to: '/extraction?type=lecture', label: 'محاضرة جديدة', icon: FileSearch,
+        to: `${INTERNAL_ROUTES.EXTRACTION}?type=lecture`, label: 'محاضرة جديدة', icon: FileSearch,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     BANK_EXT: {
-        to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
+        to: `${INTERNAL_ROUTES.EXTRACTION}?type=bank`, label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-purple/20 bg-purple/5 hover:bg-purple/10 hover:border-purple/40',
         iconCls: 'text-purple',
     },
     PANDOC_FULL: {
-        to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
+        to: INTERNAL_ROUTES.PANDOC, label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
     },
     PANDOC_BLANK: {
-        to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
+        to: INTERNAL_ROUTES.PANDOC, label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
     },
     DRAW: {
-        to: '/draw', label: 'رسم بالذكاء', icon: Palette,
+        to: INTERNAL_ROUTES.DRAW, label: 'رسم بالذكاء', icon: Palette,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     LEC_COORD: {
-        to: '/coordination?type=lecture', label: 'تنسيق محاضرة', icon: AlignRight,
+        to: `${INTERNAL_ROUTES.COORDINATION}?type=lecture`, label: 'تنسيق محاضرة', icon: AlignRight,
         cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
         iconCls: 'text-cyan',
     },
     BANK_COORD: {
-        to: '/coordination?type=bank', label: 'تنسيق بنك', icon: AlignRight,
+        to: `${INTERNAL_ROUTES.COORDINATION}?type=bank`, label: 'تنسيق بنك', icon: AlignRight,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     BANK_QS: {
-        to: '/quiz', label: 'بنك أسئلة', icon: FileJson,
+        to: INTERNAL_ROUTES.QUIZ, label: 'بنك أسئلة', icon: FileJson,
         cls: 'border-orange/20 bg-orange/5 hover:bg-orange/10 hover:border-orange/40',
         iconCls: 'text-orange',
     },
     MERGE: {
-        to: '/merge', label: 'دمج ملفات', icon: Layers,
+        to: INTERNAL_ROUTES.MERGE, label: 'دمج ملفات', icon: Layers,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
@@ -102,9 +89,9 @@ const STAT_CARD_CONFIG = {
 };
 
 const ADMIN_LINKS = [
-    { to: '/admin/users', label: 'إدارة المستخدمين', icon: Users, desc: 'إضافة وتعديل وحذف المستخدمين' },
-    { to: '/admin/materials', label: 'إدارة المواد', icon: BookOpen, desc: 'إدارة المواد الدراسية والسنوات' },
-    { to: '/admin/system', label: 'إعدادات النظام', icon: Settings2, desc: 'إعدادات سير العمل والصلاحيات' },
+    { to: INTERNAL_ROUTES.ADMIN_USERS, label: 'إدارة المستخدمين', icon: Users, desc: 'إضافة وتعديل وحذف المستخدمين' },
+    { to: INTERNAL_ROUTES.ADMIN_MATERIALS, label: 'إدارة المواد', icon: BookOpen, desc: 'إدارة المواد الدراسية والسنوات' },
+    { to: INTERNAL_ROUTES.ADMIN_SYSTEM, label: 'إعدادات النظام', icon: Settings2, desc: 'إعدادات سير العمل والصلاحيات' },
 ];
 
 export default function Dashboard() {
@@ -186,7 +173,7 @@ export default function Dashboard() {
                         </p>
                     </div>
                     <Link
-                        to="/tour"
+                        to={INTERNAL_ROUTES.TOUR}
                         className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-gray-50 transition-default shadow-sm"
                     >
                         ابدأ الجولة التعريفية
@@ -270,7 +257,7 @@ export default function Dashboard() {
                     <h2 className="text-lg font-semibold text-text">آخر الجلسات</h2>
                     {recent.length > 0 && (
                         <Link
-                            to="/history"
+                            to={INTERNAL_ROUTES.HISTORY}
                             className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-default"
                         >
                             عرض الكل

@@ -1,4 +1,5 @@
 import { formatValidationErrors } from '../utils/errorFormatter';
+import { INTERNAL_ROUTES } from '../config/links';
 
 class ApiError extends Error {
   constructor({ message, status, data, errors, traceId }) {
@@ -60,7 +61,7 @@ async function handleResponse(response) {
     localStorage.removeItem('token');
     localStorage.removeItem('bluebits_user');
     if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login';
+      window.location.href = INTERNAL_ROUTES.LOGIN;
     }
     throw new ApiError({
       message: body?.error || 'انتهت صلاحية الجلسة. الرجاء تسجيل الدخول مرة أخرى.',

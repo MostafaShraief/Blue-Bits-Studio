@@ -4,20 +4,7 @@ import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useSessions } from '../hooks/useSessions';
-
-const getSessionRoute = (session) => {
-    const { workflowType, id } = session;
-    switch (workflowType) {
-        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
-        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
-        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
-        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
-        case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'DRAW': return `/draw?id=${id}`;
-        case 'MERGE': return `/merge?id=${id}`;
-        default: return '/';
-    }
-};
+import { getSessionRoute } from '../config/links';
 
 const FILTERS = [
     { value: 'all', label: 'الكل', systemCode: null },

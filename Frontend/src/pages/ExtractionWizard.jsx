@@ -15,6 +15,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { formatRateLimitError } from '../utils/errorFormatter';
+import { EXTERNAL_LINKS, INTERNAL_ROUTES } from '../config/links';
 
 const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -44,7 +45,7 @@ export default function ExtractionWizard() {
     useEffect(() => {
         if (loading) return;
         if (!isAdmin && !canDoLecture && !canDoBank) {
-            navigate('/unauthorized', { replace: true });
+            navigate(INTERNAL_ROUTES.UNAUTHORIZED, { replace: true });
         }
     }, [loading, isAdmin, canDoLecture, canDoBank, navigate]);
 
@@ -515,9 +516,9 @@ export default function ExtractionWizard() {
                         <p className="mb-2 font-bold text-primary">خطوات العمل:</p>
                         <ul className="list-disc list-inside space-y-1 ms-2">
                             <li>قم بنسخ البرومبت والصور بالترتيب باستخدام الزر بالأسفل.</li>
-                            <li>الصق المحتوى في <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
+                            <li>الصق المحتوى في <a href={EXTERNAL_LINKS.AI_STUDIO} target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
                             <li>قم بنسخ الرد، ويفضل حفظه أولاً في برنامج <strong>Obsidian</strong> لمراجعته.</li>
-                            <li>بعد المراجعة، انتقل إلى <Link to="/coordination" className="text-primary hover:underline">قسم التنسيق</Link> لتنظيف النص.</li>
+                            <li>بعد المراجعة، انتقل إلى <Link to={INTERNAL_ROUTES.COORDINATION} className="text-primary hover:underline">قسم التنسيق</Link> لتنظيف النص.</li>
                         </ul>
                     </div>
 

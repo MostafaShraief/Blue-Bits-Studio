@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Navigate, Outlet, Link } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
 import { Loader2, ShieldX } from 'lucide-react';
+import { INTERNAL_ROUTES } from '../config/links';
 
 /**
  * AdminRoute — wraps routes that require Admin role.
@@ -22,12 +23,10 @@ export default function AdminRoute() {
         );
     }
 
-    // Not authenticated → redirect to login
     if (!user) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={INTERNAL_ROUTES.LOGIN} replace />;
     }
 
-    // Authenticated but not Admin → redirect to regular dashboard
     if (user.role !== 'Admin') {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 animate-fade-slide-in">
@@ -39,7 +38,7 @@ export default function AdminRoute() {
                     هذه الصفحة مخصصة للمسؤولين فقط.
                 </p>
                 <Link
-                    to="/"
+                    to={INTERNAL_ROUTES.DASHBOARD}
                     className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
                 >
                     العودة للرئيسية

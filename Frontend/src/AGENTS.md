@@ -26,6 +26,7 @@ It is a unified hub containing multiple sub-systems (Workflows).
 ## Coding Rules & Patterns
 1. **Route Guards:** Implement strict React Router guards. If a user manually navigates to `/workflow/pandoc` but lacks the `PANDOC` system code, redirect them to a 403 or Dashboard page.
 2. **Forms & Sessions:** Workflows require Sessions. Ensure UI flows seamlessly.
+3. **Links Config:** All external URLs and internal route paths MUST be defined in `src/config/links.js` and imported where needed. Never hardcode URLs or route strings in components. Use `EXTERNAL_LINKS` for external URLs (e.g. AI Studio) and `INTERNAL_ROUTES` for app routes. Use `getSessionRoute(session)` to build session resume paths from workflow type + ID.
 
 ## AI Prompt Instructions
 When generating frontend code:
@@ -2221,3 +2222,34 @@ Uses `useSessions` (which delegates to `SessionsApi` / `HttpClient` for REST cal
 
 ### 9. API
 No direct API calls. Delegates all HTTP to `useSessions` → `SessionsApi` (`SessionsApi.js`). See SessionsApi.md for endpoint details.
+
+## 1. File Name and Directory
+`Frontend/src/config/links.js`
+
+### 2. File Type
+Frontend — Links configuration module
+
+### 3. What the file does
+Centralizes all external URLs and internal route paths used across the frontend. Provides `EXTERNAL_LINKS` (e.g. AI Studio URL), `INTERNAL_ROUTES` (all app route paths), and `getSessionRoute()` helper for building session resume URLs from workflow type + session ID.
+
+### 4. User Stories
+- As a developer, I import `EXTERNAL_LINKS.AI_STUDIO` instead of hardcoding a URL string.
+- As a developer, I import `INTERNAL_ROUTES.PANDOC` instead of hardcoding `'/pandoc'` in Link/Navigate components.
+- As a developer, I call `getSessionRoute({ workflowType: 'LEC_EXT', id: 42 })` to get `/extraction?type=lecture&id=42`.
+
+### 5. Functions Summary
+- `getSessionRoute(session)`: Maps `workflowType` + `id` to a frontend route with query params. Covers LEC_EXT, BANK_EXT, LEC_COORD, BANK_COORD, BANK_QS, DRAW, MERGE.
+
+### 6. Integration
+No backend calls. Purely a static configuration consumed by page and component files.
+
+### 7. Imports Summary
+Zero imports. Pure ESM exports.
+
+### 8. Additional Info
+- Paths use leading slash (e.g. `'/pandoc'`). Strip the leading slash with `.replace('/', '')` when using in `Route path` attributes.
+- Always prefer importing from this config over hardcoded strings.
+- To add a new route, define it in `INTERNAL_ROUTES` and update all usages.
+
+### 9. API
+No request/response handling.

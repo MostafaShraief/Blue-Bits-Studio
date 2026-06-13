@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { INTERNAL_ROUTES } from '../config/links';
 
 /**
  * ProtectedRoute — wraps routes that require authentication.
@@ -23,19 +24,16 @@ export default function ProtectedRoute({ requiredCode }) {
         );
     }
 
-    // Not authenticated → redirect to login
     if (!user) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={INTERNAL_ROUTES.LOGIN} replace />;
     }
 
-    // Admin users cannot access workflow routes → redirect to /403
     if (user.role === 'Admin') {
-        return <Navigate to="/403" replace />;
+        return <Navigate to={INTERNAL_ROUTES.ADMIN_UNAUTHORIZED} replace />;
     }
 
-// Authenticated but lacks workflow access → redirect to unauthorized page
     if (requiredCode && !hasWorkflowAccess(requiredCode)) {
-        return <Navigate to="/unauthorized" replace />;
+        return <Navigate to={INTERNAL_ROUTES.UNAUTHORIZED} replace />;
     }
 
     return <Outlet />;

@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
 import { LogIn, User, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { INTERNAL_ROUTES } from '../config/links';
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -16,7 +17,7 @@ export default function Login() {
 
     useEffect(() => {
         if (user) {
-            const redirectPath = user.role === 'Admin' ? '/admin/users' : '/';
+            const redirectPath = user.role === 'Admin' ? INTERNAL_ROUTES.ADMIN_USERS : INTERNAL_ROUTES.DASHBOARD;
             navigate(redirectPath, { replace: true });
         }
     }, [user, navigate]);
@@ -38,7 +39,7 @@ export default function Login() {
 
         try {
             const userData = await login(username, password);
-            const redirectPath = userData?.role === 'Admin' ? '/admin/users' : '/';
+            const redirectPath = userData?.role === 'Admin' ? INTERNAL_ROUTES.ADMIN_USERS : INTERNAL_ROUTES.DASHBOARD;
             navigate(redirectPath);
         } catch (err) {
             if (err?.status === 401) {

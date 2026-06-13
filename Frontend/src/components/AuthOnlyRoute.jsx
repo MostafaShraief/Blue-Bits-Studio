@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import { AuthContext } from '../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { INTERNAL_ROUTES } from '../config/links';
 
 /**
  * AuthOnlyRoute — wraps routes that require authentication (any role).
@@ -21,7 +22,7 @@ export default function AuthOnlyRoute() {
 
     // Not authenticated → redirect to login
     if (!user) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={INTERNAL_ROUTES.LOGIN} replace />;
     }
 
     return <Outlet />;

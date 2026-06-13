@@ -14,6 +14,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
 import { ApiError, RateLimitError } from '../api/HttpClient';
 import { Loader2 } from 'lucide-react';
+import { EXTERNAL_LINKS } from '../config/links';
 
 const STEPS = ['إعداد الجلسة', 'المدخلات', 'المعاينة والنسخ'];
 
@@ -442,7 +443,7 @@ export default function DrawWizard() {
                     <div className="vscode-step-fallback bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
                         <p><strong>خطوات التنفيذ:</strong></p>
                         <ol className="list-decimal list-inside space-y-1">
-                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
+                            <li>افتح <a href={EXTERNAL_LINKS.AI_STUDIO} target="_blank" rel="noreferrer" className="text-primary hover:underline">Google AI Studio</a>.</li>
                             <li>قم بلصق البرومبت (والصور إن وجدت) في حقل الإدخال.</li>
                             <li>قم بتشغيل الكود المستخرج في <strong>VS Code</strong> لرؤية النتيجة كصورة وحفظها.</li>
                         </ol>

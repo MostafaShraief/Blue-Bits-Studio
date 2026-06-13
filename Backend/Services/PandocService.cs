@@ -5,6 +5,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using BlueBits.Api.Services.Interfaces;
 using WRun = DocumentFormat.OpenXml.Wordprocessing.Run;
 using WText = DocumentFormat.OpenXml.Wordprocessing.Text;
+using System.Text;
+using M = DocumentFormat.OpenXml.Math;
 
 namespace BlueBits.Api.Services;
 
@@ -79,6 +81,15 @@ public class PandocService : IPandocService
             var error = await process.StandardError.ReadToEndAsync();
             _logger.LogError("Pandoc CLI failed for {MaterialName} Lecture {LectureNumber}. ExitCode: {ExitCode}, Error: {Error}", materialName, lectureNumber, process.ExitCode, error);
             return new PandocResult { Success = false, Error = "فشل إنشاء المستند", Details = error };
+        }
+
+        try
+        {
+            ConvertTagsToEquations(tempOutputDocx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Equation tag conversion (¶§…§¶) failed for {TempDocx}, continuing without equations", tempOutputDocx);
         }
 
         string finalOutputDocx;
@@ -162,5 +173,142 @@ public class PandocService : IPandocService
 
             finalDoc.MainDocumentPart?.Document?.Save();
         }
+    }
+
+    private static void ConvertTagsToEquations(string filePath)
+    {
+        using var doc = WordprocessingDocument.Open(filePath, true);
+        var mainPart = doc.MainDocumentPart;
+        if (mainPart?.Document?.Body == null) return;
+
+        var paragraphs = mainPart.Document.Body.Elements<Paragraph>().ToList();
+        foreach (var paragraph in paragraphs)
+        {
+            ProcessParagraphEquations(paragraph);
+        }
+
+        mainPart.Document.Save();
+    }
+
+    private static void ProcessParagraphEquations(Paragraph paragraph)
+    {
+        var runs = paragraph.Elements<WRun>().ToList();
+
+        for (int i = 0; i < runs.Count; i++)
+        {
+            var run = runs[i];
+            var textElement = run.GetFirstChild<WText>();
+            if (textElement == null) continue;
+
+            var text = textElement.Text;
+            var openIdx = text.IndexOf("¶§");
+            if (openIdx < 0) continue;
+
+            int closeRunIdx = -1;
+            int closeIdx = -1;
+
+            for (int j = i; j < runs.Count; j++)
+            {
+                var targetText = runs[j].GetFirstChild<WText>()?.Text ?? "";
+                var searchStart = (j == i) ? openIdx + 2 : 0;
+                var foundClose = targetText.IndexOf("§¶", searchStart);
+                if (foundClose >= 0)
+                {
+                    closeRunIdx = j;
+                    closeIdx = foundClose;
+                    break;
+                }
+            }
+
+            if (closeRunIdx < 0) continue;
+
+            string equationText;
+            WRun? trailingRun = null;
+
+            if (i == closeRunIdx)
+            {
+                equationText = text.Substring(openIdx + 2, closeIdx - openIdx - 2);
+                var leftText = text.Substring(0, openIdx);
+                var rightText = text.Substring(closeIdx + 2);
+
+                textElement.Text = leftText;
+
+                if (!string.IsNullOrEmpty(rightText))
+                {
+                    trailingRun = (WRun)run.CloneNode(true);
+                    trailingRun.GetFirstChild<WText>()!.Text = rightText;
+                }
+            }
+            else
+            {
+                var leftText = text.Substring(0, openIdx);
+                textElement.Text = leftText;
+
+                var sb = new StringBuilder();
+                for (int m = i + 1; m < closeRunIdx; m++)
+                {
+                    var midText = runs[m].GetFirstChild<WText>()?.Text ?? "";
+                    sb.Append(midText);
+                }
+
+                var closeRun = runs[closeRunIdx];
+                var closeTextElement = closeRun.GetFirstChild<WText>()!;
+                sb.Append(closeTextElement.Text.Substring(0, closeIdx));
+                equationText = sb.ToString();
+
+                var rightText = closeTextElement.Text.Substring(closeIdx + 2);
+                if (!string.IsNullOrEmpty(rightText))
+                {
+                    closeTextElement.Text = rightText;
+                }
+                else
+                {
+                    closeRun.Remove();
+                }
+
+                for (int m = i + 1; m < closeRunIdx; m++)
+                {
+                    runs[m].Remove();
+                }
+            }
+
+            if (string.IsNullOrEmpty(equationText)) continue;
+
+            var math = CreateMathElement(equationText, run.RunProperties);
+            run.InsertAfterSelf(math);
+
+            if (trailingRun != null)
+            {
+                math.InsertAfterSelf(trailingRun);
+            }
+
+            runs = paragraph.Elements<WRun>().ToList();
+            i = -1;
+        }
+    }
+
+    private static M.OfficeMath CreateMathElement(string equationText, RunProperties? sourceProps)
+    {
+        var math = new M.OfficeMath();
+        var mathRun = new M.Run();
+
+        if (sourceProps is { Bold: not null } || sourceProps is { Italic: not null })
+        {
+            var mathRunProps = new M.RunProperties();
+            var styleVal = (sourceProps.Bold != null, sourceProps.Italic != null) switch
+            {
+                (true, true) => M.StyleValues.BoldItalic,
+                (true, false) => M.StyleValues.Bold,
+                (false, true) => M.StyleValues.Italic,
+                _ => (M.StyleValues?)null
+            };
+            if (styleVal.HasValue)
+                mathRunProps.Append(new M.Style { Val = styleVal.Value });
+            mathRun.Append(mathRunProps);
+        }
+
+        mathRun.Append(new M.Text(equationText));
+        math.Append(mathRun);
+        return math;
     }
 }

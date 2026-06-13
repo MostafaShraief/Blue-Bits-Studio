@@ -1,5 +1,6 @@
 import { ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router';
+import { INTERNAL_ROUTES } from '../config/links';
 
 export default function AdminUnauthorized() {
     return (
@@ -12,7 +13,7 @@ export default function AdminUnauthorized() {
                 عذراً، هذه الصفحة مخصصة للأعضاء فقط. لا يمكن للمسؤولين الوصول إلى مسارات العمل.
             </p>
             <Link
-                to="/admin/users"
+                to={INTERNAL_ROUTES.ADMIN_USERS}
                 className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
             >
                 الذهاب إلى إدارة المستخدمين

@@ -1,5 +1,6 @@
 import { ShieldX } from 'lucide-react';
 import { Link } from 'react-router';
+import { INTERNAL_ROUTES } from '../config/links';
 
 export default function Unauthorized() {
     return (
@@ -12,7 +13,7 @@ export default function Unauthorized() {
                 ليس لديك صلاحية للوصول إلى هذه الصفحة. تواصل مع المسؤول إذا كنت تعتقد أن هذا خطأ.
             </p>
             <Link
-                to="/"
+                to={INTERNAL_ROUTES.DASHBOARD}
                 className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-default shadow-lg shadow-primary/25"
             >
                 العودة للرئيسية

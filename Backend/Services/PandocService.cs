@@ -192,123 +192,126 @@ public class PandocService : IPandocService
 
     private static void ProcessParagraphEquations(Paragraph paragraph)
     {
+        string text = paragraph.InnerText;
+        if (!text.Contains("¶§") || !text.Contains("§¶"))
+            return;
+
         var runs = paragraph.Elements<WRun>().ToList();
 
         for (int i = 0; i < runs.Count; i++)
         {
-            var run = runs[i];
-            var textElement = run.GetFirstChild<WText>();
-            if (textElement == null) continue;
+            var currentRun = runs[i];
+            var runTextElement = currentRun.GetFirstChild<WText>();
+            if (runTextElement == null) continue;
 
-            var text = textElement.Text;
-            var openIdx = text.IndexOf("¶§");
-            if (openIdx < 0) continue;
+            int startTagIdx = runTextElement.Text.IndexOf("¶§");
+            if (startTagIdx < 0) continue;
 
-            int closeRunIdx = -1;
-            int closeIdx = -1;
+            int endRunIdx = -1;
+            int endTagIdx = -1;
 
             for (int j = i; j < runs.Count; j++)
             {
-                var targetText = runs[j].GetFirstChild<WText>()?.Text ?? "";
-                var searchStart = (j == i) ? openIdx + 2 : 0;
-                var foundClose = targetText.IndexOf("§¶", searchStart);
-                if (foundClose >= 0)
+                var targetRunText = runs[j].GetFirstChild<WText>();
+                if (targetRunText == null) continue;
+
+                int lookFrom = (j == i) ? startTagIdx + 2 : 0;
+                int foundClose = targetRunText.Text.IndexOf("§¶", lookFrom);
+                if (foundClose != -1)
                 {
-                    closeRunIdx = j;
-                    closeIdx = foundClose;
+                    endRunIdx = j;
+                    endTagIdx = foundClose;
                     break;
                 }
             }
 
-            if (closeRunIdx < 0) continue;
+            if (endRunIdx < 0) continue;
+
+            M.OfficeMath officeMath = new M.OfficeMath();
+            M.Run mathRun = new M.Run();
+
+            if (currentRun.RunProperties != null)
+            {
+                M.RunProperties mathRunProps = new M.RunProperties();
+
+                // 1. Math-specific formatting structural styles (Bold, Italic, etc.)
+                bool hasBold = currentRun.RunProperties.Bold != null;
+                bool hasItalic = currentRun.RunProperties.Italic != null;
+
+                if (hasBold || hasItalic)
+                {
+                    var styleVal = (hasBold, hasItalic) switch
+                    {
+                        (true, true) => M.StyleValues.BoldItalic,
+                        (true, false) => M.StyleValues.Bold,
+                        (false, true) => M.StyleValues.Italic,
+                        _ => (M.StyleValues?)null
+                    };
+                    if (styleVal.HasValue)
+                        mathRunProps.Append(new M.Style { Val = styleVal.Value });
+                }
+
+                // Append math properties first if present
+                if (mathRunProps.HasChildren)
+                {
+                    mathRun.Append(mathRunProps);
+                }
+
+                // 2. Clone and append the full Wordprocessing RunProperties (w:rPr)
+                // This ensures all color formatting is retained and is in the correct order sequence.
+                var wRunProps = (DocumentFormat.OpenXml.Wordprocessing.RunProperties)currentRun.RunProperties.CloneNode(true);
+                mathRun.Append(wRunProps);
+            }
 
             string equationText;
-            WRun? trailingRun = null;
-
-            if (i == closeRunIdx)
+            if (i == endRunIdx)
             {
-                equationText = text.Substring(openIdx + 2, closeIdx - openIdx - 2);
-                var leftText = text.Substring(0, openIdx);
-                var rightText = text.Substring(closeIdx + 2);
+                equationText = runTextElement.Text.Substring(startTagIdx + 2, endTagIdx - (startTagIdx + 2));
 
-                textElement.Text = leftText;
+                string leftText = runTextElement.Text.Substring(0, startTagIdx);
+                string rightText = runTextElement.Text.Substring(endTagIdx + 2);
+
+                runTextElement.Text = leftText;
+                
+                // 3. Add text element (m:t) last
+                mathRun.Append(new M.Text(equationText));
+                officeMath.Append(mathRun);
+
+                currentRun.InsertAfterSelf(officeMath);
 
                 if (!string.IsNullOrEmpty(rightText))
                 {
-                    trailingRun = (WRun)run.CloneNode(true);
+                    WRun trailingRun = (WRun)currentRun.CloneNode(true);
                     trailingRun.GetFirstChild<WText>()!.Text = rightText;
+                    officeMath.InsertAfterSelf(trailingRun);
                 }
             }
             else
             {
-                var leftText = text.Substring(0, openIdx);
-                textElement.Text = leftText;
+                string startText = runTextElement.Text.Substring(startTagIdx + 2);
+                equationText = startText;
+                runTextElement.Text = runTextElement.Text.Substring(0, startTagIdx);
 
-                var sb = new StringBuilder();
-                for (int m = i + 1; m < closeRunIdx; m++)
+                for (int m = i + 1; m < endRunIdx; m++)
                 {
-                    var midText = runs[m].GetFirstChild<WText>()?.Text ?? "";
-                    sb.Append(midText);
+                    equationText += runs[m].InnerText;
+                    paragraph.RemoveChild(runs[m]);
                 }
 
-                var closeRun = runs[closeRunIdx];
-                var closeTextElement = closeRun.GetFirstChild<WText>()!;
-                sb.Append(closeTextElement.Text.Substring(0, closeIdx));
-                equationText = sb.ToString();
+                var finalRunText = runs[endRunIdx].GetFirstChild<WText>()!;
+                string endText = finalRunText.Text.Substring(0, endTagIdx);
+                equationText += endText;
+                finalRunText.Text = finalRunText.Text.Substring(endTagIdx + 2);
 
-                var rightText = closeTextElement.Text.Substring(closeIdx + 2);
-                if (!string.IsNullOrEmpty(rightText))
-                {
-                    closeTextElement.Text = rightText;
-                }
-                else
-                {
-                    closeRun.Remove();
-                }
+                // 3. Add text element (m:t) last
+                mathRun.Append(new M.Text(equationText));
+                officeMath.Append(mathRun);
 
-                for (int m = i + 1; m < closeRunIdx; m++)
-                {
-                    runs[m].Remove();
-                }
-            }
-
-            if (string.IsNullOrEmpty(equationText)) continue;
-
-            var math = CreateMathElement(equationText, run.RunProperties);
-            run.InsertAfterSelf(math);
-
-            if (trailingRun != null)
-            {
-                math.InsertAfterSelf(trailingRun);
+                currentRun.InsertAfterSelf(officeMath);
             }
 
             runs = paragraph.Elements<WRun>().ToList();
             i = -1;
         }
-    }
-
-    private static M.OfficeMath CreateMathElement(string equationText, RunProperties? sourceProps)
-    {
-        var math = new M.OfficeMath();
-        var mathRun = new M.Run();
-
-        if (sourceProps is { Bold: not null } || sourceProps is { Italic: not null })
-        {
-            var mathRunProps = new M.RunProperties();
-            var styleVal = (sourceProps.Bold != null, sourceProps.Italic != null) switch
-            {
-                (true, true) => M.StyleValues.BoldItalic,
-                (true, false) => M.StyleValues.Bold,
-                (false, true) => M.StyleValues.Italic,
-                _ => (M.StyleValues?)null
-            };
-            if (styleVal.HasValue)
-                mathRunProps.Append(new M.Style { Val = styleVal.Value });
-            mathRun.Append(mathRunProps);
-        }
-
-        mathRun.Append(new M.Text(equationText));
-        math.Append(mathRun);
-        return math;
     }
 }

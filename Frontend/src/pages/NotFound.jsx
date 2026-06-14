@@ -1,12 +1,12 @@
 import { SearchX } from 'lucide-react';
 import { Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { INTERNAL_ROUTES } from '../config/links';
 
 export default function NotFound() {
     const { user } = useAuth();
 
-    // Smart redirect: Admin goes to admin panel, others go to dashboard
-    const redirectPath = user?.role === 'Admin' ? '/admin/users' : '/';
+    const redirectPath = user?.role === 'Admin' ? INTERNAL_ROUTES.ADMIN_USERS : INTERNAL_ROUTES.DASHBOARD;
 
     return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 animate-fade-slide-in">

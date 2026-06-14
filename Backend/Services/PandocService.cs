@@ -5,6 +5,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using BlueBits.Api.Services.Interfaces;
 using WRun = DocumentFormat.OpenXml.Wordprocessing.Run;
 using WText = DocumentFormat.OpenXml.Wordprocessing.Text;
+using System.Text;
+using M = DocumentFormat.OpenXml.Math;
 
 namespace BlueBits.Api.Services;
 
@@ -33,7 +35,7 @@ public class PandocService : IPandocService
         var tempMd = Path.Combine(appData, $"{Guid.NewGuid()}.md");
         await File.WriteAllTextAsync(tempMd, markdownText);
 
-        var resolvedTemplateName = string.IsNullOrEmpty(templateName) ? "Pandoc-Theo.dotx" : templateName;
+        var resolvedTemplateName = string.IsNullOrEmpty(templateName) ? "Pandoc.dotx" : templateName;
         var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", resolvedTemplateName);
         templatePath = Path.GetFullPath(templatePath);
 
@@ -81,6 +83,15 @@ public class PandocService : IPandocService
             return new PandocResult { Success = false, Error = "فشل إنشاء المستند", Details = error };
         }
 
+        try
+        {
+            ConvertTagsToEquations(tempOutputDocx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Equation tag conversion (¶§…§¶) failed for {TempDocx}, continuing without equations", tempOutputDocx);
+        }
+
         string finalOutputDocx;
         if (isSinglePage)
         {
@@ -93,7 +104,12 @@ public class PandocService : IPandocService
             return new PandocResult { Success = true, FileUrl = $"/uploads/pandoc/{Uri.EscapeDataString(fileName)}" };
         }
 
-        var finalTemplateName = resolvedTemplateName.Replace(".dotx", "-Final-Step.dotx");
+        var finalTemplateName = type?.ToLower() switch
+        {
+            "theoretical" or "theo" => "Pandoc-Theo-Final-Step.dotx",
+            "practical" or "prac" => "Pandoc-Prac-Final-Step.dotx",
+            _ => "Pandoc-Theo-Final-Step.dotx"
+        };
         var finalTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "PandocTemplates", finalTemplateName);
         finalTemplatePath = Path.GetFullPath(finalTemplatePath);
 
@@ -156,6 +172,146 @@ public class PandocService : IPandocService
             }
 
             finalDoc.MainDocumentPart?.Document?.Save();
+        }
+    }
+
+    private static void ConvertTagsToEquations(string filePath)
+    {
+        using var doc = WordprocessingDocument.Open(filePath, true);
+        var mainPart = doc.MainDocumentPart;
+        if (mainPart?.Document?.Body == null) return;
+
+        var paragraphs = mainPart.Document.Body.Elements<Paragraph>().ToList();
+        foreach (var paragraph in paragraphs)
+        {
+            ProcessParagraphEquations(paragraph);
+        }
+
+        mainPart.Document.Save();
+    }
+
+    private static void ProcessParagraphEquations(Paragraph paragraph)
+    {
+        string text = paragraph.InnerText;
+        if (!text.Contains("¶§") || !text.Contains("§¶"))
+            return;
+
+        var runs = paragraph.Elements<WRun>().ToList();
+
+        for (int i = 0; i < runs.Count; i++)
+        {
+            var currentRun = runs[i];
+            var runTextElement = currentRun.GetFirstChild<WText>();
+            if (runTextElement == null) continue;
+
+            int startTagIdx = runTextElement.Text.IndexOf("¶§");
+            if (startTagIdx < 0) continue;
+
+            int endRunIdx = -1;
+            int endTagIdx = -1;
+
+            for (int j = i; j < runs.Count; j++)
+            {
+                var targetRunText = runs[j].GetFirstChild<WText>();
+                if (targetRunText == null) continue;
+
+                int lookFrom = (j == i) ? startTagIdx + 2 : 0;
+                int foundClose = targetRunText.Text.IndexOf("§¶", lookFrom);
+                if (foundClose != -1)
+                {
+                    endRunIdx = j;
+                    endTagIdx = foundClose;
+                    break;
+                }
+            }
+
+            if (endRunIdx < 0) continue;
+
+            M.OfficeMath officeMath = new M.OfficeMath();
+            M.Run mathRun = new M.Run();
+
+            if (currentRun.RunProperties != null)
+            {
+                M.RunProperties mathRunProps = new M.RunProperties();
+
+                // 1. Math-specific formatting structural styles (Bold, Italic, etc.)
+                bool hasBold = currentRun.RunProperties.Bold != null;
+                bool hasItalic = currentRun.RunProperties.Italic != null;
+
+                if (hasBold || hasItalic)
+                {
+                    var styleVal = (hasBold, hasItalic) switch
+                    {
+                        (true, true) => M.StyleValues.BoldItalic,
+                        (true, false) => M.StyleValues.Bold,
+                        (false, true) => M.StyleValues.Italic,
+                        _ => (M.StyleValues?)null
+                    };
+                    if (styleVal.HasValue)
+                        mathRunProps.Append(new M.Style { Val = styleVal.Value });
+                }
+
+                // Append math properties first if present
+                if (mathRunProps.HasChildren)
+                {
+                    mathRun.Append(mathRunProps);
+                }
+
+                // 2. Clone and append the full Wordprocessing RunProperties (w:rPr)
+                // This ensures all color formatting is retained and is in the correct order sequence.
+                var wRunProps = (DocumentFormat.OpenXml.Wordprocessing.RunProperties)currentRun.RunProperties.CloneNode(true);
+                mathRun.Append(wRunProps);
+            }
+
+            string equationText;
+            if (i == endRunIdx)
+            {
+                equationText = runTextElement.Text.Substring(startTagIdx + 2, endTagIdx - (startTagIdx + 2));
+
+                string leftText = runTextElement.Text.Substring(0, startTagIdx);
+                string rightText = runTextElement.Text.Substring(endTagIdx + 2);
+
+                runTextElement.Text = leftText;
+                
+                // 3. Add text element (m:t) last
+                mathRun.Append(new M.Text(equationText));
+                officeMath.Append(mathRun);
+
+                currentRun.InsertAfterSelf(officeMath);
+
+                if (!string.IsNullOrEmpty(rightText))
+                {
+                    WRun trailingRun = (WRun)currentRun.CloneNode(true);
+                    trailingRun.GetFirstChild<WText>()!.Text = rightText;
+                    officeMath.InsertAfterSelf(trailingRun);
+                }
+            }
+            else
+            {
+                string startText = runTextElement.Text.Substring(startTagIdx + 2);
+                equationText = startText;
+                runTextElement.Text = runTextElement.Text.Substring(0, startTagIdx);
+
+                for (int m = i + 1; m < endRunIdx; m++)
+                {
+                    equationText += runs[m].InnerText;
+                    paragraph.RemoveChild(runs[m]);
+                }
+
+                var finalRunText = runs[endRunIdx].GetFirstChild<WText>()!;
+                string endText = finalRunText.Text.Substring(0, endTagIdx);
+                equationText += endText;
+                finalRunText.Text = finalRunText.Text.Substring(endTagIdx + 2);
+
+                // 3. Add text element (m:t) last
+                mathRun.Append(new M.Text(equationText));
+                officeMath.Append(mathRun);
+
+                currentRun.InsertAfterSelf(officeMath);
+            }
+
+            runs = paragraph.Elements<WRun>().ToList();
+            i = -1;
         }
     }
 }

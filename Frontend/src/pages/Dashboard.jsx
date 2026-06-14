@@ -17,21 +17,7 @@ import {
 } from 'lucide-react';
 import { getSessions } from '../api/SessionsApi';
 import { useAuth } from '../contexts/AuthContext';
-
-const getSessionRoute = (session) => {
-    const { workflowType, id } = session;
-    switch (workflowType) {
-        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
-        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
-        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
-        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
-        case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'PANDOC': return `/pandoc?id=${id}`;
-        case 'DRAW': return `/draw?id=${id}`;
-        case 'MERGE': return `/merge?id=${id}`;
-        default: return '/';
-    }
-};
+import { INTERNAL_ROUTES, getSessionRoute } from '../config/links';
 
 const SYSTEM_CODE_LABELS = {
     LEC_EXT: 'استخراج محاضرة',
@@ -39,49 +25,53 @@ const SYSTEM_CODE_LABELS = {
     LEC_COORD: 'تنسيق محاضرة',
     BANK_COORD: 'تنسيق بنك',
     BANK_QS: 'اختبار',
-    PANDOC: 'تحويل Pandoc',
     DRAW: 'رسم',
     MERGE: 'دمج ملفات',
 };
 
 const WORKFLOW_CONFIG = {
     LEC_EXT: {
-        to: '/extraction?type=lecture', label: 'محاضرة جديدة', icon: FileSearch,
+        to: `${INTERNAL_ROUTES.EXTRACTION}?type=lecture`, label: 'محاضرة جديدة', icon: FileSearch,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     BANK_EXT: {
-        to: '/extraction?type=bank', label: 'بنك جديد', icon: FlaskConical,
+        to: `${INTERNAL_ROUTES.EXTRACTION}?type=bank`, label: 'بنك جديد', icon: FlaskConical,
         cls: 'border-purple/20 bg-purple/5 hover:bg-purple/10 hover:border-purple/40',
         iconCls: 'text-purple',
     },
-    PANDOC: {
-        to: '/pandoc', label: 'تحويل Pandoc', icon: FileOutput,
+    PANDOC_FULL: {
+        to: INTERNAL_ROUTES.PANDOC, label: 'تحويل Pandoc', icon: FileOutput,
+        cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
+        iconCls: 'text-success',
+    },
+    PANDOC_BLANK: {
+        to: INTERNAL_ROUTES.PANDOC, label: 'تحويل Pandoc', icon: FileOutput,
         cls: 'border-success/20 bg-success/5 hover:bg-success/10 hover:border-success/40',
         iconCls: 'text-success',
     },
     DRAW: {
-        to: '/draw', label: 'رسم بالذكاء', icon: Palette,
+        to: INTERNAL_ROUTES.DRAW, label: 'رسم بالذكاء', icon: Palette,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     LEC_COORD: {
-        to: '/coordination?type=lecture', label: 'تنسيق محاضرة', icon: AlignRight,
+        to: `${INTERNAL_ROUTES.COORDINATION}?type=lecture`, label: 'تنسيق محاضرة', icon: AlignRight,
         cls: 'border-cyan/20 bg-cyan/5 hover:bg-cyan/10 hover:border-cyan/40',
         iconCls: 'text-cyan',
     },
     BANK_COORD: {
-        to: '/coordination?type=bank', label: 'تنسيق بنك', icon: AlignRight,
+        to: `${INTERNAL_ROUTES.COORDINATION}?type=bank`, label: 'تنسيق بنك', icon: AlignRight,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
     BANK_QS: {
-        to: '/quiz', label: 'بنك أسئلة', icon: FileJson,
+        to: INTERNAL_ROUTES.QUIZ, label: 'بنك أسئلة', icon: FileJson,
         cls: 'border-orange/20 bg-orange/5 hover:bg-orange/10 hover:border-orange/40',
         iconCls: 'text-orange',
     },
     MERGE: {
-        to: '/merge', label: 'دمج ملفات', icon: Layers,
+        to: INTERNAL_ROUTES.MERGE, label: 'دمج ملفات', icon: Layers,
         cls: 'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40',
         iconCls: 'text-primary',
     },
@@ -94,17 +84,18 @@ const STAT_CARD_CONFIG = {
     LEC_COORD: { label: 'تنسيق محاضرات', icon: AlignRight, bgClass: 'bg-cyan/10', textClass: 'text-cyan' },
     BANK_COORD: { label: 'تنسيق بنوك', icon: AlignRight, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     BANK_QS: { label: 'اختبارات', icon: FileJson, bgClass: 'bg-orange/10', textClass: 'text-orange' },
-    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    PANDOC_FULL: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
+    PANDOC_BLANK: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
 };
 
 const ADMIN_LINKS = [
-    { to: '/admin/users', label: 'إدارة المستخدمين', icon: Users, desc: 'إضافة وتعديل وحذف المستخدمين' },
-    { to: '/admin/materials', label: 'إدارة المواد', icon: BookOpen, desc: 'إدارة المواد الدراسية والسنوات' },
-    { to: '/admin/system', label: 'إعدادات النظام', icon: Settings2, desc: 'إعدادات سير العمل والصلاحيات' },
+    { to: INTERNAL_ROUTES.ADMIN_USERS, label: 'إدارة المستخدمين', icon: Users, desc: 'إضافة وتعديل وحذف المستخدمين' },
+    { to: INTERNAL_ROUTES.ADMIN_MATERIALS, label: 'إدارة المواد', icon: BookOpen, desc: 'إدارة المواد الدراسية والسنوات' },
+    { to: INTERNAL_ROUTES.ADMIN_SYSTEM, label: 'إعدادات النظام', icon: Settings2, desc: 'إعدادات سير العمل والصلاحيات' },
 ];
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, PANDOC: 0, LEC_COORD: 0, BANK_COORD: 0, MERGE: 0 });
+    const [stats, setStats] = useState({ total: 0, LEC_EXT: 0, BANK_EXT: 0, BANK_QS: 0, DRAW: 0, LEC_COORD: 0, BANK_COORD: 0, MERGE: 0 });
     const [recent, setRecent] = useState([]);
     const { user, hasWorkflowAccess } = useAuth();
     const isAdmin = user?.role === 'Admin';
@@ -142,7 +133,6 @@ export default function Dashboard() {
                     BANK_EXT: sessions.filter((s) => s.workflowType === 'BANK_EXT').length,
                     BANK_QS: sessions.filter((s) => s.workflowType === 'BANK_QS').length,
                     DRAW: sessions.filter((s) => s.workflowType === 'DRAW').length,
-                    PANDOC: sessions.filter((s) => s.workflowType === 'PANDOC').length,
                     LEC_COORD: sessions.filter((s) => s.workflowType === 'LEC_COORD').length,
                     BANK_COORD: sessions.filter((s) => s.workflowType === 'BANK_COORD').length,
                     MERGE: sessions.filter((s) => s.workflowType === 'MERGE').length,
@@ -183,7 +173,7 @@ export default function Dashboard() {
                         </p>
                     </div>
                     <Link
-                        to="/tour"
+                        to={INTERNAL_ROUTES.TOUR}
                         className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-gray-50 transition-default shadow-sm"
                     >
                         ابدأ الجولة التعريفية
@@ -267,7 +257,7 @@ export default function Dashboard() {
                     <h2 className="text-lg font-semibold text-text">آخر الجلسات</h2>
                     {recent.length > 0 && (
                         <Link
-                            to="/history"
+                            to={INTERNAL_ROUTES.HISTORY}
                             className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-default"
                         >
                             عرض الكل

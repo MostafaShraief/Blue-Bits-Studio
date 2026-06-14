@@ -2,6 +2,7 @@
 using BlueBits.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlueBits.Api.Migrations
 {
     [DbContext(typeof(BlueBitsDbContext))]
-    partial class BlueBitsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612232302_AddPandocFullAndBlankWorkflows")]
+    partial class AddPandocFullAndBlankWorkflows
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.1");
@@ -168,7 +171,7 @@ namespace BlueBits.Api.Migrations
                             PromptName = "Draw Using AI",
                             PromptText = "Generate markdown/mermaid drawings...",
                             SystemCode = "PROMPT_DRAW_AI",
-                            WorkflowId = 7
+                            WorkflowId = 6
                         },
                         new
                         {
@@ -176,7 +179,7 @@ namespace BlueBits.Api.Migrations
                             PromptName = "Bank Questions",
                             PromptText = "Generate quiz questions for the bank...",
                             SystemCode = "PROMPT_BANK_QS",
-                            WorkflowId = 6
+                            WorkflowId = 5
                         });
                 });
 
@@ -398,6 +401,14 @@ namespace BlueBits.Api.Migrations
                         },
                         new
                         {
+                            WorkflowId = 5,
+                            AdminNote = "Pandoc Processing Workflow",
+                            IsActive = 1,
+                            MaxSessionsPerUser = 5,
+                            SystemCode = "PANDOC"
+                        },
+                        new
+                        {
                             WorkflowId = 6,
                             AdminNote = "Bank Questions Workflow",
                             IsActive = 1,
@@ -487,6 +498,12 @@ namespace BlueBits.Api.Migrations
                             PermissionId = 4,
                             RoleName = "TechMember",
                             WorkflowId = 4
+                        },
+                        new
+                        {
+                            PermissionId = 5,
+                            RoleName = "TechMember",
+                            WorkflowId = 5
                         },
                         new
                         {

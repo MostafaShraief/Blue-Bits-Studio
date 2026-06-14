@@ -17,21 +17,21 @@ import {
 import { useSettings } from '../contexts/SettingsContext';
 import { AuthContext } from '../contexts/AuthContext';
 import SettingsModal from './SettingsModal';
+import { INTERNAL_ROUTES } from '../config/links';
 
 const NAV_ITEMS = [
-    { to: '/', label: 'الرئيسية', icon: LayoutDashboard, systemCode: null, role: 'Member' },
-    { to: '/extraction', label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT', role: 'Member' },
-    { to: '/coordination', label: 'تنسيق', icon: AlignRight, systemCode: 'LEC_COORD', role: 'Member' },
-    { to: '/pandoc', label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC', role: 'Member' },
-    { to: '/merge', label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE', role: 'Member' },
-    { to: '/draw', label: 'الرسم', icon: Palette, systemCode: 'DRAW', role: 'Member' },
-    { to: '/quiz', label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS', role: 'Member' },
-    { to: '/history', label: 'السجل', icon: Clock, systemCode: 'HIST', role: 'Member' },
+    { to: INTERNAL_ROUTES.DASHBOARD, label: 'الرئيسية', icon: LayoutDashboard, systemCode: null, role: 'Member' },
+    { to: INTERNAL_ROUTES.EXTRACTION, label: 'استخراج', icon: FileSearch, systemCode: 'LEC_EXT', role: 'Member' },
+    { to: INTERNAL_ROUTES.COORDINATION, label: 'تنسيق', icon: AlignRight, systemCode: 'LEC_COORD', role: 'Member' },
+    { to: INTERNAL_ROUTES.PANDOC, label: 'محوّل Pandoc', icon: FileOutput, systemCode: 'PANDOC_FULL', role: 'Member' },
+    { to: INTERNAL_ROUTES.MERGE, label: 'دمج الملفات', icon: Layers, systemCode: 'MERGE', role: 'Member' },
+    { to: INTERNAL_ROUTES.DRAW, label: 'الرسم', icon: Palette, systemCode: 'DRAW', role: 'Member' },
+    { to: INTERNAL_ROUTES.QUIZ, label: 'الاختبارات', icon: FileJson, systemCode: 'BANK_QS', role: 'Member' },
+    { to: INTERNAL_ROUTES.HISTORY, label: 'السجل', icon: Clock, systemCode: 'HIST', role: 'Member' },
 
-    // Admin routes
-    { to: '/admin/users', label: 'إدارة المستخدمين', icon: Users, systemCode: null, role: 'Admin' },
-    { to: '/admin/materials', label: 'إدارة المواد', icon: BookOpen, systemCode: null, role: 'Admin' },
-    { to: '/admin/system', label: 'إعدادات النظام', icon: Settings2, systemCode: null, role: 'Admin' },
+    { to: INTERNAL_ROUTES.ADMIN_USERS, label: 'إدارة المستخدمين', icon: Users, systemCode: null, role: 'Admin' },
+    { to: INTERNAL_ROUTES.ADMIN_MATERIALS, label: 'إدارة المواد', icon: BookOpen, systemCode: null, role: 'Admin' },
+    { to: INTERNAL_ROUTES.ADMIN_SYSTEM, label: 'إعدادات النظام', icon: Settings2, systemCode: null, role: 'Admin' },
 ];
 
 export default function Sidebar({ isMobileOpen, onMobileClose }) {
@@ -41,7 +41,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
 
     const handleLogout = () => {
         logout();
-        window.location.href = '/login';
+        window.location.href = INTERNAL_ROUTES.LOGIN;
     };
 
     const getInitials = () => {
@@ -84,6 +84,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                     const isHistory = systemCode === 'HIST';
                     const isExtraction = systemCode === 'LEC_EXT';
                     const isCoordination = systemCode === 'LEC_COORD';
+                    const isPandoc = systemCode === 'PANDOC_FULL';
 
                     let isAuthorized = true;
                     if (!isAdmin) {
@@ -93,6 +94,8 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
                             isAuthorized = user?.allowedWorkflows?.includes('LEC_EXT') || user?.allowedWorkflows?.includes('BANK_EXT');
                         } else if (isCoordination) {
                             isAuthorized = user?.allowedWorkflows?.includes('LEC_COORD') || user?.allowedWorkflows?.includes('BANK_COORD');
+                        } else if (isPandoc) {
+                            isAuthorized = user?.allowedWorkflows?.includes('PANDOC_FULL') || user?.allowedWorkflows?.includes('PANDOC_BLANK');
                         } else if (systemCode) {
                             isAuthorized = user?.allowedWorkflows?.includes(systemCode);
                         }
@@ -100,7 +103,7 @@ export default function Sidebar({ isMobileOpen, onMobileClose }) {
 
                     if (!isAuthorized) return null;
 
-                    const isExact = to === '/' || to.startsWith('/admin/');
+                    const isExact = to === INTERNAL_ROUTES.DASHBOARD || to.startsWith('/admin/');
 
                     return (
                         <NavLink

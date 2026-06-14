@@ -1,24 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, FileSearch, AlignRight, Palette, FileOutput, Trash2, Eye, Loader2, X, Info, Layers } from 'lucide-react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useSessions } from '../hooks/useSessions';
-
-const getSessionRoute = (session) => {
-    const { workflowType, id } = session;
-    switch (workflowType) {
-        case 'LEC_EXT': return `/extraction?type=lecture&id=${id}`;
-        case 'BANK_EXT': return `/extraction?type=bank&id=${id}`;
-        case 'LEC_COORD': return `/coordination?type=lecture&id=${id}`;
-        case 'BANK_COORD': return `/coordination?type=bank&id=${id}`;
-        case 'BANK_QS': return `/quiz?id=${id}`;
-        case 'PANDOC': return `/pandoc?id=${id}`;
-        case 'DRAW': return `/draw?id=${id}`;
-        case 'MERGE': return `/merge?id=${id}`;
-        default: return '/';
-    }
-};
+import { getSessionRoute } from '../config/links';
 
 const FILTERS = [
     { value: 'all', label: 'الكل', systemCode: null },
@@ -28,7 +14,6 @@ const FILTERS = [
     { value: 'LEC_COORD', label: 'تنسيق', systemCode: 'LEC_COORD' },
     { value: 'BANK_COORD', label: 'تنسيق بنوك', systemCode: 'BANK_COORD' },
     { value: 'DRAW', label: 'رسم', systemCode: 'DRAW' },
-    { value: 'PANDOC', label: 'Pandoc', systemCode: 'PANDOC' },
     { value: 'MERGE', label: 'دمج', systemCode: 'MERGE' },
 ];
 
@@ -38,7 +23,6 @@ const TYPE_META = {
     LEC_COORD: { label: 'تنسيق محاضرة', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
     BANK_COORD: { label: 'تنسيق بنك', icon: AlignRight, bgClass: 'bg-purple-500/10', textClass: 'text-purple-600' },
     BANK_QS: { label: 'اختبار', icon: FileSearch, bgClass: 'bg-green-500/10', textClass: 'text-green-600' },
-    PANDOC: { label: 'تحويل Pandoc', icon: FileOutput, bgClass: 'bg-success/10', textClass: 'text-success' },
     DRAW: { label: 'رسم', icon: Palette, bgClass: 'bg-primary/10', textClass: 'text-primary' },
     MERGE: { label: 'دمج ملفات', icon: Layers, bgClass: 'bg-primary/10', textClass: 'text-primary' },
 };
@@ -178,8 +162,22 @@ export default function History() {
         removeSession,
     } = useSessions({ limit: 20 });
 
+    const navigate = useNavigate();
+
     const [detailSession, setDetailSession] = useState(null);
     const [deleting, setDeleting] = useState(null);
+    const [viewingId, setViewingId] = useState(null);
+
+    const handleViewSession = useCallback(async (session) => {
+        const linkTo = getSessionRoute(session);
+        setViewingId(session.id);
+        try {
+            await getSession(session.id);
+            navigate(linkTo);
+        } catch {
+            setViewingId(null);
+        }
+    }, [getSession, navigate]);
 
     const visibleFilters = useMemo(() => {
         return FILTERS.filter(f => f.systemCode === null || hasWorkflowAccess(f.systemCode));
@@ -277,13 +275,14 @@ export default function History() {
                                         >
                                             <Info size={13} />
                                         </button>
-                                        <Link
-                                            to={linkTo}
-                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default bg-surface-card"
+                                        <button
+                                            onClick={() => handleViewSession(s)}
+                                            disabled={viewingId === s.id}
+                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-primary border border-primary/30 hover:bg-primary-light transition-default bg-surface-card disabled:opacity-50"
                                         >
-                                            <Eye size={13} />
-                                            عرض الجلسة
-                                        </Link>
+                                            {viewingId === s.id ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
+                                            {viewingId === s.id ? 'جارٍ التحميل...' : 'عرض الجلسة'}
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(s.id)}
                                             disabled={isDeleting}

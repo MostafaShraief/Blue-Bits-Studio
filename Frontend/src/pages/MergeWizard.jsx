@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { Layers, Upload, Loader2, File, Download, ArrowUp, ArrowDown, X, CheckCircle2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
 import MergeApi from '../api/MergeApi';
+import { getSession } from '../api/SessionsApi';
 import { ApiError, RateLimitError } from '../api/HttpClient';
 import { useWizard } from '../hooks/useWizard';
 import { useToast } from '../contexts/ToastContext';
@@ -15,6 +17,8 @@ export default function MergeWizard() {
     const { showToast } = useToast();
     const fileInputRef = useRef(null);
     const { defaultMaterial } = useSettings();
+    const [searchParams] = useSearchParams();
+    const id = searchParams.get('id');
 
     const [materialName, setMaterialName] = useState(defaultMaterial || '');
     const [materialValid, setMaterialValid] = useState(false);
@@ -26,6 +30,20 @@ export default function MergeWizard() {
     const [downloadUrl, setDownloadUrl] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
+    const [restoring, setRestoring] = useState(!!id);
+
+    useEffect(() => {
+        if (id) {
+            setRestoring(true);
+            getSession(id).then(data => {
+                if (!data) return;
+                if (data.material?.materialName) setMaterialName(data.material.materialName);
+                if (data.lectureNumber) setLectureNumber(data.lectureNumber);
+                if (data.lectureType) setLectureType(data.lectureType);
+                goTo(STEPS.length - 1);
+            }).finally(() => setRestoring(false));
+        }
+    }, [id]);
 
     const handleStep0Next = () => {
         const errors = {};
@@ -138,6 +156,17 @@ export default function MergeWizard() {
     };
 
     const getTypeLabel = () => lectureType === 'Practical' ? 'عملي' : 'نظري';
+
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">

@@ -9,6 +9,7 @@ import AuthOnlyRoute from './components/AuthOnlyRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
 import Toast from './components/Toast';
+import { INTERNAL_ROUTES } from './config/links';
 
 // Lazy load all page components
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -36,63 +37,52 @@ export default function App() {
                     <TourProvider>
                         <Suspense fallback={<PageLoader />}>
                             <Routes>
-                        {/* Public route */}
-                        <Route path="login" element={<Login />} />
-                        {/* For admins trying to access member workflows */}
-                        <Route path="403" element={<AdminUnauthorized />} />
+                        <Route path={INTERNAL_ROUTES.LOGIN.replace('/', '')} element={<Login />} />
+                        <Route path={INTERNAL_ROUTES.ADMIN_UNAUTHORIZED.replace('/', '')} element={<AdminUnauthorized />} />
 
-                        {/* Protected routes — require authentication */}
                         <Route element={<ProtectedRoute />}>
                             <Route element={<Layout />}>
                                 <Route index element={<Dashboard />} />
-                                <Route path="tour" element={<Tour />} />
-                                {/* For normal users without workflow permission - with sidebar */}
-                                <Route path="unauthorized" element={<Unauthorized />} />
+                                <Route path={INTERNAL_ROUTES.TOUR.replace('/', '')} element={<Tour />} />
+                                <Route path={INTERNAL_ROUTES.UNAUTHORIZED.replace('/', '')} element={<Unauthorized />} />
 
-                                {/* Workflow routes — require specific SystemCode access */}
-                                {/* Extraction is handled by ExtractionWizard double-gate logic */}
                                 <Route element={<ProtectedRoute />}>
-                                    <Route path="extraction" element={<ExtractionWizard />} />
+                                    <Route path={INTERNAL_ROUTES.EXTRACTION.replace('/', '')} element={<ExtractionWizard />} />
                                 </Route>
-                                {/* Coordination is handled by CoordinationWizard double-gate logic */}
                                 <Route element={<ProtectedRoute />}>
-                                    <Route path="coordination" element={<CoordinationWizard />} />
+                                    <Route path={INTERNAL_ROUTES.COORDINATION.replace('/', '')} element={<CoordinationWizard />} />
                                 </Route>
-                                <Route element={<ProtectedRoute requiredCode="PANDOC" />}>
-                                    <Route path="pandoc" element={<PandocWizard />} />
+                                <Route element={<ProtectedRoute />}>
+                                    <Route path={INTERNAL_ROUTES.PANDOC.replace('/', '')} element={<PandocWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="DRAW" />}>
-                                    <Route path="draw" element={<DrawWizard />} />
+                                    <Route path={INTERNAL_ROUTES.DRAW.replace('/', '')} element={<DrawWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="MERGE" />}>
-                                    <Route path="merge" element={<MergeWizard />} />
+                                    <Route path={INTERNAL_ROUTES.MERGE.replace('/', '')} element={<MergeWizard />} />
                                 </Route>
                                 <Route element={<ProtectedRoute requiredCode="BANK_QS" />}>
-                                    <Route path="quiz" element={<QuizHub />} />
+                                    <Route path={INTERNAL_ROUTES.QUIZ.replace('/', '')} element={<QuizHub />} />
                                 </Route>
-                                {/* No SystemCode — universal for all authenticated non-Admins */}
-                                <Route path="history" element={<History />} />
+                                <Route path={INTERNAL_ROUTES.HISTORY.replace('/', '')} element={<History />} />
                             </Route>
                         </Route>
 
-                        {/* Catch-all for any unmatched route - shows 404 with Layout sidebar for authenticated users */}
                         <Route element={<AuthOnlyRoute />}>
                             <Route element={<Layout />}>
                                 <Route path="*" element={<NotFound />} />
                             </Route>
                         </Route>
 
-                        {/* Admin routes — require Admin role */}
                         <Route element={<AdminRoute />}>
                             <Route element={<Layout />}>
-                                <Route path="admin/users" element={<AdminUsers />} />
-                                <Route path="admin/materials" element={<AdminMaterials />} />
-                                <Route path="admin/system" element={<AdminSystem />} />
+                                <Route path={INTERNAL_ROUTES.ADMIN_USERS.replace('/', '')} element={<AdminUsers />} />
+                                <Route path={INTERNAL_ROUTES.ADMIN_MATERIALS.replace('/', '')} element={<AdminMaterials />} />
+                                <Route path={INTERNAL_ROUTES.ADMIN_SYSTEM.replace('/', '')} element={<AdminSystem />} />
                             </Route>
                         </Route>
 
-                        {/* Catch-all for unauthenticated users - redirect to login */}
-                        <Route path="*" element={<Navigate to="/login" replace />} />
+                        <Route path="*" element={<Navigate to={INTERNAL_ROUTES.LOGIN} replace />} />
                     </Routes>
                         </Suspense>
                     </TourProvider>

@@ -16,7 +16,8 @@ import {
   Plus,
   Save,
   X,
-  Circle
+  Circle,
+  Loader2
 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
@@ -56,6 +57,7 @@ export default function QuizHub() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null);
   const [deletingIndex, setDeletingIndex] = useState(null);
+  const [restoring, setRestoring] = useState(!!searchParams.get('id'));
   const { showToast } = useToast();
 
   // Load session from URL param on mount
@@ -67,6 +69,7 @@ export default function QuizHub() {
   }, [searchParams]);
 
   const loadSession = async (id) => {
+    setRestoring(true);
     try {
       const session = await getSession(id);
       const sessionContent = session.sessionContents?.[0];
@@ -88,6 +91,8 @@ export default function QuizHub() {
       }
     } catch (err) {
       console.error('Failed to load session:', err);
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -359,6 +364,17 @@ export default function QuizHub() {
   };
 
   // Step 0: Session Setup
+  if (restoring) {
+    return (
+      <div className="min-h-[60dvh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto animate-fade-slide-in">
       {/* Header */}

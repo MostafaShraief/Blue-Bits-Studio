@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { Copy } from 'lucide-react';
+import { Copy, Loader2 } from 'lucide-react';
 import WizardStepper from '../components/WizardStepper';
 import PromptPreview from '../components/PromptPreview';
 import MaterialAutocomplete from '../components/common/MaterialAutocomplete';
@@ -11,6 +11,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { getSession } from '../api/SessionsApi';
 import { compilePrompt } from '../api/PromptsApi';
 import { RateLimitError } from '../api/HttpClient';
+import { EXTERNAL_LINKS, INTERNAL_ROUTES } from '../config/links';
 
 const STEPS = ['إعداد الجلسة', 'النص', 'المعاينة والنسخ'];
 
@@ -32,7 +33,7 @@ export default function CoordinationWizard() {
     useEffect(() => {
         if (loading) return;
         if (!isAdmin && !canDoLectureCoord && !canDoBankCoord) {
-            navigate('/unauthorized', { replace: true });
+            navigate(INTERNAL_ROUTES.UNAUTHORIZED, { replace: true });
         }
     }, [loading, isAdmin, canDoLectureCoord, canDoBankCoord, navigate]);
 
@@ -50,6 +51,7 @@ export default function CoordinationWizard() {
     const [saved, setSaved] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const originalVals = useRef({});
+    const [restoring, setRestoring] = useState(!!id);
 
     const clearFieldError = (field) => {
         setFieldErrors((prev) => {
@@ -88,7 +90,7 @@ export default function CoordinationWizard() {
                 } else {
                     showToast(err.message || 'فشل في تحميل الجلسة', 'error');
                 }
-            });
+            }).finally(() => setRestoring(false));
         }
     }, [id]);
 
@@ -203,6 +205,17 @@ export default function CoordinationWizard() {
                 ? 'border-danger focus:ring-danger/30 focus:border-danger bg-surface-card'
                 : 'border-border bg-surface-card focus:ring-primary/30 focus:border-primary'
         }`;
+
+    if (restoring) {
+        return (
+            <div className="min-h-[60dvh] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-text-muted">جارٍ تحميل الجلسة...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto animate-fade-slide-in">
@@ -357,7 +370,7 @@ export default function CoordinationWizard() {
                     <div className="bg-surface-card border border-border rounded-2xl p-5 text-sm text-text-secondary space-y-2">
                         <p><strong>خطوات التنفيذ:</strong></p>
                         <ol className="list-decimal list-inside space-y-1">
-                            <li>افتح <a href="https://aistudio.google.com/prompts/new_chat" target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
+                            <li>افتح <a href={EXTERNAL_LINKS.AI_STUDIO} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">Google AI Studio</a>.</li>
                             <li>قم بلصق البرومبت في حقل الإدخال لإنشاء النتيجة.</li>
                             <li>بعد الحصول على النتيجة، انتقل إلى قسم <strong className="text-primary">محوّل Pandoc</strong> في التطبيق والصقها هناك لتحويلها إلى ملف Word.</li>
                         </ol>

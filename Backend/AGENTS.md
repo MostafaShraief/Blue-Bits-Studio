@@ -747,7 +747,7 @@ Defines `IAdminTemplateService` contract for admin template management: `GetTemp
 - As an Admin, I can upload a replacement .dotx file for a specific template type.
 
 ### 5. Functions Summary
-- `GetTemplatesAsync()` → `List<TemplateInfo>`: Reads file metadata from `AppDomain.BaseDirectory/Resources/PandocTemplates/` for `Pandoc-Theo.dotx` and `Pandoc-Prac.dotx`.
+- `GetTemplatesAsync()` → `List<TemplateInfo>`: Reads file metadata from `AppDomain.BaseDirectory/Resources/PandocTemplates/` for `Pandoc.dotx`, `Pandoc-Theo-Final-Step.dotx`, and `Pandoc-Prac-Final-Step.dotx`.
 - `UploadTemplateAsync(string templateType, IFormFile file)` → `TemplateUploadResult`: Validates extension (.dotx), size (≤10 MB), and OpenXML validity via `WordprocessingDocument.Open`. Uses `static SemaphoreSlim(1,1)` to serialize writes. Writes to both `AppDomain.BaseDirectory` (PandocService path) and `ContentRootPath/../Resources` (MergeService path). Returns 200/400/409 status.
 
 ### 6. Integration
@@ -774,7 +774,7 @@ Implements `IAdminTemplateService`. Validates uploaded .dotx files (extension, s
 - As a developer, the uploaded file is written to both the runtime directory (PandocService) and the source Resources directory (MergeService) so both services see the update.
 
 ### 5. Functions Summary
-- `GetTemplatesAsync`: Iterates `_templateDefs` (Theo→نظري/Pandoc-Theo.dotx, Prac→عملي/Pandoc-Prac.dotx), reads `FileInfo` from disk, returns list of `TemplateInfo`.
+- `GetTemplatesAsync`: Iterates `_templateDefs` (Pandoc→قالب Pandoc/Pandoc.dotx, Theo-Final→نظري/Pandoc-Theo-Final-Step.dotx, Prac-Final→عملي/Pandoc-Prac-Final-Step.dotx), reads `FileInfo` from disk, returns list of `TemplateInfo`.
 - `UploadTemplateAsync`: Validates type, extension (.dotx), size (≤10 MB), then copies to `byte[]` and validates via `WordprocessingDocument.Open`. Acquires `SemaphoreSlim` (30s timeout). Writes bytes to both target paths. Releases semaphore in `finally`.
 
 ### 6. Integration
@@ -785,7 +785,7 @@ Injected as `IAdminTemplateService` (scoped). Depends on `IWebHostEnvironment` (
 - **Internal:** `BlueBits.Api.Services.Interfaces`
 
 ### 8. Additional Info
-Uses `static SemaphoreSlim(1,1)` to serialize all write operations across requests — critical for preventing partial writes when PandocService or MergeService may be reading the same files concurrently. Both template files (Theo and Prac) share the same semaphore so one upload blocks the other.
+Uses `static SemaphoreSlim(1,1)` to serialize all write operations across requests — critical for preventing partial writes when PandocService or MergeService may be reading the same files concurrently. Three templates managed: `Pandoc.dotx` (shared white-page template for both نظري/عملي), `Pandoc-Theo-Final-Step.dotx` (merge template for theoretical), `Pandoc-Prac-Final-Step.dotx` (merge template for practical).
 ## 1. File Name and Directory
 `Backend/Controllers/AdminTemplatesController.cs`
 
@@ -1527,7 +1527,7 @@ Calls the **pandoc** external CLI tool. Uses OpenXML SDK for DOCX manipulation. 
 - **Internal:** `BlueBits.Api.Services.Interfaces` (`IPandocService`, `PandocResult`)
 
 ### 8. Additional Info
-Requires **pandoc** on system PATH. Template `.dotx` files in `Resources/PandocTemplates/`.
+Requires **pandoc** on system PATH. Template `.dotx` files in `Resources/PandocTemplates/`. Default white-page template is `Pandoc.dotx` (shared for both نظري/عملي). Final merge templates are selected by lecture type: `Pandoc-Theo-Final-Step.dotx` for theoretical, `Pandoc-Prac-Final-Step.dotx` for practical.
 ## 1. File Name and Directory
 `Backend/Services/MergeService.cs`
 
@@ -1551,7 +1551,7 @@ Uses OpenXML SDK for DOCX manipulation. No database calls.
 - **Internal:** `BlueBits.Api.Services.Interfaces` (`IMergeService`, `MergeResult`)
 
 ### 8. Additional Info
-Template files: `Pandoc-Theo-Final-Step.dotx` (theoretical) / `Pandoc-Prac-Final-Step.dotx` (practical). All merge logic moved from `MergeEndpoints`.
+Template file: `Pandoc.dotx` (shared white-page template). Final merge templates: `Pandoc-Theo-Final-Step.dotx` (theoretical) / `Pandoc-Prac-Final-Step.dotx` (practical). All merge logic moved from `MergeEndpoints`.
 ## 1. File Name and Directory
 `Backend/Validators/`
 
